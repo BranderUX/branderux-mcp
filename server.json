@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.json",
+  "name": "com.branderux/mcp",
+  "description": "Create and control BranderUX projects, custom elements, screens and API keys from your agent — with one-click browser OAuth and built-in reference docs.",
+  "status": "active",
+  "repository": {
+    "url": "https://github.com/BranderUX/branderux-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.branderux.com/mcp"
+    }
+  ]
+}
