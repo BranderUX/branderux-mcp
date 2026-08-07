@@ -36,7 +36,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@brander/mcp-tools": "^0.3.1",
+    "@brander/mcp-tools": "^0.3.2",
     "@modelcontextprotocol/ext-apps": "^1.1.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "sucrase": "^3.35.0",
