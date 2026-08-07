@@ -20,6 +20,71 @@ import { PLAYGROUND_CONFIG } from "./playground.js";
 /** The mcp-tools universal renderer — registered by the playground's registerBranderTools. */
 const RENDERER_RESOURCE_URI = "ui://brander/element-renderer";
 
+/**
+ * The panel reads nested brand fields unguarded (fontStyle.fontFamily,
+ * grayPalette.*) and a crash there blanks the WHOLE panel — it sits above the
+ * per-element error boundaries. Projects written before the MCP's brand
+ * coercion can carry string/null fontStyle etc., so normalize over full
+ * defaults before anything ships to the renderer.
+ */
+const PANEL_BRAND_DEFAULTS = {
+  primaryColor: "#6366F1",
+  secondaryColor: "#06B6D4",
+  brandName: "Your Brand",
+  iconUrl: "",
+  fontStyle: { fontFamily: "'Inter', sans-serif", weight: 500, displayName: "modern" },
+  layoutStyle: { spacing: 3, elevation: 1, displayName: "clean" },
+  borderRadius: 12,
+  shadowIntensity: 2,
+  darkMode: true,
+  accentColor: "#F59E0B",
+  grayPalette: {
+    gray50: "#FAFAFA",
+    gray100: "#F5F5F5",
+    gray200: "#E5E5E5",
+    gray300: "#D4D4D4",
+    gray400: "#A3A3A3",
+    gray500: "#737373",
+    gray600: "#525252",
+    gray700: "#404040",
+    gray800: "#262626",
+    gray900: "#171717",
+  },
+  primaryTextColor: "#171717",
+  secondaryTextColor: "#525252",
+  tertiaryTextColor: "#737373",
+};
+
+function normalizeBrandForPanel(raw: Record<string, unknown>): Record<string, unknown> {
+  const font = raw.fontStyle;
+  const fontStyle =
+    font && typeof font === "object" && typeof (font as { fontFamily?: unknown }).fontFamily === "string"
+      ? { ...PANEL_BRAND_DEFAULTS.fontStyle, ...(font as Record<string, unknown>) }
+      : typeof font === "string" && font.trim()
+        ? { fontFamily: font.includes(",") ? font : `'${font}', sans-serif`, weight: 500, displayName: font }
+        : PANEL_BRAND_DEFAULTS.fontStyle;
+  const layout = raw.layoutStyle;
+  const layoutStyle =
+    layout && typeof layout === "object" && typeof (layout as { spacing?: unknown }).spacing === "number"
+      ? { ...PANEL_BRAND_DEFAULTS.layoutStyle, ...(layout as Record<string, unknown>) }
+      : PANEL_BRAND_DEFAULTS.layoutStyle;
+  const grayPalette =
+    raw.grayPalette && typeof raw.grayPalette === "object"
+      ? { ...PANEL_BRAND_DEFAULTS.grayPalette, ...(raw.grayPalette as Record<string, unknown>) }
+      : PANEL_BRAND_DEFAULTS.grayPalette;
+  const out: Record<string, unknown> = {
+    ...PANEL_BRAND_DEFAULTS,
+    ...raw,
+    fontStyle,
+    layoutStyle,
+    grayPalette,
+  };
+  for (const key of Object.keys(out)) {
+    if (out[key] === null) out[key] = (PANEL_BRAND_DEFAULTS as Record<string, unknown>)[key] ?? undefined;
+  }
+  return out;
+}
+
 /** Mirrors the renderer resource's static CSP — per-response CSP replaces, not merges. */
 const BASE_MEDIA_DOMAINS = [
   "https://fonts.googleapis.com",
@@ -127,7 +192,9 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
     },
     guarded(async ({ projectId, elements }) => {
       const needsCustom = elements.some((e) => e.elementType === "custom");
-      let brandSettings: Record<string, unknown> = PLAYGROUND_CONFIG.brandSettings;
+      let brandSettings: Record<string, unknown> = normalizeBrandForPanel(
+        PLAYGROUND_CONFIG.brandSettings as unknown as Record<string, unknown>
+      );
       let projectSettings: Record<string, unknown> = {};
       const byKey = new Map<string, WireElement>();
 
@@ -137,7 +204,7 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
           settings?: Record<string, unknown>;
         }>(`/projects/${projectId}`);
         if (!project) return fail(`Project ${projectId} not found.`);
-        brandSettings = project.brandSettings ?? {};
+        brandSettings = normalizeBrandForPanel(project.brandSettings ?? {});
         projectSettings = project.settings ?? {};
         if (needsCustom) {
           const wire = await api.get<WireElement[]>(`/projects/${projectId}/elements`);
