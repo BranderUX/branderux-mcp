@@ -37,7 +37,7 @@ const screenShape = z
     elements: z
       .array(z.object({}).passthrough())
       .describe(
-        "Placements. Custom elements: { id, elementType: null, customElementId: '<element-key>', version: <published version>, position: {row, column, subRow} (ALL 0-BASED), size }. Fixed elements use their enum string as elementType."
+        "Placements. Custom elements: { id, elementType: null, customElementId: '<element-key>', version: <published version>, position: {row, column, subRow} (ALL 0-BASED), size }. Fixed elements use the KEBAB-CASE type value as elementType (header, stats-grid, data-table, line-chart, pie-chart, bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert, video) — NEVER the uppercase enum name (ITEM_GRID becomes null server-side)."
       ),
   })
   .passthrough();
@@ -119,8 +119,19 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
         clickedElements: Array.isArray(pick("clickedElements")) ? pick("clickedElements") : [],
       };
       const { whenToUse: _w, exampleQueries: _q, clickedElements: _c, ...configRest } = rawConfig;
+      // Server enums deserialize by kebab VALUE; uppercase names (ITEM_GRID) become
+      // null silently. Coerce so a doc-following agent can't lose placements.
+      const toKebab = (value: unknown): unknown =>
+        typeof value === "string" && /^[A-Z][A-Z0-9_]*$/.test(value)
+          ? value.toLowerCase().replace(/_/g, "-")
+          : value;
+      const normalizedElements = (screen.elements as Record<string, unknown>[]).map((el) => ({
+        ...el,
+        elementType: toKebab(el.elementType),
+      }));
       const wire: WireScreen = {
         ...screen,
+        elements: normalizedElements,
         // Server-owned fields win over anything echoed back from get_screen —
         // the version always bumps, created is always preserved.
         created: existing?.created ?? now,
@@ -133,7 +144,7 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
           name: screen.name,
           description: screen.description ?? "",
           selectionConfig,
-          elements: screen.elements,
+          elements: normalizedElements,
         },
       };
       const next = existing

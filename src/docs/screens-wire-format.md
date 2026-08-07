@@ -30,7 +30,7 @@ power the Screen Builder. `put_screen` takes ONE screen in this exact shape:
     },
     {
       "id": "home-title",
-      "elementType": "HEADER",
+      "elementType": "header",
       "position": { "row": 1, "column": 0, "subRow": 0 },
       "size": { "width": { "md": "100.00%", "xs": "100%" }, "height": "auto",
                 "flex": { "md": "1 1 100.00%", "xs": "1 1 100%" },
@@ -47,7 +47,9 @@ Rules (each learned the hard way):
 - **Positions are 0-BASED** — `{row: 0, column: 0, subRow: 0}` is the first slot.
 - **Custom elements**: `elementType: null` + `customElementId: "<element-key>"` +
   `version: <current published version>` (get it from list_elements). Fixed elements use
-  their enum string (HEADER, DATA_TABLE, ITEM_GRID, CHAT_BUBBLE, …).
+  the KEBAB-CASE type value: header, stats-grid, data-table, line-chart, pie-chart,
+  bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert,
+  video — NEVER the uppercase enum name (ITEM_GRID is silently nulled server-side).
 - Sizes are percent strings with two decimals and a matching flex string; `xs` is always
   "100%" (mobile stacks). Centered single-element screens: `maxWidth` +
   `alignSelf: "center"`.
