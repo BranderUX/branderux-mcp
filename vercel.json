@@ -6,12 +6,7 @@
     { "source": "/.well-known/oauth-protected-resource/mcp", "destination": "/api/oauth-protected-resource" }
   ],
   "functions": {
-    "api/mcp.ts": {
-      "maxDuration": 60,
-      "includeFiles": "{dist/app/**,node_modules/@brander/mcp-tools/dist/app/**}"
-    },
-    "api/health.ts": {
-      "includeFiles": "{dist/app/**,node_modules/@brander/mcp-tools/dist/app/**}"
-    }
+    "api/mcp.ts": { "maxDuration": 60, "includeFiles": "dist/app/**" },
+    "api/health.ts": { "includeFiles": "dist/app/**" }
   }
 }

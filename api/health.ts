@@ -1,17 +1,21 @@
 import { existsSync } from "node:fs";
-import { createRequire } from "node:module";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { isPreviewAppAvailable } from "../src/preview/app-resource.js";
 import { AUTH_ISSUER, MCP_RESOURCE } from "../src/config.js";
 
-const require = createRequire(import.meta.url);
-
-/** True when @brander/mcp-tools' universal-renderer HTML shipped in the bundle. */
+/**
+ * True when @brander/mcp-tools' universal-renderer HTML shipped in the bundle.
+ * Resolving the package ENTRY (ESM — its exports map has no CJS condition)
+ * keeps the file-tracer walking the library's own readFileSync — which is what
+ * bundles the HTML — and gives a runtime anchor to derive its path from
+ * (dist/server/lib-entry.js → ../../app/index.html = dist/app/index.html).
+ */
 function isPlaygroundAppBundled(): boolean {
   try {
-    const pkg = require.resolve("@brander/mcp-tools/package.json");
-    return existsSync(join(pkg, "..", "dist", "app", "index.html"));
+    const entry = fileURLToPath(import.meta.resolve("@brander/mcp-tools"));
+    return existsSync(join(entry, "..", "..", "app", "index.html"));
   } catch {
     return false;
   }
