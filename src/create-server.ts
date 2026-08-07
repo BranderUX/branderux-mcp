@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createApiClient } from "./api-client.js";
 import { registerPlayground } from "./playground/playground.js";
+import { registerRenderProjectScreen } from "./playground/render-project-screen.js";
 import { registerPreviewAppResource } from "./preview/app-resource.js";
 import { registerKnowledgeResources, registerKnowledgeTools } from "./tools/knowledge.js";
 import { registerPrompts } from "./prompts.js";
@@ -52,6 +53,7 @@ export async function createServer(apiTokenProvider: () => Promise<string>): Pro
   registerElementTools(server, api);
   registerKeyTools(server, api);
   await registerPlayground(server);
+  registerRenderProjectScreen(server, api);
 
   return server;
 }
