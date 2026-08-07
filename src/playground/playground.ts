@@ -16,7 +16,7 @@ import { join } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerBranderTools } from "@brander/mcp-tools";
 
-const PLAYGROUND_CONFIG = {
+export const PLAYGROUND_CONFIG = {
   projectName: "BranderUX Playground",
   brandSettings: {
     brandName: "Atelier Nova",
@@ -95,23 +95,16 @@ export async function registerPlayground(server: McpServer): Promise<void> {
       projectId: "playground",
       brandSettingsPath: playgroundConfigPath(),
     });
-    // Disambiguate: agents kept reaching for generate_screen to render REAL
-    // projects (and its canned brand can pass for one by coincidence). Prefix
-    // the registered description so the split is unmissable in tools/list.
+    // The library's tool is single-project by design (right for CUSTOMER servers,
+    // wrong for the builder). Remove it — the unified generate_screen in
+    // generate-screen.ts replaces it, keeping the library's renderer RESOURCE
+    // and its image-proxy tool.
     const registered = (
       server as unknown as {
-        _registeredTools?: Record<string, { description?: string; update?: (u: { description: string }) => void }>;
+        _registeredTools?: Record<string, { remove?: () => void }>;
       }
     )._registeredTools?.["generate_screen"];
-    if (registered?.update) {
-      registered.update({
-        description:
-          "PLAYGROUND ONLY — a project-less demo with a canned brand and NO custom elements. " +
-          "Use it to show what BranderUX output looks like before anything exists. " +
-          "To render a REAL project (its brand + its custom elements), use render_project_screen instead. " +
-          (registered.description ?? ""),
-      });
-    }
+    registered?.remove?.();
   } catch (error) {
     console.error("[branderux-mcp] playground unavailable:", error);
   }

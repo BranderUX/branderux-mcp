@@ -44,7 +44,7 @@ Build WITH the user, not silently — gather intent first, show results as you g
    analytics, form for lead capture, …). The map merges key-wise; `custom:<key>`
    entries are never touched by fixed-element writes.
 6. Compose example screens with `put_screen` following `screens-wire-format` — these teach
-   the runtime AI your screen patterns. After each, SHOW it with `render_project_screen`
+   the runtime AI your screen patterns. After each, SHOW it with `generate_screen (with projectId)`
    (real brand + the project's custom elements) so the user sees the assembled screen.
 7. `create_api_key` — ASK the user for their site's exact origins first (required, no
    wildcards); the raw `bux_pk_` key is shown ONCE.

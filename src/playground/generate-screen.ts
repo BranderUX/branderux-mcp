@@ -1,9 +1,13 @@
 /**
- * render_project_screen — the project-aware sibling of the playground's
- * generate_screen: renders a screen in the SAME universal-renderer panel, but
- * with a REAL project's brand settings and published custom elements (fetched
- * with the caller's token, compiled server-side). Unknown custom keys fail
- * LOUD with the list of available keys — never a silent drop.
+ * generate_screen — THE screen renderer of the builder MCP, replacing the
+ * single-project tool from @brander/mcp-tools (which stays correct for
+ * customer servers but not here). One tool, two modes:
+ *   - with projectId: the REAL project's brand + its published custom elements
+ *     (fetched with the caller's token, compiled server-side). Unknown custom
+ *     keys fail LOUD with the list of available keys.
+ *   - without projectId: the playground — canned demo brand, fixed elements
+ *     only, for showing BranderUX output before anything exists.
+ * Renders through the universal-renderer resource the playground registers.
  */
 
 import { z } from "zod";
@@ -11,6 +15,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { READ_ONLY, fail, guarded } from "../tools/helpers.js";
 import { compileForPreview, extractCallbackNames, extractImageOrigins } from "../preview/compile.js";
+import { PLAYGROUND_CONFIG } from "./playground.js";
 
 /** The mcp-tools universal renderer — registered by the playground's registerBranderTools. */
 const RENDERER_RESOURCE_URI = "ui://brander/element-renderer";
@@ -85,20 +90,27 @@ function primaryTemplate(raw: string | null | undefined): string | null {
   }
 }
 
-export function registerRenderProjectScreen(server: McpServer, api: ApiClient): void {
+export function registerGenerateScreen(server: McpServer, api: ApiClient): void {
   server.registerTool(
-    "render_project_screen",
+    "generate_screen",
     {
-      title: "Render a project screen",
+      title: "Generate a branded screen",
       description:
-        "Render a screen in the panel using a REAL project's brand settings and published " +
-        "CUSTOM elements (unlike generate_screen, which is a project-less demo playground). " +
+        "Render a branded, interactive screen in the panel. WITH projectId: uses that project's " +
+        "REAL brand settings and published CUSTOM elements. WITHOUT projectId: playground mode — " +
+        "a canned demo brand, fixed elements only, for showing BranderUX output before anything exists. " +
         `Elements: the 15 fixed types (${FIXED_TYPES.join(", ")}) plus ` +
         '{ elementType: "custom", key: "<element-key>", props } for the project\'s own elements — ' +
         "call list_elements first for keys and read each element's propsSchema via get_element. " +
+        "To render a SAVED screen: get_screen, then compose the same placements here with realistic " +
+        "demo props (custom elements: their defaultProps are a good start). " +
         "Set clickQuery on elements so clicks send follow-up queries.",
       inputSchema: {
-        projectId: z.string().uuid(),
+        projectId: z
+          .string()
+          .uuid()
+          .optional()
+          .describe("Project whose brand + custom elements to render with; omit for playground mode"),
         elements: z.array(elementEntry).min(1),
       },
       outputSchema: {
@@ -114,19 +126,29 @@ export function registerRenderProjectScreen(server: McpServer, api: ApiClient): 
       },
     },
     guarded(async ({ projectId, elements }) => {
-      const project = await api.get<{
-        brandSettings?: Record<string, unknown>;
-        settings?: Record<string, unknown>;
-      }>(`/projects/${projectId}`);
-      if (!project) return fail(`Project ${projectId} not found.`);
-
       const needsCustom = elements.some((e) => e.elementType === "custom");
+      let brandSettings: Record<string, unknown> = PLAYGROUND_CONFIG.brandSettings;
+      let projectSettings: Record<string, unknown> = {};
       const byKey = new Map<string, WireElement>();
-      if (needsCustom) {
-        const wire = await api.get<WireElement[]>(`/projects/${projectId}/elements`);
-        for (const el of wire ?? []) {
-          if (el.elementKey) byKey.set(el.elementKey, el);
+
+      if (projectId) {
+        const project = await api.get<{
+          brandSettings?: Record<string, unknown>;
+          settings?: Record<string, unknown>;
+        }>(`/projects/${projectId}`);
+        if (!project) return fail(`Project ${projectId} not found.`);
+        brandSettings = project.brandSettings ?? {};
+        projectSettings = project.settings ?? {};
+        if (needsCustom) {
+          const wire = await api.get<WireElement[]>(`/projects/${projectId}/elements`);
+          for (const el of wire ?? []) {
+            if (el.elementKey) byKey.set(el.elementKey, el);
+          }
         }
+      } else if (needsCustom) {
+        return fail(
+          "Playground mode (no projectId) has no custom elements — pass the projectId whose elements you want to render."
+        );
       }
 
       const screenElements: Record<string, unknown>[] = [];
@@ -144,7 +166,7 @@ export function registerRenderProjectScreen(server: McpServer, api: ApiClient): 
         const payload = wire?.currentVersionPayload;
         if (!wire || !payload?.code) {
           return fail(
-            `Custom element key "${entry.key ?? "(missing)"}" not found in project ${projectId}. ` +
+            `Custom element key "${entry.key ?? "(missing)"}" not found in project ${projectId ?? "(playground)"}. ` +
               `Available keys: ${[...byKey.keys()].join(", ") || "(none — this project has no published custom elements)"}`
           );
         }
@@ -172,8 +194,8 @@ export function registerRenderProjectScreen(server: McpServer, api: ApiClient): 
       const structuredContent = {
         elementType: "screen",
         elements: screenElements,
-        brandSettings: project.brandSettings ?? {},
-        projectSettings: project.settings ?? {},
+        brandSettings,
+        projectSettings,
       };
 
       const imageOrigins = extractImageOrigins(elements.map((e) => e.props)).filter(
@@ -201,7 +223,9 @@ export function registerRenderProjectScreen(server: McpServer, api: ApiClient): 
         content: [
           {
             type: "text" as const,
-            text: `Rendered a ${screenElements.length}-element screen with the project's brand: ${summary}`,
+            text: projectId
+              ? `Rendered a ${screenElements.length}-element screen with the project's brand: ${summary}`
+              : `Rendered a ${screenElements.length}-element PLAYGROUND screen (demo brand): ${summary}`,
           },
         ],
         structuredContent,
