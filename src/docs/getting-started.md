@@ -37,14 +37,20 @@ Build WITH the user, not silently — gather intent first, show results as you g
 4. Write custom elements YOURSELF (you know the product) following
    `custom-elements-contract`, publish with `create_element` — each one renders live in
    the panel as it publishes (supporting clients), so the user approves as you go.
-5. Compose example screens with `put_screen` following `screens-wire-format` — these teach
+5. Disable the FIXED elements that don't fit the product via `update_project_settings`
+   `{"elementVisibility": {"data-table": false, ...}}` — a branded app should compose
+   from ITS OWN elements, not generic tables/charts. Rule of thumb: keep `header` and
+   `chat-bubble`; keep others only when the product genuinely needs them (charts for
+   analytics, form for lead capture, …). The map merges key-wise; `custom:<key>`
+   entries are never touched by fixed-element writes.
+6. Compose example screens with `put_screen` following `screens-wire-format` — these teach
    the runtime AI your screen patterns. After each, SHOW it with `render_project_screen`
    (real brand + the project's custom elements) so the user sees the assembled screen.
-6. `create_api_key` — ASK the user for their site's exact origins first (required, no
+7. `create_api_key` — ASK the user for their site's exact origins first (required, no
    wildcards); the raw `bux_pk_` key is shown ONCE.
-7. Point the customer's agent endpoint at their LLM with the verified snippet
+8. Point the customer's agent endpoint at their LLM with the verified snippet
    (`get_integration_snippet`) — `params.system` forwarding is mandatory.
-8. FINISH with a copy-paste env block and where each value goes:
+9. FINISH with a copy-paste env block and where each value goes:
    `BRANDER_PROJECT_ID=<project id>` and `BRANDER_API_KEY=<bux_pk_ key>` (framework
    naming per the snippet, e.g. NEXT_PUBLIC_* only for values that are safe in the
    browser — the pk key is publishable, provider LLM keys are NOT).

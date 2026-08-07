@@ -120,7 +120,8 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
     {
       title: "Update project settings",
       description:
-        "Merge changes into project.settings — uiGenerationMode ('flexible' | 'deterministic'), elementVisibility, customPages, flexibleModeRules, elementStyleVariant.",
+        "Merge changes into project.settings — uiGenerationMode ('flexible' | 'deterministic'), elementVisibility, customPages, flexibleModeRules, elementStyleVariant. " +
+        "elementVisibility merges key-wise: fixed-element keys are the kebab type names (header, stats-grid, data-table, line-chart, pie-chart, bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert, video), custom elements are custom:<key>; false disables, absent = enabled.",
       inputSchema: { projectId: z.string().uuid(), settings: z.object({}).passthrough() },
       outputSchema: { project: z.object({}).passthrough() },
       annotations: IDEMPOTENT_WRITE,
@@ -128,7 +129,16 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
     guarded(async ({ projectId, settings }) => {
       const project = await api.get<{ settings?: Record<string, unknown> }>(`/projects/${projectId}`);
       if (!project) return fail(`Project ${projectId} not found.`);
-      const merged = { ...(project.settings ?? {}), ...settings };
+      const current = project.settings ?? {};
+      const merged = { ...current, ...settings };
+      // elementVisibility merges KEY-WISE — a partial write must never wipe the
+      // other toggles (especially custom:<key> entries the dashboard manages).
+      if (settings.elementVisibility && typeof settings.elementVisibility === "object") {
+        merged.elementVisibility = {
+          ...((current.elementVisibility as Record<string, boolean> | undefined) ?? {}),
+          ...(settings.elementVisibility as Record<string, boolean>),
+        };
+      }
       const updated = await api.patch<Record<string, unknown>>(`/projects/${projectId}`, {
         settings: merged,
       });

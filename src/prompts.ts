@@ -32,10 +32,11 @@ Work in this order, using the BranderUX MCP tools:
 3. whoami, then create_project.
 4. update_brand_settings with a coherent palette and type; update_project_settings with {"uiGenerationMode": "flexible"}.
 5. Author 4-6 custom elements yourself (one per screen AREA, not per widget) and publish them with create_element — each renders in the panel as you publish; pause for my feedback.
-6. Compose 4-6 example screens with put_screen, pinning the published element versions. Show each with render_project_screen so I see the assembled screen in my brand.
-7. Ask me for my site's exact origin(s), then create_api_key. Relay the raw key immediately — it is shown once.
-8. Give me the frontend snippet and the backend agent route (get_integration_snippet), with params.system forwarded.
-9. Finish with the exact env block to paste: BRANDER_PROJECT_ID=… and BRANDER_API_KEY=… (plus where each goes in the snippet).
+6. Disable the fixed elements that don't fit this product (update_project_settings elementVisibility, kebab keys like "data-table": false) so the runtime AI composes from OUR elements — tell me which you kept and why.
+7. Compose 4-6 example screens with put_screen, pinning the published element versions. Show each with render_project_screen so I see the assembled screen in my brand.
+8. Ask me for my site's exact origin(s), then create_api_key. Relay the raw key immediately — it is shown once.
+9. Give me the frontend snippet and the backend agent route (get_integration_snippet), with params.system forwarded.
+10. Finish with the exact env block to paste: BRANDER_PROJECT_ID=… and BRANDER_API_KEY=… (plus where each goes in the snippet).
 Ask me before anything destructive.`,
           },
         },
