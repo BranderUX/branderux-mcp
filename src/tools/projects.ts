@@ -7,8 +7,41 @@ const brandSettingsShape = z
   .object({})
   .passthrough()
   .describe(
-    "Partial BrandSettings — only the fields to change. Common: brandName, primaryColor, secondaryColor, accentColor, backgroundColor, textColor, fontStyle, borderRadius, logoUrl, darkMode."
+    "Partial BrandSettings — only the fields to change. Colors: brandName, primaryColor, secondaryColor, accentColor, backgroundColor, darkMode (boolean), borderRadius (number). " +
+      'fontStyle MUST be a computed object: {"fontFamily": "\'Inter\', sans-serif", "weight": 500, "displayName": "Inter"} — never a bare string or null. ' +
+      'layoutStyle likewise: {"spacing": 16, "elevation": 2, "displayName": "Clean"}. Strings are auto-coerced server-side, but send the object form.'
   );
+
+/**
+ * Agents love writing fontStyle/layoutStyle as bare strings or null — shapes that
+ * used to crash the dashboard at render. Coerce to the computed object forms the
+ * client expects; nulls are dropped so stored settings never carry them.
+ */
+function normalizeBrandInput(brandSettings: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...brandSettings };
+  const font = out.fontStyle;
+  if (font === null || font === undefined) {
+    delete out.fontStyle;
+  } else if (typeof font === "string") {
+    const name = font.trim() || "Inter";
+    out.fontStyle = {
+      fontFamily: name.includes(",") ? name : `'${name}', sans-serif`,
+      weight: 500,
+      displayName: name,
+      isCustom: true,
+    };
+  }
+  const layout = out.layoutStyle;
+  if (layout === null || layout === undefined) {
+    delete out.layoutStyle;
+  } else if (typeof layout === "string") {
+    out.layoutStyle = { spacing: 16, elevation: 2, displayName: layout.trim() || "Clean", isCustom: true };
+  }
+  for (const key of Object.keys(out)) {
+    if (out[key] === null) delete out[key];
+  }
+  return out;
+}
 
 const projectSummary = {
   id: z.string(),
@@ -88,7 +121,7 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
       const created = await api.post<Record<string, unknown>>("/projects", {
         name,
         ...(description ? { description } : {}),
-        ...(brandSettings ? { brandSettings } : {}),
+        ...(brandSettings ? { brandSettings: normalizeBrandInput(brandSettings) } : {}),
       });
       return ok({ project: created ?? {} });
     })
@@ -107,7 +140,7 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
     guarded(async ({ projectId, brandSettings }) => {
       const project = await api.get<{ brandSettings?: Record<string, unknown> }>(`/projects/${projectId}`);
       if (!project) return fail(`Project ${projectId} not found.`);
-      const merged = { ...(project.brandSettings ?? {}), ...brandSettings };
+      const merged = { ...(project.brandSettings ?? {}), ...normalizeBrandInput(brandSettings) };
       const updated = await api.patch<Record<string, unknown>>(`/projects/${projectId}`, {
         brandSettings: merged,
       });
