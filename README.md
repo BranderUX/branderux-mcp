@@ -36,6 +36,11 @@ demo props applied, clicks showing the exact query they would send.
 **API keys** (`keys:manage`): `create_api_key` · `list_api_keys` · `set_key_origins` ·
 `revoke_api_key`
 
+**Playground** (no project needed): `generate_screen` — renders a real branded,
+interactive screen in the panel with demo data, powered by the same published
+`@brander/mcp-tools` package customers install. Ask for a storefront, analytics
+or order-flow screen to see actual BranderUX output before building anything.
+
 Every destructive tool requires an explicit `confirm: true`.
 
 ## Local development

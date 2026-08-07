@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createApiClient } from "./api-client.js";
+import { registerPlayground } from "./playground/playground.js";
 import { registerPreviewAppResource } from "./preview/app-resource.js";
 import { registerKnowledgeResources, registerKnowledgeTools } from "./tools/knowledge.js";
 import { registerPrompts } from "./prompts.js";
@@ -16,6 +17,9 @@ Two families of tools:
   both have exact wire formats that fail silently when guessed.
 • CONTROL — projects, brand settings, custom elements, screens and API keys for the
   signed-in user. Destructive tools require confirm: true; ask the user first.
+• PLAYGROUND — generate_screen renders a real branded, interactive screen in the
+  panel with demo data (no project needed). Use it to SHOW what BranderUX output
+  looks like before building anything.
 
 Two audiences, don't confuse them: these tools let YOU build BranderUX projects; the
 customer's own agent renders branded screens via @brander/sdk (see the agent-frameworks
@@ -26,7 +30,7 @@ doc) or @brander/mcp-tools if their product is itself an MCP server.`;
  * Knowledge tools never call the API; control tools ride a token obtained by
  * exchanging the caller's token for an API-audience one (see auth.ts).
  */
-export function createServer(apiTokenProvider: () => Promise<string>): McpServer {
+export async function createServer(apiTokenProvider: () => Promise<string>): Promise<McpServer> {
   const server = new McpServer(
     {
       name: "branderux",
@@ -47,6 +51,7 @@ export function createServer(apiTokenProvider: () => Promise<string>): McpServer
   registerScreenTools(server, api);
   registerElementTools(server, api);
   registerKeyTools(server, api);
+  await registerPlayground(server);
 
   return server;
 }

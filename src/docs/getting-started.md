@@ -4,6 +4,12 @@ BranderUX is AI-UX infrastructure: it turns an AI agent into a full, branded, in
 application. The customer's agent answers; BranderUX renders every answer as a live,
 branded screen — clickable products, order panels, dashboards — not text.
 
+## See it before you build it
+
+`generate_screen` (the playground) renders a real branded, interactive screen in the
+panel from demo data — no project required. Use it first when the user asks what
+BranderUX looks like.
+
 ## The two integration paths
 
 1. **SDK embed** (`@brander/sdk`) — the customer's site renders `<Brander />`, which opens

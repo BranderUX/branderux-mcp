@@ -2,7 +2,7 @@
   "name": "@brander/mcp",
   "version": "0.1.0",
   "type": "module",
-  "description": "BranderUX MCP server \u2014 let your agent create and control BranderUX projects, custom elements, screens and API keys, with one-click browser OAuth.",
+  "description": "BranderUX MCP server — let your agent create and control BranderUX projects, custom elements, screens and API keys, with one-click browser OAuth.",
   "homepage": "https://branderux.com/mcp",
   "repository": {
     "type": "git",
@@ -36,6 +36,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@brander/mcp-tools": "^0.3.0",
     "@modelcontextprotocol/ext-apps": "^1.1.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "sucrase": "^3.35.0",

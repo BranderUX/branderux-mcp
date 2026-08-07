@@ -73,7 +73,7 @@ const httpServer = createHttpServer(async (req, res) => {
   for await (const chunk of req) chunks.push(chunk as Buffer);
   const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : undefined;
 
-  const server = createServer(() => exchangeForApiToken(token));
+  const server = await createServer(() => exchangeForApiToken(token));
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   await server.connect(transport);
   await transport.handleRequest(req, res, body);
