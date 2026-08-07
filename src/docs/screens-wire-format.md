@@ -9,9 +9,11 @@ power the Screen Builder. `put_screen` takes ONE screen in this exact shape:
   "name": "Home",
   "description": "Personalized home: hero plus product picks.",
   "config": {
-    "whenToUse": "The user opens the app or asks for the home page.",
-    "exampleQueries": ["Show home page"],
-    "clickedElements": ["product card → product order panel"],
+    "selectionConfig": {
+      "whenToUse": "The user opens the app or asks for the home page.",
+      "exampleQueries": ["Show home page"],
+      "clickedElements": ["product card → product order panel"]
+    },
     "layout": { "type": "flex", "flexDirection": "column", "gap": { "xs": 2, "md": 3 }, "padding": { "xs": 2, "md": 3 } }
   },
   "elements": [
@@ -40,6 +42,8 @@ power the Screen Builder. `put_screen` takes ONE screen in this exact shape:
 ```
 
 Rules (each learned the hard way):
+- **The AI-selection fields are NESTED**: `config.selectionConfig.{whenToUse, exampleQueries,
+  clickedElements}` — never flat on config (flat inputs are lifted, but write the nested form).
 - **Positions are 0-BASED** — `{row: 0, column: 0, subRow: 0}` is the first slot.
 - **Custom elements**: `elementType: null` + `customElementId: "<element-key>"` +
   `version: <current published version>` (get it from list_elements). Fixed elements use

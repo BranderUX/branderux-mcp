@@ -32,7 +32,7 @@ const screenShape = z
       .object({})
       .passthrough()
       .describe(
-        "Screen config: { whenToUse, exampleQueries[], clickedElements[], layout, elements[] } — see the screens-wire-format doc (read_doc) for the exact shape."
+        "Screen config: { selectionConfig: { whenToUse, exampleQueries[], clickedElements[] }, layout } — see the screens-wire-format doc (read_doc) for the exact shape. Flat whenToUse/exampleQueries/clickedElements are accepted and lifted into selectionConfig."
       ),
     elements: z
       .array(z.object({}).passthrough())
@@ -107,6 +107,18 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
 
       const now = new Date().toISOString();
       const existing = state.screens.find((s) => s.id === screen.id);
+      // Canonical config shape: the AI-selection fields live NESTED under
+      // selectionConfig (the Screen Builder reads config.selectionConfig.whenToUse).
+      // Accept the flat form agents were taught earlier and lift it.
+      const rawConfig = (screen.config ?? {}) as Record<string, unknown>;
+      const nested = (rawConfig.selectionConfig ?? {}) as Record<string, unknown>;
+      const pick = (key: string): unknown => nested[key] ?? rawConfig[key];
+      const selectionConfig = {
+        whenToUse: typeof pick("whenToUse") === "string" ? pick("whenToUse") : "",
+        exampleQueries: Array.isArray(pick("exampleQueries")) ? pick("exampleQueries") : [],
+        clickedElements: Array.isArray(pick("clickedElements")) ? pick("clickedElements") : [],
+      };
+      const { whenToUse: _w, exampleQueries: _q, clickedElements: _c, ...configRest } = rawConfig;
       const wire: WireScreen = {
         ...screen,
         // Server-owned fields win over anything echoed back from get_screen —
@@ -115,7 +127,14 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
         version: (existing?.version ?? 0) + 1,
         modified: now,
         // The renderer reads config.elements; keep it in lockstep with elements.
-        config: { ...(screen.config ?? {}), elements: screen.elements },
+        config: {
+          ...configRest,
+          id: screen.id,
+          name: screen.name,
+          description: screen.description ?? "",
+          selectionConfig,
+          elements: screen.elements,
+        },
       };
       const next = existing
         ? state.screens.map((s) => (s.id === screen.id ? wire : s))
