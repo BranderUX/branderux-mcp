@@ -4,7 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
 import { buildPreviewPayload, extractImageOrigins } from "../preview/compile.js";
-import { isPreviewAppAvailable, previewMeta } from "../preview/app-resource.js";
+import { PREVIEW_RESOURCE_URI, isPreviewAppAvailable, previewMeta } from "../preview/app-resource.js";
 
 /**
  * Custom-element tools. The AGENT writes the element code itself (it knows the
@@ -143,6 +143,10 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
         preview: z.object({}).passthrough().optional(),
       },
       annotations: READ_ONLY,
+      _meta: {
+        ui: { resourceUri: PREVIEW_RESOURCE_URI },
+        "ui/resourceUri": PREVIEW_RESOURCE_URI,
+      },
     },
     guarded(async ({ projectId, elementId }) => {
       const element = await api.get<{
@@ -185,6 +189,10 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
       outputSchema: {
         element: z.object({}).passthrough(),
         preview: z.object({}).passthrough().optional(),
+      },
+      _meta: {
+        ui: { resourceUri: PREVIEW_RESOURCE_URI },
+        "ui/resourceUri": PREVIEW_RESOURCE_URI,
       },
       inputSchema: {
       projectId: z.string().uuid(),
@@ -253,6 +261,10 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
         elementId: z.string(),
         publishedVersion: z.number().optional(),
         preview: z.object({}).passthrough().optional(),
+      },
+      _meta: {
+        ui: { resourceUri: PREVIEW_RESOURCE_URI },
+        "ui/resourceUri": PREVIEW_RESOURCE_URI,
       },
       inputSchema: {
       projectId: z.string().uuid(),
