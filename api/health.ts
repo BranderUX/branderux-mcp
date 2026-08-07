@@ -2,6 +2,11 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+// Side-effect-free import, load-bearing for the bundler: the file-tracer only
+// walks @brander/mcp-tools' module graph (whose readFileSync is what bundles
+// the panel HTML) when the package is actually imported — resolve() alone
+// doesn't. This makes this function's bundle match api/mcp.ts's.
+import "@brander/mcp-tools";
 import { isPreviewAppAvailable } from "../src/preview/app-resource.js";
 import { AUTH_ISSUER, MCP_RESOURCE } from "../src/config.js";
 
