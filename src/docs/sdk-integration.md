@@ -52,6 +52,19 @@ translation for you when you call providers directly from the handler.
   named `generate_{screenId}_data`; the model answers via tool calls.
 Set per project: `update_project_settings {"uiGenerationMode": "flexible"}`.
 
+## Hand-off checklist (end every integration with this)
+
+Give the user a copy-paste env block and say where each value goes:
+
+```bash
+BRANDER_PROJECT_ID=<project uuid>     # <Brander projectId={...}>
+BRANDER_API_KEY=<bux_pk_...>          # <Brander apiKey={...}> — publishable, browser-safe
+ANTHROPIC_API_KEY=<sk-ant-...>        # server route ONLY — never NEXT_PUBLIC_*
+```
+
+The pk key is origin-locked to the domains given at create_api_key — remind the user to
+re-run set_key_origins when their domain changes.
+
 ## Timeouts and limits
 
 - Streaming responses have a 120s budget end-to-end; non-streaming 30s.

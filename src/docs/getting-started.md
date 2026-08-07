@@ -23,18 +23,31 @@ BranderUX looks like.
 
 ## How to build a full agentic app with these tools
 
+Build WITH the user, not silently — gather intent first, show results as you go:
+
+0. ASK before building: what does the product do, what brand direction (or scrape their
+   site's colors), and which 3-5 screens matter most (home, listing, detail, …)? If
+   they want to see what BranderUX output looks like first, show the playground
+   (`generate_screen`) before creating anything.
 1. `whoami` — confirm identity and existing projects.
 2. `create_project` — name + brand settings (colors/fonts, or set later with
    `update_brand_settings`).
 3. `update_project_settings` — `{"uiGenerationMode": "flexible"}` (A2UI mode: the agent
    emits declarative screens; this is the mode for full apps).
 4. Write custom elements YOURSELF (you know the product) following
-   `custom-elements-contract`, publish with `create_element`.
+   `custom-elements-contract`, publish with `create_element` — each one renders live in
+   the panel as it publishes (supporting clients), so the user approves as you go.
 5. Compose example screens with `put_screen` following `screens-wire-format` — these teach
-   the runtime AI your screen patterns.
-6. `create_api_key` — mint the `bux_pk_` key the customer's site passes to `<Brander />`.
+   the runtime AI your screen patterns. After each, SHOW it with `render_project_screen`
+   (real brand + the project's custom elements) so the user sees the assembled screen.
+6. `create_api_key` — ASK the user for their site's exact origins first (required, no
+   wildcards); the raw `bux_pk_` key is shown ONCE.
 7. Point the customer's agent endpoint at their LLM with the verified snippet
    (`get_integration_snippet`) — `params.system` forwarding is mandatory.
+8. FINISH with a copy-paste env block and where each value goes:
+   `BRANDER_PROJECT_ID=<project id>` and `BRANDER_API_KEY=<bux_pk_ key>` (framework
+   naming per the snippet, e.g. NEXT_PUBLIC_* only for values that are safe in the
+   browser — the pk key is publishable, provider LLM keys are NOT).
 
 ## Critical traps (each has silently broken real integrations)
 
