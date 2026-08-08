@@ -3,12 +3,10 @@ import { createRoot } from "react-dom/client";
 import { App as McpApp } from "@modelcontextprotocol/ext-apps";
 import { PreviewHost, type PreviewPayload } from "./PreviewHost";
 
-const MAX_HEIGHT = 600; // matches index.html max-height on html/body/#root
-
 const mcpApp = new McpApp(
   { name: "branderux-element-preview", version: "0.1.0" },
   {},
-  { autoResize: false } // height is reported manually, clamped
+  { autoResize: false } // height is reported manually (full content height)
 );
 
 let setPayload: ((payload: PreviewPayload) => void) | null = null;
@@ -44,16 +42,15 @@ root.render(<Root />);
 
 // ---------------------------------------------------------------------------
 // Height reporting (pattern from the brander-mcp-tools renderer): debounced,
-// clamped everywhere except ChatGPT, which auto-sizes inline iframes.
+// full content height — the host owns scrolling on every surface.
 // ---------------------------------------------------------------------------
-let isOpenAI = false;
 let lastReportedHeight = 0;
 let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 
 function reportSize() {
-  const h = isOpenAI
-    ? document.documentElement.scrollHeight
-    : Math.min(document.documentElement.scrollHeight, MAX_HEIGHT);
+  // No cap on any host: inner scroll doesn't work in mobile iframes — report
+  // full content height and let the HOST scroll (mirrors mcp-tools 0.3.1).
+  const h = document.documentElement.scrollHeight;
   if (h === lastReportedHeight) return;
   lastReportedHeight = h;
   mcpApp.sendSizeChanged({ height: h }).catch(() => {});
@@ -68,13 +65,6 @@ function scheduleReportSize() {
 }
 
 mcpApp.connect().then(() => {
-  isOpenAI = typeof (window as unknown as Record<string, unknown>).openai !== "undefined";
-  if (isOpenAI) {
-    const style = document.createElement("style");
-    style.textContent =
-      "html, body, #root { max-height: none !important; overflow-y: visible !important; }";
-    document.head.appendChild(style);
-  }
   reportSize();
   const observer = new ResizeObserver(() => scheduleReportSize());
   observer.observe(document.body);
