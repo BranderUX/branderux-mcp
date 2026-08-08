@@ -14,6 +14,8 @@ export interface PreviewPayload {
   clickQueryTemplate: string | null;
   interactionPropName: string | null;
   callbackNames: string[];
+  /** Normalized project brand — the preview themes the element with it. */
+  brandSettings?: Record<string, unknown>;
 }
 
 export function compileForPreview(code: string): string {

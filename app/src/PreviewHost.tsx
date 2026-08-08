@@ -1,5 +1,11 @@
 import * as React from "react";
-import { Box, Typography } from "@mui/material";
+import {
+  Box,
+  CssBaseline,
+  ThemeProvider,
+  Typography,
+  createTheme,
+} from "@mui/material";
 import { requireShim } from "./require-table";
 import { parseTemplateSpec, resolveActionQuery } from "./click-query-lite";
 
@@ -12,9 +18,53 @@ export interface PreviewPayload {
   clickQueryTemplate: string | null;
   interactionPropName: string | null;
   callbackNames: string[];
+  /** Normalized project brand (server-side) — themes the preview like the embed. */
+  brandSettings?: Record<string, unknown>;
 }
 
-type ModuleFactory = (require: unknown, module: unknown, exports: unknown) => void;
+interface BrandLike {
+  primaryColor?: string;
+  secondaryColor?: string;
+  darkMode?: boolean;
+  borderRadius?: number;
+  backgroundColor?: string;
+  fontStyle?: { fontFamily?: string };
+}
+
+/** Branded MUI theme from the shipped settings; neutral defaults when absent. */
+function buildPreviewTheme(brand: BrandLike | undefined) {
+  const darkMode = brand?.darkMode !== false;
+  return createTheme({
+    palette: {
+      mode: darkMode ? "dark" : "light",
+      ...(brand?.primaryColor ? { primary: { main: brand.primaryColor } } : {}),
+      ...(brand?.secondaryColor
+        ? { secondary: { main: brand.secondaryColor } }
+        : {}),
+      ...(brand?.backgroundColor
+        ? {
+            background: {
+              default: brand.backgroundColor,
+              paper: brand.backgroundColor,
+            },
+          }
+        : {}),
+    },
+    shape: {
+      borderRadius:
+        typeof brand?.borderRadius === "number" ? brand.borderRadius : 12,
+    },
+    ...(brand?.fontStyle?.fontFamily
+      ? { typography: { fontFamily: brand.fontStyle.fontFamily } }
+      : {}),
+  });
+}
+
+type ModuleFactory = (
+  require: unknown,
+  module: unknown,
+  exports: unknown,
+) => void;
 
 declare global {
   interface Window {
@@ -29,7 +79,12 @@ declare global {
  */
 function makeFactory(compiledCode: string): ModuleFactory {
   try {
-    return new Function("require", "module", "exports", compiledCode) as ModuleFactory;
+    return new Function(
+      "require",
+      "module",
+      "exports",
+      compiledCode,
+    ) as ModuleFactory;
   } catch {
     delete window.__BX_PREVIEW_FACTORY__;
     const script = document.createElement("script");
@@ -43,12 +98,16 @@ function makeFactory(compiledCode: string): ModuleFactory {
 }
 
 /** Evaluate the compiled CJS module and return its default Component export. */
-function evaluateComponent(compiledCode: string): React.ComponentType<Record<string, unknown>> {
+function evaluateComponent(
+  compiledCode: string,
+): React.ComponentType<Record<string, unknown>> {
   const moduleRef = { exports: {} as Record<string, unknown> };
   makeFactory(compiledCode)(requireShim, moduleRef, moduleRef.exports);
   const Component = moduleRef.exports.default ?? moduleRef.exports.Component;
   if (typeof Component !== "function") {
-    throw new Error("Compiled element has no `export default function Component`.");
+    throw new Error(
+      "Compiled element has no `export default function Component`.",
+    );
   }
   return Component as React.ComponentType<Record<string, unknown>>;
 }
@@ -64,7 +123,14 @@ class PreviewErrorBoundary extends React.Component<
   render() {
     if (this.state.error) {
       return (
-        <Box sx={{ p: 2, fontFamily: "system-ui", color: "#b91c1c", fontSize: 13.5 }}>
+        <Box
+          sx={{
+            p: 2,
+            fontFamily: "system-ui",
+            color: "#b91c1c",
+            fontSize: 13.5,
+          }}
+        >
           Element failed to render: {this.state.error.message}
         </Box>
       );
@@ -90,9 +156,15 @@ export function PreviewHost({ payload }: { payload: PreviewPayload }) {
 
   const evaluated = React.useMemo(() => {
     try {
-      return { Component: evaluateComponent(payload.compiledCode), error: null as string | null };
+      return {
+        Component: evaluateComponent(payload.compiledCode),
+        error: null as string | null,
+      };
     } catch (error) {
-      return { Component: null, error: error instanceof Error ? error.message : String(error) };
+      return {
+        Component: null,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
   }, [payload.compiledCode]);
 
@@ -104,23 +176,35 @@ export function PreviewHost({ payload }: { payload: PreviewPayload }) {
         shims[action] = (_event: unknown, item: unknown) => {
           const label =
             item && typeof item === "object"
-              ? ((item as Record<string, unknown>).name ?? (item as Record<string, unknown>).id)
+              ? ((item as Record<string, unknown>).name ??
+                (item as Record<string, unknown>).id)
               : item;
-          showQuery(`Right-click menu would open for: ${String(label ?? "this item")}`);
+          showQuery(
+            `Right-click menu would open for: ${String(label ?? "this item")}`,
+          );
         };
         continue;
       }
       const isPrimary = action === payload.interactionPropName;
       shims[action] = (...args: unknown[]) => {
-        showQuery(`Would send: “${resolveActionQuery(action, isPrimary, spec, args)}”`);
+        showQuery(
+          `Would send: “${resolveActionQuery(action, isPrimary, spec, args)}”`,
+        );
       };
     }
     return { ...payload.defaultProps, ...shims };
   }, [payload, showQuery]);
 
+  const theme = React.useMemo(
+    () => buildPreviewTheme(payload.brandSettings as BrandLike | undefined),
+    [payload.brandSettings],
+  );
+
   if (!evaluated.Component) {
     return (
-      <Box sx={{ p: 2, fontFamily: "system-ui", color: "#b91c1c", fontSize: 13.5 }}>
+      <Box
+        sx={{ p: 2, fontFamily: "system-ui", color: "#b91c1c", fontSize: 13.5 }}
+      >
         Element failed to load: {evaluated.error}
       </Box>
     );
@@ -128,41 +212,50 @@ export function PreviewHost({ payload }: { payload: PreviewPayload }) {
   const Component = evaluated.Component;
 
   return (
-    <Box sx={{ position: "relative", p: 1.5 }}>
-      <PreviewErrorBoundary>
-        <Component {...props} />
-      </PreviewErrorBoundary>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ position: "relative", p: 1.5, bgcolor: "background.default" }}>
+        <PreviewErrorBoundary>
+          <Component {...props} />
+        </PreviewErrorBoundary>
 
-      <Typography
-        sx={{ mt: 1, textAlign: "center", fontSize: 11.5, color: "#9a9186", fontFamily: "system-ui" }}
-      >
-        {payload.name}
-        {payload.version ? ` · v${payload.version}` : ""} — interactions show the query they would
-        send
-      </Typography>
-
-      {toast ? (
-        <Box
+        <Typography
           sx={{
-            position: "fixed",
-            left: "50%",
-            bottom: 14,
-            transform: "translateX(-50%)",
-            maxWidth: "92%",
-            px: 2,
-            py: 1.1,
-            borderRadius: "10px",
-            bgcolor: "rgba(14,16,19,.92)",
-            color: "#94C2FA",
-            fontSize: 13,
+            mt: 1,
+            textAlign: "center",
+            fontSize: 11.5,
+            color: "#9a9186",
             fontFamily: "system-ui",
-            boxShadow: "0 6px 24px rgba(0,0,0,.35)",
-            zIndex: 10,
           }}
         >
-          {toast}
-        </Box>
-      ) : null}
-    </Box>
+          {payload.name}
+          {payload.version ? ` · v${payload.version}` : ""} — interactions show
+          the query they would send
+        </Typography>
+
+        {toast ? (
+          <Box
+            sx={{
+              position: "fixed",
+              left: "50%",
+              bottom: 14,
+              transform: "translateX(-50%)",
+              maxWidth: "92%",
+              px: 2,
+              py: 1.1,
+              borderRadius: "10px",
+              bgcolor: "rgba(14,16,19,.92)",
+              color: "#94C2FA",
+              fontSize: 13,
+              fontFamily: "system-ui",
+              boxShadow: "0 6px 24px rgba(0,0,0,.35)",
+              zIndex: 10,
+            }}
+          >
+            {toast}
+          </Box>
+        ) : null}
+      </Box>
+    </ThemeProvider>
   );
 }

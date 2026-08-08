@@ -55,7 +55,7 @@ const PANEL_BRAND_DEFAULTS = {
   tertiaryTextColor: "#737373",
 };
 
-function normalizeBrandForPanel(raw: Record<string, unknown>): Record<string, unknown> {
+export function normalizeBrandForPanel(raw: Record<string, unknown>): Record<string, unknown> {
   const font = raw.fontStyle;
   const fontStyle =
     font && typeof font === "object" && typeof (font as { fontFamily?: unknown }).fontFamily === "string"

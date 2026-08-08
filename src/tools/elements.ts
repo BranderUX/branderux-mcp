@@ -4,6 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
 import { buildPreviewPayload, extractImageOrigins } from "../preview/compile.js";
+import { normalizeBrandForPanel } from "../playground/generate-screen.js";
 import { PREVIEW_RESOURCE_URI, isPreviewAppAvailable, previewMeta } from "../preview/app-resource.js";
 
 /**
@@ -69,7 +70,7 @@ interface WireVersionPayload {
  */
 function withPreview(
   result: ReturnType<typeof ok>,
-  source: { name: string; version?: number } & WireVersionPayload
+  source: { name: string; version?: number; brandSettings?: Record<string, unknown> } & WireVersionPayload
 ): ReturnType<typeof ok> {
   if (!isPreviewAppAvailable() || !source.code) return result;
   const preview = buildPreviewPayload({
@@ -81,11 +82,27 @@ function withPreview(
     interactionPropName: source.interactionPropName,
   });
   if (!preview) return result;
+  if (source.brandSettings) preview.brandSettings = source.brandSettings;
   return {
     ...result,
     structuredContent: { ...(result.structuredContent ?? {}), preview },
     _meta: previewMeta(extractImageOrigins(source.defaultProps)),
   };
+}
+
+/** Project brand for preview theming — fail-soft to undefined (preview stays neutral). */
+async function fetchPanelBrand(
+  api: ApiClient,
+  projectId: string
+): Promise<Record<string, unknown> | undefined> {
+  try {
+    const project = await api.get<{ brandSettings?: Record<string, unknown> }>(
+      `/projects/${projectId}`
+    );
+    return project?.brandSettings ? normalizeBrandForPanel(project.brandSettings) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function registerElementTools(server: McpServer, api: ApiClient): void {
@@ -175,6 +192,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
       return withPreview(result, {
         name: element.name ?? element.elementKey ?? "Custom element",
         ...payload,
+        brandSettings: await fetchPanelBrand(api, projectId),
       });
     })
   );
@@ -246,6 +264,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
         defaultProps: input.defaultProps,
         clickQueryTemplate: input.clickQueryTemplate,
         interactionPropName: input.interactionPropName,
+        brandSettings: await fetchPanelBrand(api, input.projectId),
       });
     })
   );
@@ -314,6 +333,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
         defaultProps: input.defaultProps,
         clickQueryTemplate: input.clickQueryTemplate,
         interactionPropName: input.interactionPropName,
+        brandSettings: await fetchPanelBrand(api, input.projectId),
       });
     })
   );

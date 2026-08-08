@@ -18,17 +18,18 @@ import { registerBranderTools } from "@brander/mcp-tools";
 
 export const PLAYGROUND_CONFIG = {
   projectName: "BranderUX Playground",
+  // The NEUTRAL new-project default brand (mirrors the app's defaultSettings) —
+  // deliberately not a real-looking brand: a canned palette that can pass for a
+  // customer's (the old Nova espresso/cream did, for a coffee shop) misleads.
   brandSettings: {
-    brandName: "Atelier Nova",
-    primaryColor: "#2E241D",
-    secondaryColor: "#C06B4A",
-    accentColor: "#E8B84B",
-    backgroundColor: "#F1E8DC",
-    textColor: "#2E241D",
-    fontStyle: { fontFamily: "Georgia, serif", weight: 500, displayName: "Georgia" },
-    layoutStyle: { spacing: 16, elevation: 1, displayName: "Clean" },
+    brandName: "Your Brand",
+    primaryColor: "#6366F1",
+    secondaryColor: "#06B6D4",
+    accentColor: "#F59E0B",
+    fontStyle: { fontFamily: "'Inter', sans-serif", weight: 500, displayName: "modern" },
+    layoutStyle: { spacing: 3, elevation: 1, displayName: "clean" },
     borderRadius: 12,
-    darkMode: false,
+    darkMode: true,
   },
   settings: {},
   screenVisibility: {},
