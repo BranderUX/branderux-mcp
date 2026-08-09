@@ -2,14 +2,16 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { App as McpApp } from "@modelcontextprotocol/ext-apps";
 import { PreviewHost, type PreviewPayload } from "./PreviewHost";
+import { StreamingSkeleton } from "./StreamingSkeleton";
 
 const mcpApp = new McpApp(
   { name: "branderux-element-preview", version: "0.1.0" },
   {},
-  { autoResize: false } // height is reported manually (full content height)
+  { autoResize: false }, // height is reported manually (full content height)
 );
 
 let setPayload: ((payload: PreviewPayload) => void) | null = null;
+let setStreamingName: ((name: string | null) => void) | null = null;
 
 function isPreviewPayload(value: unknown): value is PreviewPayload {
   return (
@@ -22,16 +24,38 @@ function isPreviewPayload(value: unknown): value is PreviewPayload {
 
 function Root() {
   const [payload, _setPayload] = React.useState<PreviewPayload | null>(null);
+  const [streamingName, _setStreamingName] = React.useState<string | null>(
+    null,
+  );
   React.useEffect(() => {
     setPayload = _setPayload;
+    setStreamingName = _setStreamingName;
   }, []);
-  if (!payload) return null;
-  return <PreviewHost payload={payload} />;
+  if (payload) return <PreviewHost payload={payload} />;
+  // The host mounts the panel while the tool ARGUMENTS still stream (writing
+  // element TSX takes tens of seconds) — show a skeleton, never an empty frame.
+  if (streamingName !== null) return <StreamingSkeleton name={streamingName} />;
+  return null;
 }
+
+/** Element name from streaming tool args, when present (create_element carries it). */
+function nameFromArgs(args: unknown): string {
+  const name = (args as { name?: unknown } | undefined)?.name;
+  return typeof name === "string" ? name : "";
+}
+
+mcpApp.ontoolinputpartial = (params) => {
+  setStreamingName?.(nameFromArgs(params.arguments));
+};
+mcpApp.ontoolinput = (params) => {
+  setStreamingName?.(nameFromArgs(params.arguments));
+};
 
 // The tool result carries the preview in structuredContent.preview.
 mcpApp.ontoolresult = (result) => {
-  const preview = (result.structuredContent as { preview?: unknown } | undefined)?.preview;
+  const preview = (
+    result.structuredContent as { preview?: unknown } | undefined
+  )?.preview;
   if (isPreviewPayload(preview) && setPayload) {
     setPayload(preview);
   }
