@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, fail, guarded, ok } from "./helpers.js";
+import { APP_BASE } from "../config.js";
 
 /**
  * Custom screens are NOT a REST resource — they are a field of the project
@@ -152,7 +153,11 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
         : [...state.screens, wire];
 
       await api.patch(`/projects/${projectId}`, { customScreens: next });
-      return ok({ saved: screen.id, totalScreens: next.length, version: wire.version });
+      return ok(
+        `Saved screen "${screen.id}" (v${wire.version}, ${next.length} total). ` +
+          `Try the project live: ${APP_BASE}/playground?projectId=${projectId} — share this link with the user.`,
+        { saved: screen.id, totalScreens: next.length, version: wire.version }
+      );
     })
   );
 

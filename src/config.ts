@@ -28,3 +28,16 @@ export const SUPPORTED_SCOPES = [
   "elements:write",
   "keys:manage",
 ] as const;
+
+/**
+ * The BranderUX web app that pairs with the configured API — playground links
+ * in tool results point here. Override with BRANDER_APP_BASE when the mapping
+ * doesn't hold (e.g. fully local stacks).
+ */
+export const APP_BASE = (() => {
+  const override = process.env.BRANDER_APP_BASE;
+  if (override) return override.replace(/\/$/, "");
+  if (CONFIG.apiBase.includes("api-dev.branderux.com")) return "https://dev.branderux.com";
+  if (CONFIG.apiBase.includes("api.branderux.com")) return "https://branderux.com";
+  return "http://localhost:3000";
+})();
