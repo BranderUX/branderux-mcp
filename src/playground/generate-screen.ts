@@ -14,8 +14,11 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { READ_ONLY, fail, guarded } from "../tools/helpers.js";
-import { compileForPreview, extractCallbackNames, extractImageOrigins } from "../preview/compile.js";
-import { detectRightClickProp } from "../tools/elements.js";
+import {
+  compileForPreview,
+  extractCallbackNames,
+  extractImageOrigins,
+} from "../preview/compile.js";
 import { PLAYGROUND_CONFIG } from "./playground.js";
 
 /** The mcp-tools universal renderer — registered by the playground's registerBranderTools. */
@@ -33,7 +36,11 @@ const PANEL_BRAND_DEFAULTS = {
   secondaryColor: "#06B6D4",
   brandName: "Your Brand",
   iconUrl: "",
-  fontStyle: { fontFamily: "'Inter', sans-serif", weight: 500, displayName: "modern" },
+  fontStyle: {
+    fontFamily: "'Inter', sans-serif",
+    weight: 500,
+    displayName: "modern",
+  },
   layoutStyle: { spacing: 3, elevation: 1, displayName: "clean" },
   borderRadius: 12,
   shadowIntensity: 2,
@@ -56,22 +63,41 @@ const PANEL_BRAND_DEFAULTS = {
   tertiaryTextColor: "#737373",
 };
 
-export function normalizeBrandForPanel(raw: Record<string, unknown>): Record<string, unknown> {
+export function normalizeBrandForPanel(
+  raw: Record<string, unknown>,
+): Record<string, unknown> {
   const font = raw.fontStyle;
   const fontStyle =
-    font && typeof font === "object" && typeof (font as { fontFamily?: unknown }).fontFamily === "string"
-      ? { ...PANEL_BRAND_DEFAULTS.fontStyle, ...(font as Record<string, unknown>) }
+    font &&
+    typeof font === "object" &&
+    typeof (font as { fontFamily?: unknown }).fontFamily === "string"
+      ? {
+          ...PANEL_BRAND_DEFAULTS.fontStyle,
+          ...(font as Record<string, unknown>),
+        }
       : typeof font === "string" && font.trim()
-        ? { fontFamily: font.includes(",") ? font : `'${font}', sans-serif`, weight: 500, displayName: font }
+        ? {
+            fontFamily: font.includes(",") ? font : `'${font}', sans-serif`,
+            weight: 500,
+            displayName: font,
+          }
         : PANEL_BRAND_DEFAULTS.fontStyle;
   const layout = raw.layoutStyle;
   const layoutStyle =
-    layout && typeof layout === "object" && typeof (layout as { spacing?: unknown }).spacing === "number"
-      ? { ...PANEL_BRAND_DEFAULTS.layoutStyle, ...(layout as Record<string, unknown>) }
+    layout &&
+    typeof layout === "object" &&
+    typeof (layout as { spacing?: unknown }).spacing === "number"
+      ? {
+          ...PANEL_BRAND_DEFAULTS.layoutStyle,
+          ...(layout as Record<string, unknown>),
+        }
       : PANEL_BRAND_DEFAULTS.layoutStyle;
   const grayPalette =
     raw.grayPalette && typeof raw.grayPalette === "object"
-      ? { ...PANEL_BRAND_DEFAULTS.grayPalette, ...(raw.grayPalette as Record<string, unknown>) }
+      ? {
+          ...PANEL_BRAND_DEFAULTS.grayPalette,
+          ...(raw.grayPalette as Record<string, unknown>),
+        }
       : PANEL_BRAND_DEFAULTS.grayPalette;
   const out: Record<string, unknown> = {
     ...PANEL_BRAND_DEFAULTS,
@@ -81,7 +107,9 @@ export function normalizeBrandForPanel(raw: Record<string, unknown>): Record<str
     grayPalette,
   };
   for (const key of Object.keys(out)) {
-    if (out[key] === null) out[key] = (PANEL_BRAND_DEFAULTS as Record<string, unknown>)[key] ?? undefined;
+    if (out[key] === null)
+      out[key] =
+        (PANEL_BRAND_DEFAULTS as Record<string, unknown>)[key] ?? undefined;
   }
   return out;
 }
@@ -120,16 +148,24 @@ const FIXED_TYPES = [
 const elementEntry = z.object({
   elementType: z
     .string()
-    .describe(`One of the 15 fixed types (${FIXED_TYPES.join(", ")}) or "custom"`),
+    .describe(
+      `One of the 15 fixed types (${FIXED_TYPES.join(", ")}) or "custom"`,
+    ),
   key: z
     .string()
     .optional()
-    .describe('Custom element key when elementType is "custom" (from list_elements)'),
-  props: z.record(z.unknown()).describe("Props for the element (custom: match its propsSchema)"),
+    .describe(
+      'Custom element key when elementType is "custom" (from list_elements)',
+    ),
+  props: z
+    .record(z.unknown())
+    .describe("Props for the element (custom: match its propsSchema)"),
   clickQuery: z
     .string()
     .optional()
-    .describe("Query sent when the element is clicked, [placeholder] tokens allowed"),
+    .describe(
+      "Query sent when the element is clicked, [placeholder] tokens allowed",
+    ),
 });
 
 interface WireElement {
@@ -157,7 +193,10 @@ function primaryTemplate(raw: string | null | undefined): string | null {
   }
 }
 
-export function registerGenerateScreen(server: McpServer, api: ApiClient): void {
+export function registerGenerateScreen(
+  server: McpServer,
+  api: ApiClient,
+): void {
   server.registerTool(
     "generate_screen",
     {
@@ -177,7 +216,9 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
           .string()
           .uuid()
           .optional()
-          .describe("Project whose brand + custom elements to render with; omit for playground mode"),
+          .describe(
+            "Project whose brand + custom elements to render with; omit for playground mode",
+          ),
         elements: z.array(elementEntry).min(1),
       },
       outputSchema: {
@@ -195,7 +236,7 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
     guarded(async ({ projectId, elements }) => {
       const needsCustom = elements.some((e) => e.elementType === "custom");
       let brandSettings: Record<string, unknown> = normalizeBrandForPanel(
-        PLAYGROUND_CONFIG.brandSettings as unknown as Record<string, unknown>
+        PLAYGROUND_CONFIG.brandSettings as unknown as Record<string, unknown>,
       );
       let projectSettings: Record<string, unknown> = {};
       const byKey = new Map<string, WireElement>();
@@ -209,14 +250,16 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
         brandSettings = normalizeBrandForPanel(project.brandSettings ?? {});
         projectSettings = project.settings ?? {};
         if (needsCustom) {
-          const wire = await api.get<WireElement[]>(`/projects/${projectId}/elements`);
+          const wire = await api.get<WireElement[]>(
+            `/projects/${projectId}/elements`,
+          );
           for (const el of wire ?? []) {
             if (el.elementKey) byKey.set(el.elementKey, el);
           }
         }
       } else if (needsCustom) {
         return fail(
-          "Playground mode (no projectId) has no custom elements — pass the projectId whose elements you want to render."
+          "Playground mode (no projectId) has no custom elements — pass the projectId whose elements you want to render.",
         );
       }
 
@@ -227,7 +270,10 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
             elementType: entry.elementType,
             props: entry.props,
             clickQuery: entry.clickQuery,
-            clickBehavior: { queryTemplate: null, entityName: entry.elementType },
+            clickBehavior: {
+              queryTemplate: null,
+              entityName: entry.elementType,
+            },
           });
           continue;
         }
@@ -236,7 +282,7 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
         if (!wire || !payload?.code) {
           return fail(
             `Custom element key "${entry.key ?? "(missing)"}" not found in project ${projectId ?? "(playground)"}. ` +
-              `Available keys: ${[...byKey.keys()].join(", ") || "(none — this project has no published custom elements)"}`
+              `Available keys: ${[...byKey.keys()].join(", ") || "(none — this project has no published custom elements)"}`,
           );
         }
         const clickQueryTemplate = payload.clickQueryTemplate ?? null;
@@ -255,8 +301,11 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
             compiledCode: compileForPreview(payload.code),
             clickQueryTemplate,
             interactionPropName,
-            callbackNames: extractCallbackNames(payload.code, interactionPropName, clickQueryTemplate),
-            contextMenuPropName: payload.rightClickPropName ?? detectRightClickProp(payload.code),
+            callbackNames: extractCallbackNames(
+              payload.code,
+              interactionPropName,
+              clickQueryTemplate,
+            ),
           },
         });
       }
@@ -268,14 +317,18 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
         projectSettings,
       };
 
-      const imageOrigins = extractImageOrigins(elements.map((e) => e.props)).filter(
-        (origin) => !BASE_MEDIA_DOMAINS.includes(origin)
-      );
+      const imageOrigins = extractImageOrigins(
+        elements.map((e) => e.props),
+      ).filter((origin) => !BASE_MEDIA_DOMAINS.includes(origin));
       const meta: Record<string, unknown> = {
         ui: {
           resourceUri: RENDERER_RESOURCE_URI,
           ...(imageOrigins.length > 0
-            ? { csp: { resourceDomains: [...BASE_MEDIA_DOMAINS, ...imageOrigins] } }
+            ? {
+                csp: {
+                  resourceDomains: [...BASE_MEDIA_DOMAINS, ...imageOrigins],
+                },
+              }
             : {}),
         },
         "ui/resourceUri": RENDERER_RESOURCE_URI,
@@ -285,7 +338,7 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
         .map((el) =>
           el.elementType === "custom"
             ? `${(el.customElement as { name?: string }).name} (custom)`
-            : (el.elementType as string)
+            : (el.elementType as string),
         )
         .join(" · ");
 
@@ -301,6 +354,6 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
         structuredContent,
         _meta: meta,
       };
-    })
+    }),
   );
 }

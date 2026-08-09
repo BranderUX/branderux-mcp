@@ -2,8 +2,6 @@ import * as React from "react";
 import {
   Box,
   CssBaseline,
-  Menu,
-  MenuItem,
   ThemeProvider,
   Typography,
   createTheme,
@@ -20,25 +18,8 @@ export interface PreviewPayload {
   clickQueryTemplate: string | null;
   interactionPropName: string | null;
   callbackNames: string[];
-  contextMenuPropName?: string | null;
   /** Normalized project brand (server-side) — themes the preview like the embed. */
   brandSettings?: Record<string, unknown>;
-}
-
-interface MenuState {
-  x: number;
-  y: number;
-  item: Record<string, unknown>;
-}
-
-/** "onAddToCart" → "Add to cart" */
-function humanizeAction(action: string): string {
-  const words = action
-    .replace(/^on/, "")
-    .replace(/([A-Z])/g, " $1")
-    .trim()
-    .toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 interface BrandLike {
@@ -165,7 +146,6 @@ class PreviewErrorBoundary extends React.Component<
  */
 export function PreviewHost({ payload }: { payload: PreviewPayload }) {
   const [toast, setToast] = React.useState<string | null>(null);
-  const [menu, setMenu] = React.useState<MenuState | null>(null);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showQuery = React.useCallback((query: string) => {
@@ -203,46 +183,8 @@ export function PreviewHost({ payload }: { payload: PreviewPayload }) {
         );
       };
     }
-    if (payload.contextMenuPropName) {
-      shims[payload.contextMenuPropName] = (event: unknown, item: unknown) => {
-        const mouse = event as {
-          preventDefault?: () => void;
-          clientX?: number;
-          clientY?: number;
-        };
-        mouse?.preventDefault?.();
-        setMenu({
-          x: mouse?.clientX ?? 0,
-          y: mouse?.clientY ?? 0,
-          item:
-            item !== null && typeof item === "object"
-              ? (item as Record<string, unknown>)
-              : { userInput: item },
-        });
-      };
-    }
     return { ...payload.defaultProps, ...shims };
   }, [payload, spec, showQuery]);
-
-  const menuActions = React.useMemo(() => {
-    if (!menu) return [];
-    const actions: { label: string; query: string }[] = [];
-    const primary = payload.interactionPropName;
-    if (primary) {
-      actions.push({
-        label: humanizeAction(primary),
-        query: resolveActionQuery(primary, true, spec, [menu.item]),
-      });
-    }
-    for (const action of Object.keys(spec.actions)) {
-      if (action === primary) continue;
-      actions.push({
-        label: humanizeAction(action),
-        query: resolveActionQuery(action, false, spec, [menu.item]),
-      });
-    }
-    return actions;
-  }, [menu, payload, spec]);
 
   const theme = React.useMemo(
     () => buildPreviewTheme(payload.brandSettings as BrandLike | undefined),
@@ -267,27 +209,6 @@ export function PreviewHost({ payload }: { payload: PreviewPayload }) {
         <PreviewErrorBoundary>
           <Component {...props} />
         </PreviewErrorBoundary>
-
-        <Menu
-          open={menu !== null}
-          onClose={() => setMenu(null)}
-          anchorReference="anchorPosition"
-          anchorPosition={menu ? { top: menu.y, left: menu.x } : undefined}
-          disableAutoFocusItem
-        >
-          {menuActions.map((action) => (
-            <MenuItem
-              key={action.label}
-              dense
-              onClick={() => {
-                setMenu(null);
-                showQuery(`Would send: “${action.query}”`);
-              }}
-            >
-              {action.label}
-            </MenuItem>
-          ))}
-        </Menu>
 
         <Typography
           sx={{

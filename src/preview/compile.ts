@@ -14,8 +14,6 @@ export interface PreviewPayload {
   clickQueryTemplate: string | null;
   interactionPropName: string | null;
   callbackNames: string[];
-  /** The on*ContextMenu prop, when wired — preview opens the action menu on right-click. */
-  contextMenuPropName?: string | null;
   /** Normalized project brand — the preview themes the element with it. */
   brandSettings?: Record<string, unknown>;
 }
@@ -117,9 +115,6 @@ export function buildPreviewPayload(
         source.interactionPropName ?? null,
         source.clickQueryTemplate ?? null,
       ),
-      contextMenuPropName: (source.code.match(
-        /\b(on[A-Z][A-Za-z0-9]*ContextMenu)\s*\?\s*:/,
-      ) ?? [null, null])[1],
     };
   } catch {
     return null;
