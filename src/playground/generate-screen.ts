@@ -15,6 +15,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { READ_ONLY, fail, guarded } from "../tools/helpers.js";
 import { compileForPreview, extractCallbackNames, extractImageOrigins } from "../preview/compile.js";
+import { detectRightClickProp } from "../tools/elements.js";
 import { PLAYGROUND_CONFIG } from "./playground.js";
 
 /** The mcp-tools universal renderer — registered by the playground's registerBranderTools. */
@@ -139,6 +140,7 @@ interface WireElement {
     defaultProps?: Record<string, unknown>;
     clickQueryTemplate?: string | null;
     interactionPropName?: string | null;
+    rightClickPropName?: string | null;
   };
 }
 
@@ -254,6 +256,7 @@ export function registerGenerateScreen(server: McpServer, api: ApiClient): void 
             clickQueryTemplate,
             interactionPropName,
             callbackNames: extractCallbackNames(payload.code, interactionPropName, clickQueryTemplate),
+            contextMenuPropName: payload.rightClickPropName ?? detectRightClickProp(payload.code),
           },
         });
       }

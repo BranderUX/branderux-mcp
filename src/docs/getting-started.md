@@ -33,7 +33,10 @@ Build WITH the user, not silently — gather intent first, show results as you g
 2. `create_project` — name + brand settings (colors/fonts, or set later with
    `update_brand_settings`).
 3. `update_project_settings` — `{"uiGenerationMode": "flexible"}` (A2UI mode: the agent
-   emits declarative screens; this is the mode for full apps).
+   emits declarative screens; this is the mode for full apps). In the SAME call, set
+   `customPages`: the embed's nav entries, one per top-level destination —
+   `[{"id": "home", "name": "Home", "query": "Show me the home page"}, ...]` (3-5,
+   matching the screens you'll build; each click runs its query).
 4. Write custom elements YOURSELF (you know the product) following
    `custom-elements-contract`, publish with `create_element` — each one renders live in
    the panel as it publishes (supporting clients), so the user approves as you go.

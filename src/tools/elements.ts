@@ -26,6 +26,12 @@ const ALLOWED_IMPORTS = new Set([
   "date-fns",
 ]);
 
+/** The code's declared on*ContextMenu prop (optional Props field), if any. */
+export function detectRightClickProp(code: string): string | null {
+  const match = code.match(/\b(on[A-Z][A-Za-z0-9]*ContextMenu)\s*\?\s*:/);
+  return match ? (match[1] as string) : null;
+}
+
 /** Compile with sucrase + enforce the sandbox import allowlist and export contract. */
 export function validateElementCode(code: string, kind: "component" | "skeleton"): string[] {
   const problems: string[] = [];
@@ -245,7 +251,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
         structurePrompt: input.structurePrompt,
         clickQueryTemplate: input.clickQueryTemplate,
         interactionPropName: input.interactionPropName,
-        rightClickPropName: null,
+        rightClickPropName: detectRightClickProp(input.code),
         clickArgIsObject: true,
         extractionStatus: "succeeded",
       };
@@ -319,7 +325,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
           structurePrompt: input.structurePrompt,
           clickQueryTemplate: input.clickQueryTemplate,
           interactionPropName: input.interactionPropName,
-          rightClickPropName: null,
+          rightClickPropName: detectRightClickProp(input.code),
           clickArgIsObject: true,
           extractionStatus: "succeeded",
         }

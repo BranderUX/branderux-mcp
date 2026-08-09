@@ -14,6 +14,8 @@ export interface PreviewPayload {
   clickQueryTemplate: string | null;
   interactionPropName: string | null;
   callbackNames: string[];
+  /** The on*ContextMenu prop, when wired — preview opens the action menu on right-click. */
+  contextMenuPropName?: string | null;
   /** Normalized project brand — the preview themes the element with it. */
   brandSettings?: Record<string, unknown>;
 }
@@ -34,16 +36,21 @@ export function compileForPreview(code: string): string {
 export function extractCallbackNames(
   code: string,
   interactionPropName: string | null,
-  clickQueryTemplate: string | null
+  clickQueryTemplate: string | null,
 ): string[] {
   const names = new Set<string>();
   for (const match of code.matchAll(/\b(on[A-Z][A-Za-z0-9]*)\s*\?\s*:/g)) {
     names.add(match[1]!);
   }
+  for (const name of [...names]) {
+    if (/ContextMenu$/.test(name)) names.delete(name);
+  }
   if (interactionPropName) names.add(interactionPropName);
   if (clickQueryTemplate?.trim().startsWith("{")) {
     try {
-      for (const key of Object.keys(JSON.parse(clickQueryTemplate) as Record<string, unknown>)) {
+      for (const key of Object.keys(
+        JSON.parse(clickQueryTemplate) as Record<string, unknown>,
+      )) {
         if (key.startsWith("on")) names.add(key);
       }
     } catch {
@@ -93,7 +100,9 @@ export interface PreviewSource {
 }
 
 /** Null when the code does not compile — callers degrade to a no-preview result. */
-export function buildPreviewPayload(source: PreviewSource): PreviewPayload | null {
+export function buildPreviewPayload(
+  source: PreviewSource,
+): PreviewPayload | null {
   try {
     const compiledCode = compileForPreview(source.code);
     return {
@@ -106,8 +115,11 @@ export function buildPreviewPayload(source: PreviewSource): PreviewPayload | nul
       callbackNames: extractCallbackNames(
         source.code,
         source.interactionPropName ?? null,
-        source.clickQueryTemplate ?? null
+        source.clickQueryTemplate ?? null,
       ),
+      contextMenuPropName: (source.code.match(
+        /\b(on[A-Z][A-Za-z0-9]*ContextMenu)\s*\?\s*:/,
+      ) ?? [null, null])[1],
     };
   } catch {
     return null;
