@@ -1,8 +1,11 @@
 # BranderUX MCP
 
-The official [BranderUX](https://branderux.com) MCP server. It gives an AI agent real
-control over BranderUX projects — brand, custom elements, screens, API keys — plus the
-verified reference docs it needs to integrate the SDK correctly.
+[BranderUX](https://branderux.com) is AI-UX infrastructure. Turn your agent into full
+agentic applications, websites and MCP apps — in minutes.
+
+This is the official BranderUX MCP server. It gives an AI agent real control over
+BranderUX projects — brand, custom elements, screens, API keys — plus the verified
+reference docs it needs to integrate the SDK correctly.
 
 **Connect:** `https://mcp.branderux.com/mcp` · **Docs:** https://branderux.com/mcp
 
