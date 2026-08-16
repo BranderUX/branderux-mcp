@@ -8,6 +8,32 @@
  */
 
 export const SNIPPETS = {
+  "action-handlers": `// Deterministic actions (SDK 0.5.0+): a registered action runs YOUR handler in
+// YOUR app (your session, your API clients) INSTEAD of becoming an AI query.
+// KEYS: the EXACT action names from list_elements → actions[].name — copy them
+// verbatim, never guess. Unregistered actions keep click-to-query behavior.
+// RULES: handler errors are logged, never retried, never routed to the AI —
+// surface them in your own UI. Treat the payload as untrusted input (validate
+// like a public endpoint). If an action's meaning or item fields are ambiguous
+// after reading actions[].meaning/itemShape/exampleItem, ASK the user which API
+// call it maps to — never invent an endpoint.
+<Brander
+  apiKey="bux_pk_your_key"
+  projectId="your_project_id"
+  onQueryStream={(params) => sseStream("/api/agent", { params })}
+  actionHandlers={{
+    // item matches actions[].exampleItem for this element
+    onAddToCart: async ({ item }) => {
+      await myApi.cart.add(item.id);
+      showToast(\`Added \${item.title}\`);
+      // Optional: run a normal query afterwards (appears as a USER message)
+      return { followUpQuery: "Show my cart" };
+    },
+    onSubscribe: async ({ item }) => {
+      await myApi.newsletter.subscribe(item.id); // pure side-effect: no return
+    },
+  }}
+/>`,
   anthropic: `import Brander, { anthropicStream } from "@brander/sdk";
 import Anthropic from "@anthropic-ai/sdk";
 

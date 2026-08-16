@@ -68,3 +68,9 @@ send, so you and the user can verify wiring before it ships to a screen.
 template; JSON map = per-action:
 `{"$primary": "Show details for {name} (ID: {id})", "onAddToCart": "Add {name} to my cart"}`.
 `{tokens}` resolve against the callback's payload object.
+
+## Porting existing components
+
+Customers with their OWN gen-UI components: read_doc port-existing-components —
+the 7-step porting contract (UI becomes a BranderUX element; fetches/mutations
+become named action callbacks wired back via the SDK actionHandlers).

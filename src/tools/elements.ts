@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { buildActionsContract } from "../lib/element-actions.js";
 import { transform } from "sucrase";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
@@ -111,12 +112,33 @@ async function fetchPanelBrand(
   }
 }
 
+
+/** The actions contract for `actionHandlers` wiring — assembled from the version payload. */
+function actionsFor(element: Record<string, unknown>): ReturnType<typeof buildActionsContract> {
+  const payload = element.currentVersionPayload as
+    | {
+        code?: string;
+        propsSchema?: Record<string, unknown> | null;
+        defaultProps?: Record<string, unknown> | null;
+        clickQueryTemplate?: string | null;
+      }
+    | null
+    | undefined;
+  if (!payload?.code) return [];
+  return buildActionsContract({
+    code: payload.code,
+    propsSchema: payload.propsSchema ?? null,
+    defaultProps: payload.defaultProps ?? null,
+    clickQueryTemplate: payload.clickQueryTemplate ?? null,
+  });
+}
+
 export function registerElementTools(server: McpServer, api: ApiClient): void {
   server.registerTool(
     "list_elements",
     {
       title: "List custom elements",
-      description: "List a project's custom elements (key, name, status, current version).",
+      description: "List a project's custom elements (key, name, status, current version) incl. the actions contract: actions[].name are the EXACT actionHandlers keys, with meaning, itemShape and exampleItem per action.",
       inputSchema: { projectId: z.string().uuid() },
       outputSchema: { elements: z.array(z.object({}).passthrough()) },
       annotations: READ_ONLY,
@@ -133,6 +155,8 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
           status: e.status,
           currentVersion: e.currentVersion,
           description: e.description,
+          // For actionHandlers wiring: actions[].name are the EXACT prop keys.
+          actions: actionsFor(e),
         })),
       });
     })
@@ -150,7 +174,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
     guarded(async ({ projectId, elementId }) => {
       const element = await api.get<Record<string, unknown>>(`/projects/${projectId}/elements/${elementId}`);
       if (!element) return fail(`Element ${elementId} not found.`);
-      return ok({ element });
+      return ok({ element: { ...element, actions: actionsFor(element) } });
     })
   );
 

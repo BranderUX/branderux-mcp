@@ -29,6 +29,11 @@ Build WITH the user, not silently — gather intent first, show results as you g
    site's colors), and which 3-5 screens matter most (home, listing, detail, …)? If
    they want to see what BranderUX output looks like first, show the playground
    (`generate_screen`) before creating anything.
+   **Also ask: do you already have UI components for agent responses (your own gen-UI
+   elements, product cards, panels)?** If yes → `read_doc port-existing-components`
+   and port them FIRST (before screens, so screens can reference them): same look,
+   branded, AI-placeable — and their server calls stay in the customer's app via the
+   SDK's `actionHandlers` (see the `action-handlers` snippet).
 1. `whoami` — confirm identity and existing projects.
 2. `create_project` — name + brand settings (colors/fonts, or set later with
    `update_brand_settings`).
