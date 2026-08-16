@@ -12,6 +12,9 @@ export const SNIPPETS = {
 // YOUR app (your session, your API clients) INSTEAD of becoming an AI query.
 // KEYS: the EXACT action names from list_elements → actions[].name — copy them
 // verbatim, never guess. Unregistered actions keep click-to-query behavior.
+// WHICH actions to register: usually MUTATIONS only (add-to-cart, order,
+// subscribe). Leave select/view PRIMARIES unregistered so item navigation
+// stays conversational — registering a primary hijacks it.
 // RULES: handler errors are logged, never retried, never routed to the AI —
 // surface them in your own UI. Treat the payload as untrusted input (validate
 // like a public endpoint). If an action's meaning or item fields are ambiguous
