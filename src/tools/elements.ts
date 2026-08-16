@@ -156,7 +156,8 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
           currentVersion: e.currentVersion,
           description: e.description,
           // For actionHandlers wiring: actions[].name are the EXACT prop keys.
-          actions: actionsFor(e),
+          // Drafts excluded — their actions cannot fire until published.
+          actions: e.status === "published" ? actionsFor(e) : [],
         })),
       });
     })

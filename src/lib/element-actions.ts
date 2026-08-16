@@ -100,16 +100,21 @@ function parseTemplateSpec(raw: string | null | undefined): TemplateSpec {
   return { primary: trimmed, actions: {} };
 }
 
-/** Both authoring conventions appear in the wild: {field} (Vibe chips) and [field]. */
+/**
+ * VERBATIM port of the runtime's resolveClickQueryTemplate semantics
+ * (lib/elements/click-query.ts): {curly} tokens only — [bracket] text stays
+ * literal, exactly as the runtime would send it; missing/null/object values
+ * drop; whitespace collapses; an empty result means "no meaning from the
+ * template" (caller falls back to the humanized name).
+ */
 function resolveTokens(template: string, payload: Record<string, unknown>): string {
-  const substitute = (_: string, token: string): string => {
-    const value = payload[token];
-    return value === undefined || value === null ? "" : String(value);
-  };
   return template
-    .replace(/\{([A-Za-z0-9_.]+)\}/g, substitute)
-    .replace(/\[([A-Za-z0-9_.]+)\]/g, substitute)
-    .replace(/\s{2,}/g, " ")
+    .replace(/\{(\w+)\}/g, (_match, token: string) => {
+      const value = payload[token];
+      if (value === undefined || value === null || typeof value === "object") return "";
+      return String(value);
+    })
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -182,13 +187,12 @@ export function buildActionsContract(input: ActionsContractInput): ElementAction
   return names.map(({ name, kind }) => {
     const template = kind === "primary" ? spec.primary : (spec.actions[name] ?? null);
     const payload = exampleItem ?? {};
-    let meaning: string;
-    if (template) {
-      meaning = resolveTokens(template, payload);
-    } else {
+    const resolved = template ? resolveTokens(template, payload) : "";
+    let meaning = resolved;
+    if (!meaning) {
+      // Same fallback shape as the runtime's generic click query.
       const subject = payload.name ?? payload.title ?? payload.label ?? payload.id;
-      meaning =
-        subject === undefined ? humanize(name) : `${humanize(name)}: ${String(subject)}`;
+      meaning = subject === undefined ? humanize(name) : `${humanize(name)}: ${String(subject)}`;
     }
     return {
       name,
