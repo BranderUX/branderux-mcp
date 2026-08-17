@@ -18,7 +18,13 @@ export function registerKeyTools(server: McpServer, api: ApiClient): void {
           .max(20)
           .describe("Exact origins allowed to exchange this key (no wildcards), e.g. https://shop.example.com"),
       },
-      outputSchema: { id: z.string(), rawKey: z.string(), keyPrefix: z.string(), note: z.string() },
+      outputSchema: {
+        id: z.string(),
+        rawKey: z.string(),
+        keyPrefix: z.string(),
+        label: z.string(),
+        note: z.string(),
+      },
       annotations: WRITE,
     },
     guarded(async ({ projectId, label, allowedOrigins }) => {
@@ -26,8 +32,16 @@ export function registerKeyTools(server: McpServer, api: ApiClient): void {
         label,
         allowedOrigins,
       });
+      // EXPLICIT field construction — never spread an API response into
+      // structuredContent: clients validate against the serialized schema
+      // with additionalProperties:false, so any extra server field makes the
+      // call fail AFTER the key was created (the raw secret is then lost).
+      const record = created ?? {};
       return ok({
-        ...(created ?? {}),
+        id: String(record.id ?? ""),
+        rawKey: String(record.rawKey ?? ""),
+        keyPrefix: String(record.keyPrefix ?? ""),
+        label: String(record.label ?? label),
         note: "Store rawKey now — it is never shown again. Revocation propagates within ~5 minutes.",
       });
     })
