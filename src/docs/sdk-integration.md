@@ -23,10 +23,11 @@ Required: `apiKey`, `projectId`, and ONE of `onQueryStream` (recommended) / `onQ
 ## CustomerAIParams — what your handler receives
 
 - `params.system` (string) — ALL BranderUX screen instructions (in flexible/A2UI mode this
-  is the entire protocol). **Forward it as the provider's system prompt. Mandatory.**
-  - Anthropic: `system: params.system`
-  - OpenAI: prepend `{ role: "system", content: params.system }` to messages
-  - Gemini: `systemInstruction: params.system`
+  is the entire protocol). **APPEND it to the customer's own system prompt (theirs first,
+  `params.system` after) — additive, never a replacement. Mandatory.**
+  - Anthropic: `system: YOUR_SYSTEM_PROMPT + "\n\n" + params.system`
+  - OpenAI: system message `{ role: "system", content: YOUR_SYSTEM_PROMPT + "\n\n" + params.system }` before the conversation
+  - Gemini: `systemInstruction: YOUR_SYSTEM_PROMPT + "\n\n" + params.system`
 - `params.messages` — the conversation only.
 - `params.tools` — OPTIONAL multi-provider tool defs (deterministic mode only). Always
   optional-chain: `params.tools?.anthropic`. Gemini needs the wrapper:

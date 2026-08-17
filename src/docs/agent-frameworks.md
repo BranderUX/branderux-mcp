@@ -58,7 +58,7 @@ always "unwrap `params`, run the agent, stream AG-UI".
 | **LangGraph** | Has a first-party AG-UI integration. Wrap it in your own route: read `req.body.params`, inject `params.system` into the graph's system message, stream AG-UI out. |
 | **CrewAI** | First-party AG-UI integration (flows). Same wrapper; put `params.system` in the crew/flow's system context. |
 | **Mastra** | First-party AG-UI support. Merge `params.system` into the agent's `instructions`. |
-| **Pydantic AI** | First-party AG-UI integration. Pass `params.system` as the agent's system prompt / instructions. |
+| **Pydantic AI** | First-party AG-UI integration. Append `params.system` to the agent's system prompt / instructions. |
 | **Google ADK** | First-party AG-UI integration. Merge into the agent's `instruction`. |
 | **AWS Strands, LlamaIndex, Agno, AG2, Microsoft Agent Framework** | All ship AG-UI integrations; identical wrapper pattern. |
 | **OpenAI Agents SDK, Cloudflare Agents** | AG-UI integrations in progress at time of writing — use the generic recipe below (they stream text; you emit the events). |

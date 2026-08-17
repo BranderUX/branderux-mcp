@@ -12,9 +12,15 @@ export const SNIPPETS = {
 // YOUR app (your session, your API clients) INSTEAD of becoming an AI query.
 // KEYS: the EXACT action names from list_elements → actions[].name — copy them
 // verbatim, never guess. Unregistered actions keep click-to-query behavior.
+// COLLISIONS: a bare key is a CATCH-ALL — the same name on several elements
+// fires ONE handler for all of them (payload.elementKey says which fired). To
+// target a single element use its actions[].scopedKey ("custom:<key>.onAction",
+// SDK 0.5.1+) — a scoped match wins over the bare name.
 // WHICH actions to register: usually MUTATIONS only (add-to-cart, order,
 // subscribe). Leave select/view PRIMARIES unregistered so item navigation
-// stays conversational — registering a primary hijacks it.
+// stays conversational — a bare primary key hijacks navigation on EVERY
+// element sharing the name; if one element's primary must be handled,
+// register it SCOPED.
 // RULES: handler errors are logged, never retried, never routed to the AI —
 // surface them in your own UI. Treat the payload as untrusted input (validate
 // like a public endpoint). If an action's meaning or item fields are ambiguous
@@ -35,6 +41,11 @@ export const SNIPPETS = {
     onSubscribe: async ({ item }) => {
       await myApi.newsletter.subscribe(item.id); // pure side-effect: no return
     },
+    // Scoped (actions[].scopedKey): ONLY this element's onSelect — other
+    // elements' onSelect keeps click-to-query behavior
+    "custom:product-grid.onSelect": async ({ item }) => {
+      await myApi.cart.add(item.id);
+    },
   }}
 />`,
   anthropic: `import Brander, { anthropicStream } from "@brander/sdk";
@@ -50,7 +61,8 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const stream = anthropic.messages.stream({
       model: "claude-sonnet-5",
       max_tokens: params.max_tokens || 4000,
-      system: params.system,          // BranderUX UI instructions — REQUIRED
+      // Your persona + BranderUX UI instructions — append, never replace. REQUIRED
+      system: YOUR_SYSTEM_PROMPT + "\\n\\n" + params.system,
       messages: params.messages,
       tools: params.tools?.anthropic, // optional: absent in flexible mode
     });
@@ -70,7 +82,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const stream = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: params.system }, // REQUIRED
+        // Your persona + BranderUX UI instructions — append, never replace. REQUIRED
+        { role: "system", content: YOUR_SYSTEM_PROMPT + "\\n\\n" + params.system },
         ...params.messages,
       ],
       tools: params.tools?.openai,
@@ -91,7 +104,8 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
   onQueryStream={async function* (params) {
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
-      systemInstruction: params.system, // REQUIRED
+      // Your persona + BranderUX UI instructions — append, never replace. REQUIRED
+      systemInstruction: YOUR_SYSTEM_PROMPT + "\\n\\n" + params.system,
       tools: params.tools?.gemini
         ? [{ functionDeclarations: params.tools.gemini }]
         : undefined,

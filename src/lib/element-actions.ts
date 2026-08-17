@@ -149,6 +149,13 @@ function findItemsProp(defaultProps: Record<string, unknown>): string | null {
 
 export interface ElementActionContract {
   name: string;
+  /**
+   * Ready-to-paste key targeting ONLY this element ("custom:<key>.onAction").
+   * Use it when the same action name exists on several elements — a bare
+   * `actions[].name` key is a catch-all that fires for all of them, and a
+   * scoped match wins over the bare name (SDK 0.5.1+).
+   */
+  scopedKey: string | null;
   kind: "primary" | "named";
   meaning: string;
   itemShape: Record<string, unknown> | null;
@@ -161,6 +168,8 @@ export interface ActionsContractInput {
   propsSchema: Record<string, unknown> | null;
   defaultProps: Record<string, unknown> | null;
   clickQueryTemplate: string | null;
+  /** Server `element_key` (runtime id = `custom:<elementKey>`); null on legacy rows without one. */
+  elementKey: string | null;
 }
 
 /** Assemble the full actions contract for one element version. */
@@ -196,6 +205,7 @@ export function buildActionsContract(input: ActionsContractInput): ElementAction
     }
     return {
       name,
+      scopedKey: input.elementKey ? `custom:${input.elementKey}.${name}` : null,
       kind,
       meaning,
       itemShape: itemsSchema,

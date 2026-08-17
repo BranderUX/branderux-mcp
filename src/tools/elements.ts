@@ -130,6 +130,7 @@ function actionsFor(element: Record<string, unknown>): ReturnType<typeof buildAc
     propsSchema: payload.propsSchema ?? null,
     defaultProps: payload.defaultProps ?? null,
     clickQueryTemplate: payload.clickQueryTemplate ?? null,
+    elementKey: typeof element.elementKey === "string" ? element.elementKey : null,
   });
 }
 
@@ -138,7 +139,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
     "list_elements",
     {
       title: "List custom elements",
-      description: "List a project's custom elements (key, name, status, current version) incl. the actions contract: actions[].name are the EXACT actionHandlers keys, with meaning, itemShape and exampleItem per action.",
+      description: "List a project's custom elements (key, name, status, current version) incl. the actions contract: actions[].name are the EXACT actionHandlers keys (actions[].scopedKey targets only that element when names collide), with meaning, itemShape and exampleItem per action.",
       inputSchema: { projectId: z.string().uuid() },
       outputSchema: { elements: z.array(z.object({}).passthrough()) },
       annotations: READ_ONLY,

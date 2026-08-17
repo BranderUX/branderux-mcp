@@ -52,6 +52,11 @@ Mutations that should show a new screen return `{ followUpQuery: "..." }`
 (phrase it as a USER query — it appears in the conversation); pure
 side-effects return nothing.
 
+**Name collisions:** a bare key is a catch-all — if TWO ported elements share
+an action name (`onSelect`, `onAddToCart`) with different meanings, use each
+element's `actions[].scopedKey` (`"custom:<key>.onAction"`, SDK 0.5.1+)
+instead of one branching handler. A scoped match wins over the bare name.
+
 Set sensible click-query templates anyway (step 6 metadata): they are the
 fallback contract for surfaces WITHOUT handlers (playground, MCP panel).
 
