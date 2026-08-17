@@ -42,6 +42,11 @@ Build WITH the user, not silently — gather intent first, show results as you g
    `customPages`: the embed's nav entries, one per top-level destination —
    `[{"id": "home", "name": "Home", "query": "Show me the home page"}, ...]` (3-5,
    matching the screens you'll build; each click runs its query).
+   `customPages` is REQUIRED, not optional: a project without them opens the
+   playground to a "set up pages" dialog instead of the product. If you set
+   settings early, come back after the screens exist and set the final pages —
+   and VERIFY with `get_project` that `settings.customPages` is non-empty
+   before you tell the user the build is done.
 4. Write custom elements YOURSELF (you know the product) following
    `custom-elements-contract`, publish with `create_element` — each one renders live in
    the panel as it publishes (supporting clients), so the user approves as you go.

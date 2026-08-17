@@ -154,6 +154,7 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
       title: "Update project settings",
       description:
         "Merge changes into project.settings — uiGenerationMode ('flexible' | 'deterministic'), elementVisibility, customPages, flexibleModeRules, elementStyleVariant. " +
+        "Every finished build MUST set customPages (2-5 nav entries matching the screens) — without them the playground opens to a setup dialog instead of the product. " +
         "elementVisibility merges key-wise: fixed-element keys are the kebab type names (header, stats-grid, data-table, line-chart, pie-chart, bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert, video), custom elements are custom:<key>; false disables, absent = enabled.",
       inputSchema: { projectId: z.string().uuid(), settings: z.object({}).passthrough() },
       outputSchema: { project: z.object({}).passthrough() },
