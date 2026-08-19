@@ -155,8 +155,31 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
       description:
         "Merge changes into project.settings — uiGenerationMode ('flexible' | 'deterministic'), elementVisibility, customPages, flexibleModeRules, elementStyleVariant. " +
         "Every finished build MUST set customPages (2-5 nav entries matching the screens) — without them the playground opens to a setup dialog instead of the product. " +
+        "Each customPages entry is EXACTLY {id, name, query} (all non-empty strings; name is the nav label, query is what clicking the page asks) — other keys are rejected, and the server nulls anything misshapen. " +
         "elementVisibility merges key-wise: fixed-element keys are the kebab type names (header, stats-grid, data-table, line-chart, pie-chart, bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert, video), custom elements are custom:<key>; false disables, absent = enabled.",
-      inputSchema: { projectId: z.string().uuid(), settings: z.object({}).passthrough() },
+      inputSchema: {
+        projectId: z.string().uuid(),
+        // customPages is pinned STRICTLY: agents kept inventing key names
+        // (label/title/prompt), the server's typed mapper nulled the real
+        // fields, and every null query crashed the playground on open. A
+        // schema error here makes the agent self-correct instead.
+        settings: z
+          .object({
+            customPages: z
+              .array(
+                z
+                  .object({
+                    id: z.string().min(1),
+                    name: z.string().min(1),
+                    query: z.string().min(1),
+                  })
+                  .strict()
+              )
+              .min(1)
+              .optional(),
+          })
+          .passthrough(),
+      },
       outputSchema: { project: z.object({}).passthrough() },
       annotations: IDEMPOTENT_WRITE,
     },
