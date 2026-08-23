@@ -103,11 +103,6 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
       annotations: IDEMPOTENT_WRITE,
     },
     guarded(async ({ projectId, screen }) => {
-      const state = await readScreens(api, projectId);
-      if (!state) return fail(`Project ${projectId} not found.`);
-
-      const now = new Date().toISOString();
-      const existing = state.screens.find((s) => s.id === screen.id);
       // Canonical config shape: the AI-selection fields live NESTED under
       // selectionConfig (the Screen Builder reads config.selectionConfig.whenToUse).
       // Accept the flat form agents were taught earlier and lift it.
@@ -133,11 +128,6 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
       const wire: WireScreen = {
         ...screen,
         elements: normalizedElements,
-        // Server-owned fields win over anything echoed back from get_screen —
-        // the version always bumps, created is always preserved.
-        created: existing?.created ?? now,
-        version: (existing?.version ?? 0) + 1,
-        modified: now,
         // The renderer reads config.elements; keep it in lockstep with elements.
         config: {
           ...configRest,
@@ -148,15 +138,20 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
           elements: normalizedElements,
         },
       };
-      const next = existing
-        ? state.screens.map((s) => (s.id === screen.id ? wire : s))
-        : [...state.screens, wire];
-
-      await api.patch(`/projects/${projectId}`, { customScreens: next });
+      // ATOMIC per-screen upsert: the server merges by id under the project
+      // row lock and owns created/version/modified — parallel saves of
+      // different screens can no longer overwrite each other (the old
+      // read→whole-array-PATCH raced exactly that way).
+      const saved = await api.put<{ saved: string; version: number; totalScreens: number }>(
+        `/projects/${projectId}/screens/${encodeURIComponent(screen.id)}`,
+        wire
+      );
+      const version = saved?.version ?? 1;
+      const total = saved?.totalScreens ?? 1;
       return ok(
-        `Saved screen "${screen.id}" (v${wire.version}, ${next.length} total). ` +
+        `Saved screen "${screen.id}" (v${version}, ${total} total). ` +
           `Try the project live: ${APP_BASE}/playground?projectId=${projectId} — share this link with the user.`,
-        { saved: screen.id, totalScreens: next.length, version: wire.version }
+        { saved: screen.id, totalScreens: total, version }
       );
     })
   );
@@ -172,14 +167,11 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
     },
     guarded(async ({ projectId, screenId, confirm }) => {
       if (!confirm) return fail(CONFIRM_HINT);
-      const state = await readScreens(api, projectId);
-      if (!state) return fail(`Project ${projectId} not found.`);
-      if (!state.screens.some((s) => s.id === screenId)) {
-        return fail(`Screen '${screenId}' not found.`);
-      }
-      const next = state.screens.filter((s) => s.id !== screenId);
-      await api.patch(`/projects/${projectId}`, { customScreens: next });
-      return ok({ deleted: screenId, totalScreens: next.length });
+      // Atomic per-screen delete (same row-locked merge as put_screen).
+      const result = await api.delete<{ saved: string; totalScreens: number }>(
+        `/projects/${projectId}/screens/${encodeURIComponent(screenId)}`
+      );
+      return ok({ deleted: screenId, totalScreens: result?.totalScreens ?? 0 });
     })
   );
 }
