@@ -25,11 +25,21 @@ The agent never invents prices/stock; if data is missing it says so.
   (tool-truth, scope, injection posture) automatically.
 - `enabled` — the single hosted-mode switch. `false` = serving refuses.
 - `policies` — opaque JSON bag read by the runtime. Current keys:
-  `loginRequirement` ("none" | "optional" | "required" — ASK THE OWNER during
-  the build: "Do your customers need accounts?"), `handoff` (human-escalation
-  contacts, both keys optional: `{"whatsapp": "+972501234567", "email":
-  "help@business.com"}` — the runtime renders them as wa.me/mailto links when
-  a user asks for a person; capture from the scrape or ask the owner).
+  `loginRequirement` ("none" | "optional" | "required" | "approval" — ASK THE
+  OWNER during the build: "Do your customers need accounts?"; "approval" =
+  anyone may request access after verifying their email, the owner
+  approves/denies each visitor in the Agent tab's Audience pane and gets one
+  notification email per request; invited/domain-matched addresses skip the
+  queue), `allowedEmailDomains` (array of lowercase domains, <=20 — only
+  those domains can sign in, in ANY login mode; invited addresses exempt),
+  `invitedEmails` (array of lowercase emails, <=200 — always admitted),
+  `visitorLimits` (`{"turnsPerDay": N, "anonymousTurnsPerDay": N}`, integers
+  1-100000 — per-visitor daily turn caps; ALWAYS ON with platform defaults
+  300 signed / 100 anonymous per session, so store overrides only when the
+  owner asks about cost control), `handoff` (human-escalation contacts, both
+  keys optional: `{"whatsapp": "+972501234567", "email": "help@business.com"}`
+  — the runtime renders them as wa.me/mailto links when a user asks for a
+  person; capture from the scrape or ask the owner).
 - `dailyTokenBudget` — cost-weighted tokens/day (default 2,000,000). Serving
   429s past it; resets daily (UTC).
 - `modelTier` — "standard" | "premium" (stored; inert until pricing ships).
