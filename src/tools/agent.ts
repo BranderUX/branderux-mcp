@@ -88,6 +88,14 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
           .passthrough()
           .describe("JSON Schema object with non-empty properties"),
         accessPolicy: z.enum(["public-read", "end-user-scoped", "owner-only"]).optional(),
+        writePolicy: z
+          .enum(["none", "end-user-owned", "open"])
+          .optional()
+          .describe(
+            "Write-tools: none (default, read-only) | end-user-owned (signed visitors create/update " +
+              "THEIR rows — bookings/orders) | open (any visitor, confirm-first). Writes always go " +
+              "through the visitor-confirmation plane unless the owner sets a tool to auto."
+          ),
         source: z
           .object({
             kind: z.enum([
@@ -119,10 +127,15 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       outputSchema: { entity: z.object({}).passthrough() },
       annotations: IDEMPOTENT_WRITE,
     },
-    guarded(async ({ projectId, name, jsonSchema, accessPolicy, source }) => {
+    guarded(async ({ projectId, name, jsonSchema, accessPolicy, source, writePolicy }) => {
       const entity = await api.put<Record<string, unknown>>(
         `/projects/${encodeURIComponent(projectId)}/entities/${encodeURIComponent(name)}`,
-        { jsonSchema, ...(accessPolicy ? { accessPolicy } : {}), ...(source ? { source } : {}) }
+        {
+          jsonSchema,
+          ...(accessPolicy ? { accessPolicy } : {}),
+          ...(source ? { source } : {}),
+          ...(writePolicy ? { writePolicy } : {}),
+        }
       );
       return ok({ entity: entity ?? {} });
     })
