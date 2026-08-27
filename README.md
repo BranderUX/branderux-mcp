@@ -1,10 +1,12 @@
 # BranderUX MCP
 
-[BranderUX](https://branderux.com) is AI-UX infrastructure. Turn your agent into full
-agentic applications, websites and MCP apps — in minutes.
+[BranderUX](https://branderux.com) builds agentic applications, in minutes: describe a
+business and a real agent builds its full application, published as a website and an MCP
+app, with every screen generated live, per customer, per question. This server is how any
+MCP client (Claude, ChatGPT, Cursor, VS Code) builds and controls those applications.
 
 This is the official BranderUX MCP server. It gives an AI agent real control over
-BranderUX projects — brand, custom elements, screens, API keys — plus the verified
+BranderUX projects, brand, custom elements, screens, API keys, plus the verified
 reference docs it needs to integrate the SDK correctly.
 
 **Connect:** `https://mcp.branderux.com/mcp` · **Docs:** https://branderux.com/mcp
@@ -15,31 +17,31 @@ claude mcp add --transport http branderux https://mcp.branderux.com/mcp
 
 No API keys: the first tool call opens your browser for a one-click BranderUX sign-in
 (OAuth 2.1 + PKCE, scoped and revocable). Access is currently limited to design
-partners — everyone else lands on the waiting list.
+partners, everyone else lands on the waiting list.
 
 ## Tools
 
-**Knowledge** (no scopes needed — signing in is still required to reach the server):
+**Knowledge** (no scopes needed, signing in is still required to reach the server):
 `get_started` · `read_doc` · `search_docs` · `get_integration_snippet`
 
 **Projects** (`projects:*`): `whoami` · `list_projects` · `get_project` ·
 `create_project` · `update_brand_settings` · `update_project_settings` · `delete_project`
 
 **Screens** (`projects:write`): `list_screens` · `get_screen` · `put_screen` ·
-`delete_screen` — custom screens live on the project aggregate; these tools do the
+`delete_screen`, custom screens live on the project aggregate; these tools do the
 read-modify-write for you.
 
 **Custom elements** (`elements:*`): `list_elements` · `get_element` · `create_element` ·
-`publish_element_version` · `preview_element` · `delete_element` — your agent writes the
+`publish_element_version` · `preview_element` · `delete_element`, your agent writes the
 TSX; the server pre-flight validates it (compile + sandbox import allowlist + export
 contract) before publishing. In clients that support MCP Apps, `create_element`,
-`publish_element_version` and `preview_element` render the element LIVE in the panel —
+`publish_element_version` and `preview_element` render the element LIVE in the panel, 
 demo props applied, clicks showing the exact query they would send.
 
 **API keys** (`keys:manage`): `create_api_key` · `list_api_keys` · `set_key_origins` ·
 `revoke_api_key`
 
-**Playground** (no project needed): `generate_screen` — renders a real branded,
+**Playground** (no project needed): `generate_screen`, renders a real branded,
 interactive screen in the panel with demo data, powered by the same published
 `@brander/mcp-tools` package customers install. Ask for a storefront, analytics
 or order-flow screen to see actual BranderUX output before building anything.
