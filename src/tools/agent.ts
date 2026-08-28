@@ -263,7 +263,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
           .optional()
           .describe("Live-row queries spliced into data at serve time"),
         followUpText: z.string().max(2000).optional()
-          .describe("Optional short greeting streamed under the screen"),
+          .describe("Optional short greeting shown ABOVE the home screen (write copy that introduces what is below it)"),
       },
       outputSchema: { homeScreen: z.object({}).passthrough() },
       annotations: IDEMPOTENT_WRITE,
