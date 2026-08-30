@@ -20,7 +20,9 @@ here explain behaviors you will observe).
   settings are written via PATCH `/projects/{id}`; screens are written via atomic
   per-screen endpoints (PUT/DELETE `/projects/{id}/screens/{screenId}`) — the
   server merges by id under the project row lock, so concurrent screen writes
-  are safe.
+  are safe. Brand and settings PATCHes are still client-side read-modify-write:
+  two agents editing brand/settings on the same project can overwrite each
+  other, so keep one agent on those.
 - **Custom elements** are real resources under `/projects/{id}/elements` with append-only,
   server-numbered versions. Publishing = element `status: "published"` + a version row.
   The element key is derived server-side from the name.

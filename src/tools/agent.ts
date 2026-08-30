@@ -7,6 +7,14 @@ const projectIdSchema = z.string().uuid();
 const entityNameSchema = z
   .string()
   .regex(/^[a-z][a-z0-9_]{0,63}$/, "snake_case, starting with a letter");
+const skillNameSchema = z
+  .string()
+  .regex(/^[a-z][a-z0-9-]{0,63}$/, "kebab-case, starting with a letter");
+const recordIdSchema = z.string().uuid();
+const httpsUrlSchema = z
+  .string()
+  .url()
+  .refine((v) => new URL(v).protocol === "https:", "must be https://");
 
 /**
  * Hosted-agent + managed-entities tools (agentic apps). These configure a
@@ -117,7 +125,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
               "squarespace-products",
               "custom-rest",
             ]),
-            endpoint: z.string().url(),
+            endpoint: httpsUrlSchema,
             credentialName: z.string().optional()
               .describe("custom-rest: vaulted credential from set_connector_credential"),
             fieldMap: z
@@ -141,6 +149,11 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       annotations: IDEMPOTENT_WRITE,
     },
     guarded(async ({ projectId, name, jsonSchema, accessPolicy, source, writePolicy }) => {
+      if (source?.kind === "custom-rest" && !source.fieldMap) {
+        return fail(
+          'source.kind "custom-rest" requires fieldMap — probe_api the endpoint first, then author {rows, fields} from the sample.'
+        );
+      }
       const entity = await api.put<Record<string, unknown>>(
         `/projects/${encodeURIComponent(projectId)}/entities/${encodeURIComponent(name)}`,
         {
@@ -165,7 +178,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       inputSchema: {
         projectId: projectIdSchema,
         entityName: entityNameSchema,
-        recordId: z.string().describe("The record's _id (UUID)"),
+        recordId: recordIdSchema.describe("The record's _id (UUID)"),
         fields: z.object({}).passthrough().describe("Fields to merge into the record"),
       },
       outputSchema: { updated: z.string() },
@@ -229,7 +242,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "fieldMap from it (rows path + per-field dot-paths; numeric fields as {path, type:'number'}).",
       inputSchema: {
         projectId: projectIdSchema,
-        endpoint: z.string().url(),
+        endpoint: httpsUrlSchema,
         credentialName: z.string().optional(),
       },
       outputSchema: { status: z.number(), sample: z.string() },
@@ -258,7 +271,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "rows into it. bindings = where the live rows go: one per data-driven element " +
         "({path: \"elementId.propName\", entityName, filters?, sort?, limit?} — e.g. on-sale " +
         "items sorted by price). Refresh when the home screen's layout changes. Empty {} " +
-        "homeScreen via upsert_agent_config clears. Deterministic mode only.",
+        "homeScreen via upsert_agent_config clears. Works in flexible (the default) and deterministic modes.",
       inputSchema: {
         projectId: projectIdSchema,
         matchQuery: z.string().min(1).max(200),
@@ -323,7 +336,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "every serve call. enabled=false parks it without deleting. Max 10 skills/project.",
       inputSchema: {
         projectId: projectIdSchema,
-        name: z.string().regex(/^[a-z][a-z0-9-]{0,63}$/, "kebab-case, starting with a letter"),
+        name: skillNameSchema,
         content: z.string().min(1).max(16_000).describe("SKILL.md markdown body"),
         enabled: z.boolean().optional(),
       },
@@ -363,7 +376,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       description: `Delete one SKILL.md pack. ${CONFIRM_HINT}`,
       inputSchema: {
         projectId: projectIdSchema,
-        name: z.string(),
+        name: skillNameSchema,
         confirm: z.boolean().default(false),
       },
       outputSchema: { deleted: z.string() },

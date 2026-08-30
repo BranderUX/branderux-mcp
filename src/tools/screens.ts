@@ -149,8 +149,15 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
         `/projects/${projectId}/screens/${encodeURIComponent(screen.id)}`,
         wire
       );
-      const version = saved?.version ?? 1;
-      const total = saved?.totalScreens ?? 1;
+      // A bodyless response must not manufacture plausible numbers — read the
+      // aggregate for the real version/count instead.
+      let version = saved?.version;
+      let total = saved?.totalScreens;
+      if (version === undefined || total === undefined) {
+        const state = await readScreens(api, projectId);
+        version ??= state?.screens.find((s) => s.id === screen.id)?.version ?? 1;
+        total ??= state?.screens.length ?? 1;
+      }
       return ok(
         `Saved screen "${screen.id}" (v${version}, ${total} total). ` +
           `Try the project live: ${APP_BASE}/playground?projectId=${projectId} — share this link with the user.`,
@@ -174,7 +181,11 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
       const result = await api.delete<{ saved: string; totalScreens: number }>(
         `/projects/${projectId}/screens/${encodeURIComponent(screenId)}`
       );
-      return ok({ deleted: screenId, totalScreens: result?.totalScreens ?? 0 });
+      // DELETE conventionally 204s — count from the aggregate rather than
+      // reporting a fabricated 0.
+      const total =
+        result?.totalScreens ?? (await readScreens(api, projectId))?.screens.length ?? 0;
+      return ok({ deleted: screenId, totalScreens: total });
     })
   );
 }

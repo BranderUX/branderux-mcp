@@ -35,7 +35,7 @@ The agent never invents prices/stock; if data is missing it says so.
   `invitedEmails` (array of lowercase emails, <=200 — always admitted),
   `visitorLimits` (`{"turnsPerDay": N, "anonymousTurnsPerDay": N}`, integers
   1-100000 — per-visitor daily turn caps; ALWAYS ON with platform defaults
-  300 signed / 100 anonymous per session, so store overrides only when the
+  300 signed / 100 anonymous per day, so store overrides only when the
   owner asks about cost control), `handoff` (human-escalation contacts, both
   keys optional: `{"whatsapp": "+972501234567", "email": "help@business.com"}`
   — the runtime renders them as wa.me/mailto links when a user asks for a
@@ -59,6 +59,13 @@ The agent never invents prices/stock; if data is missing it says so.
     only with a signed identity (a later milestone) — defining them early is
     fine, they just read empty until then.
   - `owner-only` — internal; NEVER served, invisible to the runtime.
+- `writePolicy`:
+  - `none` (default) — read-only entity, no write tools.
+  - `end-user-owned` — signed visitors create/update THEIR OWN rows
+    (bookings, orders).
+  - `open` — any visitor may write, confirm-first.
+  Writes always run through the visitor-confirmation plane unless the owner
+  sets a tool to auto.
 - Upserting an existing name replaces the schema (version bumps). Schema is
   advisory-for-generation: the server validates structure/size, YOU are
   responsible for generating conforming rows.
@@ -80,8 +87,10 @@ Serving (`/api/agent/serve`, project-key auth) assembles: persona +
 platform rules + the project's screens + one `query_<name>` READ tool per
 servable entity. The agent queries (filters: eq/neq/lt/lte/gt/gte/contains,
 sort, limit ≤50; results capped at 48KB), then renders screens from real
-rows. Writes are NOT available to the runtime yet (a later milestone adds
-them behind end-user confirmation).
+rows. Entity writes are governed by `writePolicy` (default `none` =
+read-only); when enabled, write tools run through the visitor-confirmation
+plane — each write is confirmed by the visitor unless the owner sets that
+tool to auto.
 
 ## Build-order rule of thumb
 
@@ -144,3 +153,23 @@ source — not just the discovery platforms. Flow:
 
 Booking/reservation flows still END on the business's engine via deep links
 (bookingUrl field) — rates and payment stay theirs.
+
+## Home screen — canned first paint (`set_home_screen`)
+
+Stores the DESIGNED first page: layout decided once, rows REAL on every
+landing. When a visitor lands, the first custom page's query auto-fires and
+serve replays this screen with zero model calls — but each binding's query
+runs LIVE (store API or managed records), so prices/stock/items stay current.
+Works in flexible (the default) and deterministic modes.
+
+- `matchQuery` — MUST equal the first custom page's query verbatim.
+- `screenId` — an existing custom screen.
+- `data` — STATIC layout/copy props only (`{elementId: props}` — headers,
+  greetings, category labels); NEVER bake product rows into it.
+- `bindings` (≤3) — where the live rows go: `{path: "elementId.propName",
+  entityName, filters? (≤4; numbers as JSON numbers — range ops need
+  numerics), sort?, limit? (≤50)}`.
+- `followUpText` — optional short greeting rendered ABOVE the home screen;
+  write copy that introduces what is below it.
+- Refresh after changing the home screen's layout. Clear with
+  `upsert_agent_config {"homeScreen": {}}`.
