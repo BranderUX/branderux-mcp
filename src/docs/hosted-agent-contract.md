@@ -97,7 +97,12 @@ of seeded rows. Flow: the builder's `discover_site_data` tool probes the site
 `define_entity` with the returned `source` `{kind, endpoint}` and a
 `jsonSchema` that mirrors the sample rows' field names (`name`, `price`,
 `regularPrice`, `onSale`, `currency`, `imageUrl`, `url`, `category`,
-`inStock`, `description`). RULES:
+`inStock`, `description`). On MCP (no `discover_site_data` tool there): probe
+the platform's standard endpoint yourself with `probe_api` — Shopify
+`<store>/products.json`, WooCommerce `<site>/wp-json/wc/store/products`,
+Squarespace `<site>/?format=json` — then call `define_entity` with the
+matching `source.kind` (`shopify-products` | `woo-store-products` |
+`squarespace-products`) and that endpoint. RULES:
 
 - NEVER `seed_records` for a live-sourced entity — its `query_<name>` tool
   fetches the endpoint at serve time (normalized + cached ~2min), so prices,

@@ -5,11 +5,11 @@ import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, fail, guarded, 
 import { APP_BASE } from "../config.js";
 
 /**
- * Custom screens are NOT a REST resource — they are a field of the project
- * aggregate, written via PATCH /projects/{id}. These tools do the
- * read-modify-write inside one call so the agent never has to.
- * NOTE: two agents writing screens on the same project concurrently can race;
- * keep one agent per project.
+ * Custom screens live on the project aggregate. Reads (list_screens,
+ * get_screen) fetch the aggregate; writes (put_screen, delete_screen) go to
+ * atomic per-screen endpoints (PUT/DELETE /projects/{id}/screens/{screenId})
+ * where the server merges by id under the project row lock — concurrent
+ * writes on the same project are safe.
  */
 
 interface WireScreen {
@@ -97,7 +97,7 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
     {
       title: "Create or replace a screen",
       description:
-        "Create or replace ONE custom screen (matched by id). Reads current screens, replaces/appends this one, writes back. Read the screens-wire-format doc first — positions are 0-based and custom placements pin an element version.",
+        "Create or replace ONE custom screen (matched by id) — an atomic per-screen PUT; the server merges under the project row lock and owns created/version/modified. Read the screens-wire-format doc first — positions are 0-based and custom placements pin an element version.",
       inputSchema: { projectId: z.string().uuid(), screen: screenShape },
       outputSchema: { saved: z.string(), totalScreens: z.number(), version: z.number() },
       annotations: IDEMPOTENT_WRITE,
@@ -125,8 +125,11 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
         ...el,
         elementType: toKebab(el.elementType),
       }));
+      // The server owns created/version/modified — strip echoed copies so a
+      // get_screen → put_screen roundtrip can't resend them stale.
+      const { version: _v, created: _cr, modified: _m, ...clientScreen } = screen;
       const wire: WireScreen = {
-        ...screen,
+        ...clientScreen,
         elements: normalizedElements,
         // The renderer reads config.elements; keep it in lockstep with elements.
         config: {

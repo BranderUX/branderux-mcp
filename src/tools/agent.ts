@@ -3,6 +3,11 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
 
+const projectIdSchema = z.string().uuid();
+const entityNameSchema = z
+  .string()
+  .regex(/^[a-z][a-z0-9_]{0,63}$/, "snake_case, starting with a letter");
+
 /**
  * Hosted-agent + managed-entities tools (agentic apps). These configure a
  * project's OWN BranderUX-hosted agent — the mode for customers without
@@ -20,14 +25,24 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "Partial: omitted fields keep their current value. persona = the BUSINESS voice + facts only — platform rules are added by the runtime. " +
         "Read brander://docs/hosted-agent-contract first.",
       inputSchema: {
-        projectId: z.string().describe("Project id"),
+        projectId: projectIdSchema.describe("Project id"),
         enabled: z.boolean().optional().describe("Hosted-mode switch — serving refuses when false"),
         persona: z.string().max(20_000).optional().describe("Business voice + facts (≤20k chars)"),
         policies: z
           .object({})
           .passthrough()
           .optional()
-          .describe('Policy bag, e.g. {"loginRequirement":"none"|"optional"|"required"}'),
+          .describe(
+            'Policy bag: {"loginRequirement": "none"|"optional"|"required"|"approval", ' +
+              '"allowedEmailDomains"?: string[], "invitedEmails"?: string[], ' +
+              '"visitorLimits"?: {"turnsPerDay", "anonymousTurnsPerDay"}, ' +
+              '"handoff"?: {"whatsapp"?, "email"?}} — semantics in brander://docs/hosted-agent-contract'
+          ),
+        homeScreen: z
+          .object({})
+          .passthrough()
+          .optional()
+          .describe("Pass {} to CLEAR the canned home screen (set one via set_home_screen)"),
         modelTier: z.enum(["standard", "premium"]).optional(),
         dailyTokenBudget: z
           .number()
@@ -54,7 +69,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
     {
       title: "Get hosted-agent config",
       description: "Read the project's hosted-agent configuration (204/none = never configured).",
-      inputSchema: { projectId: z.string() },
+      inputSchema: { projectId: projectIdSchema },
       outputSchema: { config: z.object({}).passthrough().nullable() },
       annotations: READ_ONLY,
     },
@@ -79,10 +94,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "seed_records for it, and mirror the discovered sample's field names in jsonSchema. " +
         "Read brander://docs/hosted-agent-contract first.",
       inputSchema: {
-        projectId: z.string(),
-        name: z
-          .string()
-          .regex(/^[a-z][a-z0-9_]{0,63}$/, "snake_case, starting with a letter"),
+        projectId: projectIdSchema,
+        name: entityNameSchema,
         jsonSchema: z
           .object({})
           .passthrough()
@@ -150,8 +163,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "list_entity_records) — the path for photo-url patching and corrections. Never changes _id; " +
         "never creates records (unknown _id fails). For live-sourced entities there are no records to update.",
       inputSchema: {
-        projectId: z.string(),
-        entityName: z.string(),
+        projectId: projectIdSchema,
+        entityName: entityNameSchema,
         recordId: z.string().describe("The record's _id (UUID)"),
         fields: z.object({}).passthrough().describe("Fields to merge into the record"),
       },
@@ -177,7 +190,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "Bearer) | header (custom header via headerName) | basic (user:pass) | query (param via " +
         "headerName). After storing: probe_api with credentialName to see the real response shape.",
       inputSchema: {
-        projectId: z.string(),
+        projectId: projectIdSchema,
         name: z.string().regex(/^[a-z][a-z0-9-]{0,63}$/, "kebab-case"),
         authKind: z.enum(["bearer", "header", "basic", "query"]),
         secret: z.string().min(1).max(4096),
@@ -188,6 +201,12 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       annotations: IDEMPOTENT_WRITE,
     },
     guarded(async ({ projectId, name, authKind, secret, headerName }) => {
+      if ((authKind === "header" || authKind === "query") && !headerName) {
+        return fail(
+          `authKind "${authKind}" requires headerName (the ` +
+            `${authKind === "header" ? "header" : "query parameter"} that carries the secret).`
+        );
+      }
       const credential = await api.put<Record<string, unknown>>(
         `/projects/${encodeURIComponent(projectId)}/connectors/${encodeURIComponent(name)}`,
         { authKind, secret, ...(headerName ? { headerName } : {}) }
@@ -209,7 +228,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "TRUNCATED body sample — LOOK at the real shape, then author define_entity's custom-rest " +
         "fieldMap from it (rows path + per-field dot-paths; numeric fields as {path, type:'number'}).",
       inputSchema: {
-        projectId: z.string(),
+        projectId: projectIdSchema,
         endpoint: z.string().url(),
         credentialName: z.string().optional(),
       },
@@ -241,7 +260,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "items sorted by price). Refresh when the home screen's layout changes. Empty {} " +
         "homeScreen via upsert_agent_config clears. Deterministic mode only.",
       inputSchema: {
-        projectId: z.string(),
+        projectId: projectIdSchema,
         matchQuery: z.string().min(1).max(200),
         screenId: z.string().min(1),
         data: z.object({}).passthrough()
@@ -250,9 +269,17 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
           .array(
             z.object({
               path: z.string().regex(/^[a-zA-Z0-9_-]{1,64}\.[a-zA-Z][a-zA-Z0-9_]{0,63}$/),
-              entityName: z.string(),
+              entityName: entityNameSchema,
               filters: z
-                .array(z.object({ field: z.string(), op: z.string(), value: z.string() }))
+                .array(
+                  z.object({
+                    field: z.string(),
+                    op: z.string(),
+                    value: z
+                      .union([z.string(), z.number(), z.boolean()])
+                      .describe("Numbers as JSON numbers — range ops (lt/gt/…) need numerics"),
+                  })
+                )
                 .max(4)
                 .optional(),
               sort: z.object({ field: z.string(), dir: z.enum(["asc", "desc"]) }).optional(),
@@ -295,7 +322,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "playbooks). name: kebab-case. Keep each skill focused and SHORT — every enabled skill rides " +
         "every serve call. enabled=false parks it without deleting. Max 10 skills/project.",
       inputSchema: {
-        projectId: z.string(),
+        projectId: projectIdSchema,
         name: z.string().regex(/^[a-z][a-z0-9-]{0,63}$/, "kebab-case, starting with a letter"),
         content: z.string().min(1).max(16_000).describe("SKILL.md markdown body"),
         enabled: z.boolean().optional(),
@@ -317,7 +344,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
     {
       title: "List agent skills",
       description: "List the project's SKILL.md packs (name, enabled, content).",
-      inputSchema: { projectId: z.string() },
+      inputSchema: { projectId: projectIdSchema },
       outputSchema: { skills: z.array(z.object({}).passthrough()) },
       annotations: READ_ONLY,
     },
@@ -335,7 +362,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       title: "Delete agent skill",
       description: `Delete one SKILL.md pack. ${CONFIRM_HINT}`,
       inputSchema: {
-        projectId: z.string(),
+        projectId: projectIdSchema,
         name: z.string(),
         confirm: z.boolean().default(false),
       },
@@ -356,7 +383,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
     {
       title: "List data entities",
       description: "List the project's managed-entity definitions (schema, policy, version).",
-      inputSchema: { projectId: z.string() },
+      inputSchema: { projectId: projectIdSchema },
       outputSchema: { entities: z.array(z.object({}).passthrough()) },
       annotations: READ_ONLY,
     },
@@ -377,8 +404,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "objects matching the entity schema — numbers as JSON numbers (never '₪120' strings), image " +
         "fields carry URLs. Mark invented demo data with _demo:true and tell the owner.",
       inputSchema: {
-        projectId: z.string(),
-        entityName: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+        projectId: projectIdSchema,
+        entityName: entityNameSchema,
         rows: z.array(z.object({}).passthrough()).min(1).max(500),
       },
       outputSchema: { inserted: z.number(), totalRecords: z.number() },
@@ -411,7 +438,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "slug: 2-40 chars, lowercase letters/digits, inner hyphens. First publish mints the site key " +
         "automatically. Requires a configured hosted agent to be useful — configure it first.",
       inputSchema: {
-        projectId: z.string(),
+        projectId: projectIdSchema,
         slug: z
           .string()
           .regex(/^[a-z0-9][a-z0-9-]{0,38}[a-z0-9]$/, "2-40 chars, lowercase, inner hyphens"),
@@ -437,7 +464,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
     {
       title: "Get the published site",
       description: "Read the project's published-site state (none = never published).",
-      inputSchema: { projectId: z.string() },
+      inputSchema: { projectId: projectIdSchema },
       outputSchema: { site: z.object({}).passthrough().nullable() },
       annotations: READ_ONLY,
     },
@@ -458,8 +485,8 @@ function registerEntityRecordPeek(server: McpServer, api: ApiClient): void {
       title: "Peek entity records",
       description: "Read up to 50 records of an entity (verification after seeding).",
       inputSchema: {
-        projectId: z.string(),
-        entityName: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+        projectId: projectIdSchema,
+        entityName: entityNameSchema,
         limit: z.number().int().min(1).max(50).optional(),
       },
       outputSchema: { rows: z.array(z.object({}).passthrough()), count: z.number() },

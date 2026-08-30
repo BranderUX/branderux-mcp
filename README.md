@@ -28,8 +28,8 @@ partners, everyone else lands on the waiting list.
 `create_project` · `update_brand_settings` · `update_project_settings` · `delete_project`
 
 **Screens** (`projects:write`): `list_screens` · `get_screen` · `put_screen` ·
-`delete_screen`, custom screens live on the project aggregate; these tools do the
-read-modify-write for you.
+`delete_screen`, reads fetch the project aggregate; writes are atomic per-screen
+(row-locked server merge — parallel saves of different screens are safe).
 
 **Custom elements** (`elements:*`): `list_elements` · `get_element` · `create_element` ·
 `publish_element_version` · `preview_element` · `delete_element`, your agent writes the
