@@ -9,6 +9,7 @@ import { registerProjectTools } from "./tools/projects.js";
 import { registerScreenTools } from "./tools/screens.js";
 import { registerElementTools } from "./tools/elements.js";
 import { registerKeyTools } from "./tools/keys.js";
+import { registerAgentTools } from "./tools/agent.js";
 
 const INSTRUCTIONS = `BranderUX turns an AI agent's answers into branded, interactive UI.
 
@@ -52,6 +53,7 @@ export async function createServer(apiTokenProvider: () => Promise<string>): Pro
   registerScreenTools(server, api);
   registerElementTools(server, api);
   registerKeyTools(server, api);
+  registerAgentTools(server, api);
   await registerPlayground(server);
   registerGenerateScreen(server, api);
 

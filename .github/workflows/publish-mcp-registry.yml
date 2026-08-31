@@ -1,0 +1,45 @@
+# Publishes server.json to the official MCP registry
+# (registry.modelcontextprotocol.io) whenever a release tag is pushed, so the
+# registry version never drifts from the repo.
+#
+# One-time setup (already done manually for the first publish; CI needs it too):
+#   1. The com.branderux namespace is verified via a DNS TXT record on
+#      branderux.com carrying the Ed25519 PUBLIC key.
+#   2. Store the matching PRIVATE key (64-char hex seed) as the repo secret
+#      MCP_PUBLISHER_PRIVATE_KEY (Settings → Secrets → Actions).
+#
+# Release flow: bump "version" in server.json (and package.json), tag vX.Y.Z,
+# push the tag. The guard step fails the run when the tag and server.json
+# disagree — bump first, then tag.
+name: Publish to MCP Registry
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag matches server.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          FILE_VERSION="$(jq -r .version server.json)"
+          if [ "$TAG_VERSION" != "$FILE_VERSION" ]; then
+            echo "Tag v$TAG_VERSION != server.json version $FILE_VERSION — bump server.json first."
+            exit 1
+          fi
+
+      - name: Install mcp-publisher
+        run: |
+          curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" \
+            | tar xz mcp-publisher
+          sudo mv mcp-publisher /usr/local/bin/
+
+      - name: Publish
+        run: |
+          mcp-publisher login dns --domain branderux.com --private-key "${{ secrets.MCP_PUBLISHER_PRIVATE_KEY }}"
+          mcp-publisher publish

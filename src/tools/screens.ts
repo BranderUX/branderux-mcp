@@ -5,11 +5,11 @@ import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, fail, guarded, 
 import { APP_BASE } from "../config.js";
 
 /**
- * Custom screens are NOT a REST resource — they are a field of the project
- * aggregate, written via PATCH /projects/{id}. These tools do the
- * read-modify-write inside one call so the agent never has to.
- * NOTE: two agents writing screens on the same project concurrently can race;
- * keep one agent per project.
+ * Custom screens live on the project aggregate. Reads (list_screens,
+ * get_screen) fetch the aggregate; writes (put_screen, delete_screen) go to
+ * atomic per-screen endpoints (PUT/DELETE /projects/{id}/screens/{screenId})
+ * where the server merges by id under the project row lock — concurrent
+ * writes on the same project are safe.
  */
 
 interface WireScreen {
@@ -97,17 +97,12 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
     {
       title: "Create or replace a screen",
       description:
-        "Create or replace ONE custom screen (matched by id). Reads current screens, replaces/appends this one, writes back. Read the screens-wire-format doc first — positions are 0-based and custom placements pin an element version.",
+        "Create or replace ONE custom screen (matched by id) — an atomic per-screen PUT; the server merges under the project row lock and owns created/version/modified. Read the screens-wire-format doc first — positions are 0-based and custom placements pin an element version.",
       inputSchema: { projectId: z.string().uuid(), screen: screenShape },
       outputSchema: { saved: z.string(), totalScreens: z.number(), version: z.number() },
       annotations: IDEMPOTENT_WRITE,
     },
     guarded(async ({ projectId, screen }) => {
-      const state = await readScreens(api, projectId);
-      if (!state) return fail(`Project ${projectId} not found.`);
-
-      const now = new Date().toISOString();
-      const existing = state.screens.find((s) => s.id === screen.id);
       // Canonical config shape: the AI-selection fields live NESTED under
       // selectionConfig (the Screen Builder reads config.selectionConfig.whenToUse).
       // Accept the flat form agents were taught earlier and lift it.
@@ -130,14 +125,12 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
         ...el,
         elementType: toKebab(el.elementType),
       }));
+      // The server owns created/version/modified — strip echoed copies so a
+      // get_screen → put_screen roundtrip can't resend them stale.
+      const { version: _v, created: _cr, modified: _m, ...clientScreen } = screen;
       const wire: WireScreen = {
-        ...screen,
+        ...clientScreen,
         elements: normalizedElements,
-        // Server-owned fields win over anything echoed back from get_screen —
-        // the version always bumps, created is always preserved.
-        created: existing?.created ?? now,
-        version: (existing?.version ?? 0) + 1,
-        modified: now,
         // The renderer reads config.elements; keep it in lockstep with elements.
         config: {
           ...configRest,
@@ -148,15 +141,27 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
           elements: normalizedElements,
         },
       };
-      const next = existing
-        ? state.screens.map((s) => (s.id === screen.id ? wire : s))
-        : [...state.screens, wire];
-
-      await api.patch(`/projects/${projectId}`, { customScreens: next });
+      // ATOMIC per-screen upsert: the server merges by id under the project
+      // row lock and owns created/version/modified — parallel saves of
+      // different screens can no longer overwrite each other (the old
+      // read→whole-array-PATCH raced exactly that way).
+      const saved = await api.put<{ saved: string; version: number; totalScreens: number }>(
+        `/projects/${projectId}/screens/${encodeURIComponent(screen.id)}`,
+        wire
+      );
+      // A bodyless response must not manufacture plausible numbers — read the
+      // aggregate for the real version/count instead.
+      let version = saved?.version;
+      let total = saved?.totalScreens;
+      if (version === undefined || total === undefined) {
+        const state = await readScreens(api, projectId);
+        version ??= state?.screens.find((s) => s.id === screen.id)?.version ?? 1;
+        total ??= state?.screens.length ?? 1;
+      }
       return ok(
-        `Saved screen "${screen.id}" (v${wire.version}, ${next.length} total). ` +
+        `Saved screen "${screen.id}" (v${version}, ${total} total). ` +
           `Try the project live: ${APP_BASE}/playground?projectId=${projectId} — share this link with the user.`,
-        { saved: screen.id, totalScreens: next.length, version: wire.version }
+        { saved: screen.id, totalScreens: total, version }
       );
     })
   );
@@ -172,14 +177,15 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
     },
     guarded(async ({ projectId, screenId, confirm }) => {
       if (!confirm) return fail(CONFIRM_HINT);
-      const state = await readScreens(api, projectId);
-      if (!state) return fail(`Project ${projectId} not found.`);
-      if (!state.screens.some((s) => s.id === screenId)) {
-        return fail(`Screen '${screenId}' not found.`);
-      }
-      const next = state.screens.filter((s) => s.id !== screenId);
-      await api.patch(`/projects/${projectId}`, { customScreens: next });
-      return ok({ deleted: screenId, totalScreens: next.length });
+      // Atomic per-screen delete (same row-locked merge as put_screen).
+      const result = await api.delete<{ saved: string; totalScreens: number }>(
+        `/projects/${projectId}/screens/${encodeURIComponent(screenId)}`
+      );
+      // DELETE conventionally 204s — count from the aggregate rather than
+      // reporting a fabricated 0.
+      const total =
+        result?.totalScreens ?? (await readScreens(api, projectId))?.screens.length ?? 0;
+      return ok({ deleted: screenId, totalScreens: total });
     })
   );
 }

@@ -16,15 +16,15 @@ here explain behaviors you will observe).
 
 - **Project** is the aggregate root: `brandSettings`, `settings`
   (uiGenerationMode, elementVisibility, customPages, flexibleModeRules,
-  elementStyleVariant), and `customScreens` all live ON the project and are written via
-  PATCH. There is no /screens endpoint — use the screen tools.
+  elementStyleVariant), and `customScreens` all live ON the project. Brand and
+  settings are written via PATCH `/projects/{id}`; screens are written via atomic
+  per-screen endpoints (PUT/DELETE `/projects/{id}/screens/{screenId}`) — the
+  server merges by id under the project row lock, so concurrent screen writes
+  are safe. Brand and settings PATCHes are still client-side read-modify-write:
+  two agents editing brand/settings on the same project can overwrite each
+  other, so keep one agent on those.
 - **Custom elements** are real resources under `/projects/{id}/elements` with append-only,
   server-numbered versions. Publishing = element `status: "published"` + a version row.
   The element key is derived server-side from the name.
 - **API keys** (`bux_pk_…`): max 2 active per project, raw value shown once at creation,
   origin-allowlisted (exact match, no wildcards), revocation propagates in ~5 minutes.
-
-## Concurrency caution
-
-Screen writes are read-modify-write on the project aggregate — two agents editing screens
-on the same project simultaneously can overwrite each other. One agent per project.

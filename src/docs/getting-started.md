@@ -37,11 +37,12 @@ Build WITH the user, not silently — gather intent first, show results as you g
 1. `whoami` — confirm identity and existing projects.
 2. `create_project` — name + brand settings (colors/fonts, or set later with
    `update_brand_settings`).
-3. `update_project_settings` — `{"uiGenerationMode": "flexible"}` (A2UI mode: the agent
-   emits declarative screens; this is the mode for full apps). In the SAME call, set
-   `customPages`: the embed's nav entries, one per top-level destination —
+3. `update_project_settings` — set `customPages`: the embed's nav entries, one per
+   top-level destination —
    `[{"id": "home", "name": "Home", "query": "Show me the home page"}, ...]` (3-5,
-   matching the screens you'll build; each click runs its query).
+   matching the screens you'll build; each click runs its query). Projects serve
+   flexible (A2UI) mode by default — leave `uiGenerationMode` unset; write it only
+   when the owner explicitly wants deterministic screens.
    `customPages` is REQUIRED, not optional: a project without them opens the
    playground to a "set up pages" dialog instead of the product. If you set
    settings early, come back after the screens exist and set the final pages —

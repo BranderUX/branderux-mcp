@@ -51,7 +51,7 @@ translation for you when you call providers directly from the handler.
   inside `---A2UI_START---` / `---A2UI_END---` markers in ordinary text deltas. No tools.
 - **Deterministic** — screen selection happens first; `params.tools` carries screen tools
   named `generate_{screenId}_data`; the model answers via tool calls.
-Set per project: `update_project_settings {"uiGenerationMode": "flexible"}`.
+Flexible is the default (unset `uiGenerationMode` serves flexible); set `update_project_settings {"uiGenerationMode": "deterministic"}` only when the project explicitly wants tool-based screens.
 
 ## Hand-off checklist (end every integration with this)
 
