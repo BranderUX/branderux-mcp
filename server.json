@@ -6,6 +6,7 @@
     "url": "https://github.com/BranderUX/branderux-mcp",
     "source": "github"
   },
+  "websiteUrl": "https://branderux.com/mcp",
   "version": "0.1.1",
   "remotes": [
     {
