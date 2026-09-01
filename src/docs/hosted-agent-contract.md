@@ -62,10 +62,17 @@ The agent never invents prices/stock; if data is missing it says so.
 - `writePolicy`:
   - `none` (default) — read-only entity, no write tools.
   - `end-user-owned` — signed visitors create/update THEIR OWN rows
-    (bookings, orders).
+    (bookings, orders). Requires `loginRequirement` "required" or "approval":
+    under "none"/"optional" login, anonymous visitors cannot write to it and
+    every submission silently fails — use `open` there.
   - `open` — any visitor may write, confirm-first.
   Writes always run through the visitor-confirmation plane unless the owner
   sets a tool to auto.
+  **Where writes execute**: visitor write tools (entity, connected-app, and
+  custom-REST writes) run ONLY on the published site, where the visitor's
+  Confirm card can complete them. The owner test chat is read-only by design
+  (write tools are not mounted there); previews and the playground cannot
+  write either. Set that expectation before the owner tests a write flow.
 - Upserting an existing name replaces the schema (version bumps). Schema is
   advisory-for-generation: the server validates structure/size, YOU are
   responsible for generating conforming rows.

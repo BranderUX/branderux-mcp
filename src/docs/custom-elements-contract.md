@@ -41,6 +41,11 @@ export default function Component({ items, title, onSelectItem, onItemContextMen
 - Wiring is DERIVED from the code: the primary action is the first well-known callback
   name (onSelect, onRowClick, …), else the first select/click/open/view/press-flavored
   one. Set it explicitly via `interactionPropName`.
+- **Forms**: every form element must expose an initial-value prop for EACH field
+  (per-field defaults, e.g. `initialName`, `initialDate`, or an `initialValues` object)
+  so the agent can prefill values it already knows from the conversation — a visitor
+  should never retype their own name or a date they just said. Date and time fields use
+  real pickers (`<input type="date">` / `type="time"` or equivalent), never free text.
 
 ## Sandbox constraints (violations look broken in production)
 
