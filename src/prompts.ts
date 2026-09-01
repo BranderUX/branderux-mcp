@@ -34,9 +34,44 @@ Work in this order, using the BranderUX MCP tools:
 5. Author 4-6 custom elements yourself (one per screen AREA, not per widget) and publish them with create_element — each renders in the panel as you publish; pause for my feedback.
 6. Disable the fixed elements that don't fit this product (update_project_settings elementVisibility, kebab keys like "data-table": false) so the runtime AI composes from OUR elements — tell me which you kept and why.
 7. Compose 4-6 example screens with put_screen, pinning the published element versions. Show each with generate_screen (with projectId) so I see the assembled screen in my brand.
-8. Ask me for my site's exact origin(s), then create_api_key. Relay the raw key immediately — it is shown once.
+8. Ask me for my site's exact origin(s), then create_api_key. Relay the raw key immediately — and never claim it "can't be shown again" (conversations persist; the origin allow-list is the security boundary, note it instead).
 9. Give me the frontend snippet and the backend agent route (get_integration_snippet), with params.system forwarded.
 10. Finish with the exact env block to paste: BRANDER_PROJECT_ID=… and BRANDER_API_KEY=… (plus where each goes in the snippet).
+Ask me before anything destructive.`,
+          },
+        },
+      ],
+    })
+  );
+
+  server.registerPrompt(
+    "build-hosted-agent-app",
+    {
+      title: "Build a hosted agentic app (business without its own AI)",
+      description:
+        "End-to-end HOSTED build: a BranderUX-hosted agent answers from managed entities, with working visitor writes, owner escalation email, a designed home, and an immediate publish to <slug>.branderux.app.",
+      argsSchema: {
+        business: z.string().describe("The business, e.g. 'a flower shop in Ashdod' or a URL"),
+        brandNotes: z.string().optional().describe("Brand direction: colors, tone, typography"),
+      },
+    },
+    ({ business, brandNotes }) => ({
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: `Build a BranderUX-HOSTED agentic app for: ${business}.
+${brandNotes ? `Brand direction: ${brandNotes}\n` : ""}
+This business has no AI of its own — the BranderUX-hosted agent answers. Follow THE HOSTED BUILD ARC exactly:
+1. read_doc "hosted-agent-contract" FIRST (also "custom-elements-contract" and "screens-wire-format" before authoring).
+2. Ask me the FOUR MANDATORY QUESTIONS from the contract (login requirement, access follow-up, escalation timing, write-tool consent) and WAIT for my answers.
+3. whoami → create_project → brand.
+4. define_entity for the real data shapes — writable entities (bookings/orders/enquiries) get the right writePolicy per the coherence rule — then seed_records (marked _demo) or wire live sources.
+5. upsert_agent_config: persona in the business's voice encoding my escalation-timing answer; policies from my answers (handoff email activates escalate_to_owner — real owner email); upsert_skill for real domain knowledge.
+6. Author the custom elements — every submit element's clickQueryTemplate carries EVERY field its create_<entity> write needs (MAKING A WRITE ACTUALLY WORK).
+7. put_screen the screens, update_project_settings customPages, then set_home_screen (required).
+8. list_entities to VERIFY writePolicy round-tripped, then publish_site IMMEDIATELY — derive the slug from the business name, announce the live URL, remind me writes/sign-in/emails run there.
 Ask me before anything destructive.`,
           },
         },

@@ -17,6 +17,42 @@ The end-user experience: a shopper asks → the hosted agent queries the
 project's entities → answers with REAL rows rendered into branded screens.
 The agent never invents prices/stock; if data is missing it says so.
 
+## THE HOSTED BUILD ARC (follow in order — every step, no step is optional)
+
+1. Ask the FOUR QUESTIONS below (in chat; WAIT for answers before writing config).
+2. Brand ∥ `define_entity` (with the right `writePolicy`!) → `seed_records` (or live sources).
+3. `upsert_agent_config` — persona + policies encoding the answers; `upsert_skill` for real
+   domain knowledge.
+4. Elements (submit elements MUST carry the full write payload — see MAKING A WRITE WORK)
+   → screens → `customPages`.
+5. `set_home_screen` — the designed home is a REQUIRED step for hosted apps, not a nicety:
+   without it every landing costs a model call and loads slow.
+6. **`publish_site` IMMEDIATELY as the last build step — do NOT wait to be asked.** Derive
+   the slug from the business name; it is renameable later (rename moves the key origin
+   too), so naming is never a reason to hold. Announce the live URL. Writes, sign-in, and
+   owner emails only work on the published site — an unpublished build cannot be truly
+   tested. (If `publish_site` is not among your tools, say publishing is coming soon.)
+
+## The four questions you MUST ask the owner (before enabling)
+
+1. **Login**: "Do your customers need accounts on your site?" → store EXACTLY "none" |
+   "optional" | "required" | "approval" in `policies.loginRequirement` (canonical values
+   only — never the display phrasing).
+2. **Access follow-up** (MANDATORY when the answer was required/approval): "Who should be
+   able to sign in?" → `allowedEmailDomains` / `invitedEmails`.
+3. **Escalation timing** (MANDATORY whenever a handoff email is stored): "When should I
+   email you about a customer?" (e.g. every booking or order / only when I can't help /
+   bookings, complaints and questions) → encode the answer EXPLICITLY in the persona or a
+   skill. With no stated policy the agent only escalates when a visitor asks for a human,
+   and owners miss their own bookings.
+4. **Write-tool informed consent** (MANDATORY before mounting ANY connected-app write
+   tool): explain in plain business language what each tool lets ANY visitor do, by verb
+   class — create/add tools only ADD entries (low risk, the recommended set);
+   update/delete tools MUST carry this warning VERBATIM, inside the question itself: "any
+   visitor could change or delete EXISTING entries in your [app] — including ones created
+   by other customers or by you; there is no 'only their own' limit"; send/post tools act
+   AS the business. Never mount a write tool the owner hasn't explicitly approved.
+
 ## Agent config (`upsert_agent_config`)
 
 - `persona` — the business voice + facts, ≤20k chars. Write it about the
@@ -38,8 +74,17 @@ The agent never invents prices/stock; if data is missing it says so.
   300 signed / 100 anonymous per day, so store overrides only when the
   owner asks about cost control), `handoff` (human-escalation contacts, both
   keys optional: `{"whatsapp": "+972501234567", "email": "help@business.com"}`
-  — the runtime renders them as wa.me/mailto links when a user asks for a
-  person; capture from the scrape or ask the owner).
+  — capture from the scrape or ask the owner). **A stored `handoff.email`
+  ACTIVATES the hosted agent's `escalate_to_owner` tool on the LIVE site:
+  calling it REALLY EMAILS the owner (rate-limited) — this is a genuine
+  outbound channel, and with a stated escalation policy (question 3 above)
+  the agent emails the owner when the matching event completes (a booking,
+  an order), not only when a visitor asks for a human. Tell owners this
+  accurately: booking/contact requests on the published site DO reach their
+  inbox. Never claim the hosted agent "has no email channel" — it does,
+  whenever a handoff email is stored. It never mounts on owner test/preview
+  surfaces (published site only). The wa.me link gets a `?text=` prefill with
+  the visitor's request context.**
 - `dailyTokenBudget` — cost-weighted tokens/day (default 2,000,000). Serving
   429s past it; resets daily (UTC).
 - `modelTier` — "standard" | "premium" (stored; inert until pricing ships).
@@ -77,6 +122,34 @@ The agent never invents prices/stock; if data is missing it says so.
   advisory-for-generation: the server validates structure/size, YOU are
   responsible for generating conforming rows.
 
+## MAKING A WRITE ACTUALLY WORK (4 required pieces — a writable entity alone does NOTHING)
+
+A `writePolicy` of `end-user-owned`/`open` derives runtime tools named literally
+**`create_<entity>` / `update_<entity>`** (e.g. `create_orders`) — but a working write
+needs ALL FOUR pieces, and skipping any one ships a confirmation screen that confirms
+nothing:
+
+1. **The entity**: `define_entity` with the right `writePolicy` (respect the coherence
+   rule above), and a schema whose fields cover everything fulfilment needs (an orders
+   schema without delivery address/recipient phone produces rows no one can act on).
+2. **A submit element that carries the FULL payload**: the submit callback's
+   `clickQueryTemplate` must name EVERY field the write tool needs
+   (`"Submit order: {name}, {phone}, deliver to {deliveryAddress}, message: {cardMessage}, total {total}"`)
+   — form submissions reach the runtime agent as a QUERY built from that template, and
+   tokens you don't name are DISCARDED before the agent ever sees them.
+3. **Instructions to write**: the persona or a skill must explicitly say to call
+   `create_<entity>` when a submission arrives (and `escalate_to_owner` in the same turn,
+   per the owner's escalation policy). `flexibleModeRules` does NOT reach the answering
+   agent — it steers screen generation only; write instructions there are dead text.
+4. **Verify**: `list_entities` returns `writePolicy` — check it round-tripped.
+
+Per-tool modes ride `policies.writePolicies` (`{"create_orders": "auto" | "confirm" | "off"}`,
+default confirm). Where confirm-mode writes complete: the published `{slug}.branderux.app`
+site (an SDK embed on the customer's own domain completes only `auto`-mode writes — the
+confirm card cannot land there). The owner sees incoming rows in the app's Agent tab →
+**Data** pane (a live records browser), via `list_entity_records` here, and in their inbox
+when escalation is configured — never tell an owner their orders are invisible.
+
 ## Records (`seed_records`)
 
 - ≤500 rows per call, ≤32KB per row, ≤50k rows per entity.
@@ -99,11 +172,13 @@ read-only); when enabled, write tools run through the visitor-confirmation
 plane — each write is confirmed by the visitor unless the owner sets that
 tool to auto.
 
-## Build-order rule of thumb
+## Build order (hosted)
 
-brand ∥ entities → seed ∥ persona/config → screens that present the
-entities → verify with a test query. Screens referencing entity data should
-name real fields from the schema in their element structure.
+The arc at the top of this doc is the build order: questions → brand ∥ entities
+(writePolicy!) → seed ∥ persona/config/skills → elements (submit payloads!) → screens →
+pages → `set_home_screen` → **`publish_site`, immediately, unprompted**. Screens
+referencing entity data should name real fields from the schema in their element
+structure. The arc ends at a LIVE URL, not at "verified with a test query".
 
 ## Live external data sources (V25)
 

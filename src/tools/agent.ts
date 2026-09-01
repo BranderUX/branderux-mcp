@@ -31,7 +31,9 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       description:
         "Create/update the project's hosted-agent configuration (persona, enabled switch, policies, daily token budget). " +
         "Partial: omitted fields keep their current value. persona = the BUSINESS voice + facts only — platform rules are added by the runtime. " +
-        "Read brander://docs/hosted-agent-contract first.",
+        "Read brander://docs/hosted-agent-contract first — its FOUR MANDATORY OWNER QUESTIONS (login, access follow-up, " +
+        "escalation timing, write consent) must be asked and answered BEFORE enabling. A stored handoff.email ACTIVATES " +
+        "escalate_to_owner on the live site — it REALLY emails the owner; encode the owner's escalation-timing answer in the persona or a skill.",
       inputSchema: {
         projectId: projectIdSchema.describe("Project id"),
         enabled: z.boolean().optional().describe("Hosted-mode switch — serving refuses when false"),
@@ -44,7 +46,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
             'Policy bag: {"loginRequirement": "none"|"optional"|"required"|"approval", ' +
               '"allowedEmailDomains"?: string[], "invitedEmails"?: string[], ' +
               '"visitorLimits"?: {"turnsPerDay", "anonymousTurnsPerDay"}, ' +
-              '"handoff"?: {"whatsapp"?, "email"?}} — semantics in brander://docs/hosted-agent-contract'
+              '"handoff"?: {"whatsapp"?, "email"?} (a stored email activates the escalate_to_owner tool on the live site), ' +
+              '"writePolicies"?: {"create_<entity>": "auto"|"confirm"|"off"}} — semantics in brander://docs/hosted-agent-contract'
           ),
         homeScreen: z
           .object({})
@@ -114,8 +117,10 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
           .optional()
           .describe(
             "Write-tools: none (default, read-only) | end-user-owned (signed visitors create/update " +
-              "THEIR rows — bookings/orders) | open (any visitor, confirm-first). Writes always go " +
-              "through the visitor-confirmation plane unless the owner sets a tool to auto."
+              "THEIR rows — bookings/orders; needs loginRequirement required/approval) | open (any visitor, confirm-first). " +
+              "Derives runtime tools named literally create_<entity> / update_<entity>, confirm-first unless the owner sets a tool to auto. " +
+              "A writable entity is NOT a working write by itself: the submit element's clickQueryTemplate must carry EVERY field and the " +
+              "persona/skill must say to call create_<entity> — see hosted-agent-contract MAKING A WRITE ACTUALLY WORK."
           ),
         source: z
           .object({
@@ -262,7 +267,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
     {
       title: "Design the home page (canned first paint)",
       description:
-        "Store the DESIGNED first page: layout decided ONCE, rows REAL on every landing. When a " +
+        "Store the DESIGNED first page — a REQUIRED step of every hosted build (without it each landing costs a model call and loads slow). " +
+        "Layout decided ONCE, rows REAL on every landing. When a " +
         "visitor lands (the first custom page's query auto-fires), serve replays this with zero " +
         "model calls — but each binding's query runs LIVE (store API or managed records), so " +
         "prices/stock/items are always current. matchQuery MUST equal the first custom page's " +
@@ -395,7 +401,9 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
     "list_entities",
     {
       title: "List data entities",
-      description: "List the project's managed-entity definitions (schema, policy, version).",
+      description:
+        "List the project's managed-entity definitions (schema, accessPolicy, writePolicy, source, version). " +
+        "Use it to VERIFY write setup: a write-enabled entity shows writePolicy end-user-owned|open.",
       inputSchema: { projectId: projectIdSchema },
       outputSchema: { entities: z.array(z.object({}).passthrough()) },
       annotations: READ_ONLY,
@@ -449,7 +457,9 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       description:
         "Publish (or rename/republish) the project's hosted agentic app at https://<slug>.branderux.app. " +
         "slug: 2-40 chars, lowercase letters/digits, inner hyphens. First publish mints the site key " +
-        "automatically. Requires a configured hosted agent to be useful — configure it first.",
+        "automatically. Requires a configured hosted agent to be useful — configure it first. " +
+        "PUBLISH IMMEDIATELY as the last build step of every hosted build — never wait to be asked: derive the slug from the " +
+        "business name (rename later moves the key origin too), announce the live URL. Writes, sign-in and owner emails only run on the published site.",
       inputSchema: {
         projectId: projectIdSchema,
         slug: z

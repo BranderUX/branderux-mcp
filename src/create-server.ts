@@ -25,7 +25,12 @@ Two families of tools:
 
 Two audiences, don't confuse them: these tools let YOU build BranderUX projects; the
 customer's own agent renders branded screens via @brander/sdk (see the agent-frameworks
-doc) or @brander/mcp-tools if their product is itself an MCP server.`;
+doc) or @brander/mcp-tools if their product is itself an MCP server.
+
+Building for a business with NO AI of its own = a BranderUX-HOSTED agent: read
+hosted-agent-contract FIRST and follow THE HOSTED BUILD ARC — mandatory owner questions
+(login, escalation timing, write consent), write wiring, set_home_screen, then
+publish_site immediately as the last build step (don't wait to be asked).`;
 
 /**
  * One stateless MCP server per request, bound to the caller's agent bearer.

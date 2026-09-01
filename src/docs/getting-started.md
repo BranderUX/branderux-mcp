@@ -21,6 +21,15 @@ BranderUX looks like.
    brand, custom elements and screens through THESE MCP TOOLS.
    → `read_doc rest-api`, `read_doc custom-elements-contract`, `read_doc screens-wire-format`.
 
+**FORK FIRST — which lane?** If the business has NO AI of its own (a shop, a service, a
+restaurant that just wants an app), you are building a **BranderUX-HOSTED agent**: the
+platform's agent answers from managed entities, the site publishes to
+`<slug>.branderux.app`, and the arc is DIFFERENT from the steps below — mandatory owner
+questions, entities + write wiring, `set_home_screen`, then `publish_site` immediately.
+→ **`read_doc hosted-agent-contract` and follow THE HOSTED BUILD ARC there instead.**
+The steps below (API key, endpoint, env vars) are ONLY for customers whose own agent
+answers.
+
 ## How to build a full agentic app with these tools
 
 Build WITH the user, not silently — gather intent first, show results as you go:

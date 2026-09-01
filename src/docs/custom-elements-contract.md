@@ -74,6 +74,14 @@ template; JSON map = per-action:
 `{"$primary": "Show details for {name} (ID: {id})", "onAddToCart": "Add {name} to my cart"}`.
 `{tokens}` resolve against the callback's payload object.
 
+**Write/submit templates carry the FULL payload.** A submit/order/enquiry callback's
+template is the ONLY channel to the runtime agent — the submission arrives as a query
+built from it, and payload fields you don't name as `{tokens}` are DISCARDED before the
+agent sees them. A gift-message field the element collects but the template omits never
+leaves the iframe. Name every field the downstream write tool (`create_<entity>`) needs:
+`"Submit order: {name}, {phone}, deliver to {deliveryAddress}, card message: {cardMessage}, total {total}"`.
+See read_doc hosted-agent-contract → MAKING A WRITE ACTUALLY WORK.
+
 ## Porting existing components
 
 Customers with their OWN gen-UI components: read_doc port-existing-components —
