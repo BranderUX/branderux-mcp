@@ -1,6 +1,31 @@
 # @brander/sdk integration reference (verified)
 
-## Install & mount
+## FIRST: which lane is this project? (get this wrong and you send people to write a backend they don't need)
+
+- **HOSTED project** (an enabled agent config exists — the BranderUX-hosted agent answers):
+  the ENTIRE integration is handler-free. NO `onQuery`/`onQueryStream`, NO backend route,
+  NO relay — the SDK detects the missing handlers and runs phase 2 on BranderUX servers
+  (SDK 0.6.0+). The one-liners:
+
+  ```tsx
+  import Brander from "@brander/sdk";
+  <Brander apiKey="bux_pk_..." projectId="..." isFullscreen />
+  ```
+
+  or the floating chat-bubble widget:
+
+  ```tsx
+  import { BranderChatWidget } from "@brander/sdk";
+  <BranderChatWidget apiKey="bux_pk_..." projectId="..." />
+  ```
+
+  Never instruct a hosted-project owner to implement `onQueryStream` or a backend route.
+  The zero-code alternative is always a plain link/button to their published site.
+
+- **EXTERNAL-AGENT product** (the customer's own AI answers): everything below applies —
+  `onQueryStream` (recommended) or `onQuery` plus a backend route that talks to THEIR model.
+
+## Install & mount (external-agent lane)
 
 ```bash
 npm install @brander/sdk
@@ -18,7 +43,8 @@ import Brander, { sseStream } from "@brander/sdk";
 />
 ```
 
-Required: `apiKey`, `projectId`, and ONE of `onQueryStream` (recommended) / `onQuery`.
+Required: `apiKey`, `projectId`; handlers are OPTIONAL since 0.6.0 (absent = hosted mode).
+For an external agent, provide ONE of `onQueryStream` (recommended) / `onQuery`.
 
 ## CustomerAIParams — what your handler receives
 
