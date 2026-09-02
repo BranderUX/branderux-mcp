@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { buildActionsContract } from "../lib/element-actions.js";
+import {
+  buildActionsContract,
+  declaresLegacyPrimaryShim,
+  deriveInteraction,
+  parseTemplateSpec,
+} from "../lib/element-actions.js";
 import { transform } from "sucrase";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
@@ -62,12 +67,99 @@ export function validateElementCode(code: string, kind: "component" | "skeleton"
   return problems;
 }
 
+const RIGHT_CLICK_PROP = /contextmenu|rightclick/i;
+
+interface WiringInput {
+  code: string;
+  propsSchema: Record<string, unknown>;
+  clickQueryTemplate: string | null;
+  interactionPropName: string | null;
+}
+
+/**
+ * Pre-flight for ACTION WIRING. The runtime, `list_elements` and the panel
+ * preview must agree on which callback is primary — and the runtime DERIVES
+ * it from callback names (`deriveInteraction`), never from the stored
+ * interactionPropName. A declared primary that derivation disagrees with, or
+ * a `$primary`/plain-string template when nothing derives as primary, ships a
+ * template the runtime never sends (the click falls back to a generic query)
+ * while the preview shows it working. Fail loudly with the remedy instead.
+ */
+export function checkInteractionWiring(input: WiringInput): string[] {
+  const problems: string[] = [];
+  const derived = deriveInteraction(input.code, input.propsSchema);
+  const callbacks = [...(derived.actionProp ? [derived.actionProp] : []), ...derived.extraActionProps];
+  const listed = callbacks.length ? callbacks.join(", ") : "none";
+  const mapForm = `{${callbacks.map((name) => `"${name}": "..."`).join(", ")}}`;
+  const noPrimaryReason =
+    `with ${callbacks.length} callbacks (${listed}) and no select/click/open/view/press-flavored name there is NO primary`;
+  const declared = input.interactionPropName?.trim() || null;
+  // The pre-extraction shim: the runtime binds `onAction` as the primary
+  // left-click handler on every element and resolves the PRIMARY template for
+  // it, so a Props whose only callback is `onAction` still sends a plain /
+  // `$primary` template. Derivation reports no callbacks for it by design
+  // (list_elements and the runtime registry agree) — honour it here only.
+  const shimDeclared = declaresLegacyPrimaryShim(input.code, input.propsSchema);
+  const legacyOnly = shimDeclared && callbacks.length === 0;
+
+  if (declared && declared !== derived.actionProp && !(legacyOnly && declared === "onAction")) {
+    if (RIGHT_CLICK_PROP.test(declared)) {
+      problems.push(
+        `interactionPropName "${declared}" is the right-click prop, not an action — it is detected automatically; pass the primary action callback or null.`
+      );
+    } else if (declared === "onAction" && shimDeclared) {
+      problems.push(
+        `interactionPropName "onAction" is the legacy primary shim, not a derived primary: ` +
+          (derived.actionProp
+            ? `the runtime derives "${derived.actionProp}" — set interactionPropName to it (or null).`
+            : `${noPrimaryReason} — set interactionPropName to null and key EVERY template by its callback name in the JSON map form: ${mapForm}.`)
+      );
+    } else if (!callbacks.includes(declared)) {
+      problems.push(
+        `interactionPropName "${declared}" is not a callback declared in Props (declared: ${listed}). Declare it as an optional \`on*?: (...) => void\` prop, or pass null.`
+      );
+    } else if (derived.actionProp === null) {
+      problems.push(
+        `interactionPropName "${declared}" cannot be the primary: the primary is DERIVED from callback names, and ${noPrimaryReason}. ` +
+          `Rename the callback to a flavored name (e.g. onSelectItem), or set interactionPropName to null and key EVERY template by its callback name in the JSON map form: ${mapForm}.`
+      );
+    } else {
+      problems.push(
+        `interactionPropName "${declared}" disagrees with derivation: the runtime derives "${derived.actionProp}" as the primary (first well-known or flavored callback name). ` +
+          `Set interactionPropName to "${derived.actionProp}" (or null) and put "${declared}"'s template under its own key in the JSON map: {"$primary": "...", "${declared}": "..."}.`
+      );
+    }
+  }
+
+  const spec = parseTemplateSpec(input.clickQueryTemplate);
+  if (spec.primary !== null && derived.actionProp === null && !legacyOnly) {
+    problems.push(
+      callbacks.length === 0
+        ? "clickQueryTemplate carries a primary template but Props declares no action callback — nothing can ever send it. Declare an action-named callback (e.g. onSelectItem?: (item) => void) or pass clickQueryTemplate null."
+        : `clickQueryTemplate's primary template ("$primary" or a plain string) is orphaned: ${noPrimaryReason}, so the runtime never sends it. ` +
+          `Rename one callback to a flavored name, or key EVERY template by its callback name in the JSON map form: ${mapForm}.`
+    );
+  }
+  return problems;
+}
+
 interface WireVersionPayload {
   version?: number;
   code?: string;
+  propsSchema?: Record<string, unknown> | null;
   defaultProps?: Record<string, unknown>;
   clickQueryTemplate?: string | null;
   interactionPropName?: string | null;
+}
+
+/** One row of GET /elements/{id}/versions, projected to what an agent can act on. */
+interface WireVersionRow {
+  version?: number;
+  createdAt?: string;
+  prompt?: string | null;
+  codeSha256?: string | null;
+  interactionPropName?: string | null;
+  extractionStatus?: string | null;
 }
 
 /**
@@ -80,13 +172,15 @@ function withPreview(
   source: { name: string; version?: number; brandSettings?: Record<string, unknown> } & WireVersionPayload
 ): ReturnType<typeof ok> {
   if (!isPreviewAppAvailable() || !source.code) return result;
+  // No interactionPropName here on purpose: the payload's primary is DERIVED
+  // from code + propsSchema (buildPreviewPayload), never the stored field.
   const preview = buildPreviewPayload({
     name: source.name,
     version: source.version,
     code: source.code,
+    propsSchema: source.propsSchema,
     defaultProps: source.defaultProps,
     clickQueryTemplate: source.clickQueryTemplate,
-    interactionPropName: source.interactionPropName,
   });
   if (!preview) return result;
   if (source.brandSettings) preview.brandSettings = source.brandSettings;
@@ -106,6 +200,9 @@ async function fetchPanelBrand(
     const project = await api.get<{ brandSettings?: Record<string, unknown> }>(
       `/projects/${projectId}`
     );
+    // normalizeBrandForPanel's darkMode: true default mirrors the client's
+    // normalizeBrandSettings (defaultSettings.darkMode: true): a brand that
+    // never set darkMode renders DARK on the site, so the panel must too.
     return project?.brandSettings ? normalizeBrandForPanel(project.brandSettings) : undefined;
   } catch {
     return undefined;
@@ -181,6 +278,32 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
   );
 
   server.registerTool(
+    "list_element_versions",
+    {
+      title: "List element versions",
+      description:
+        "List every version of one custom element, newest first (version, createdAt, prompt, codeSha256, interactionPropName, extractionStatus) — the checkable record of what was published when. Use it to verify a publish landed and which number to pin in screens; the number publish_element_version RETURNS is authoritative, never a remembered one.",
+      inputSchema: { projectId: z.string().uuid(), elementId: z.string().uuid() },
+      outputSchema: { elementId: z.string(), versions: z.array(z.object({}).passthrough()) },
+      annotations: READ_ONLY,
+    },
+    guarded(async ({ projectId, elementId }) => {
+      const rows = await api.get<WireVersionRow[]>(`/projects/${projectId}/elements/${elementId}/versions`);
+      const versions = (rows ?? [])
+        .map((row) => ({
+          version: row.version ?? null,
+          createdAt: row.createdAt ?? null,
+          prompt: row.prompt ?? null,
+          codeSha256: row.codeSha256 ?? null,
+          interactionPropName: row.interactionPropName ?? null,
+          extractionStatus: row.extractionStatus ?? null,
+        }))
+        .sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
+      return ok({ elementId, versions });
+    })
+  );
+
+  server.registerTool(
     "preview_element",
     {
       title: "Preview custom element",
@@ -234,7 +357,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
     {
       title: "Create custom element",
       description:
-        "Create AND publish a custom element from agent-written TSX. Pre-flight validates the code (compile + sandbox import allowlist + export contract) before anything is sent. Read the custom-elements-contract doc first. In clients with MCP Apps support the published element renders live in the panel.",
+        "Create AND publish a custom element from agent-written TSX. Pre-flight validates the code (compile + sandbox import allowlist + export contract) AND the action wiring (the primary is DERIVED from callback names; a $primary template with no derivable primary, or an interactionPropName derivation disagrees with, is rejected with the remedy) before anything is sent. Read the custom-elements-contract doc first. In clients with MCP Apps support the published element renders live in the panel.",
       annotations: WRITE,
       outputSchema: {
         element: z.object({}).passthrough(),
@@ -259,12 +382,13 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
         .string()
         .nullable()
         .describe("Primary click query template with {field} tokens, or a JSON map {\"$primary\": ..., \"onX\": ...}; null for non-interactive"),
-      interactionPropName: z.string().nullable().describe("Primary callback prop, e.g. 'onSelectItem'; null if none"),
+      interactionPropName: z.string().nullable().describe("Primary callback prop, e.g. 'onSelectItem'; null if none. ADVISORY — must equal the DERIVED primary (first well-known/select/click/open/view/press-flavored callback, else the only callback); with 2+ unflavored callbacks there is no primary: pass null and key templates by callback name"),
       },
     },
     guarded(async (input) => {
       const problems = validateElementCode(input.code, "component");
       if (input.skeletonCode) problems.push(...validateElementCode(input.skeletonCode, "skeleton"));
+      if (problems.length === 0) problems.push(...checkInteractionWiring(input));
       if (problems.length) return fail(`Element rejected by pre-flight validation:\n- ${problems.join("\n- ")}`);
 
       const version = {
@@ -293,9 +417,9 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
         name: input.name,
         version: 1,
         code: input.code,
+        propsSchema: input.propsSchema,
         defaultProps: input.defaultProps,
         clickQueryTemplate: input.clickQueryTemplate,
-        interactionPropName: input.interactionPropName,
         brandSettings: await fetchPanelBrand(api, input.projectId),
       });
     })
@@ -306,7 +430,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
     {
       title: "Publish element version",
       description:
-        "Append a new version to an existing element (same pre-flight validation) and promote it to published.",
+        "Append a new version to an existing element (same pre-flight validation, code AND action wiring) and promote it to published. The returned publishedVersion is the number to pin in screens.",
       annotations: WRITE,
       outputSchema: {
         elementId: z.string(),
@@ -332,6 +456,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
     guarded(async (input) => {
       const problems = validateElementCode(input.code, "component");
       if (input.skeletonCode) problems.push(...validateElementCode(input.skeletonCode, "skeleton"));
+      if (problems.length === 0) problems.push(...checkInteractionWiring(input));
       if (problems.length) return fail(`Version rejected by pre-flight validation:\n- ${problems.join("\n- ")}`);
 
       const element = await api.get<{ description?: string; name?: string }>(
@@ -362,9 +487,9 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
         name: element.name ?? "Custom element",
         version: appended?.version,
         code: input.code,
+        propsSchema: input.propsSchema,
         defaultProps: input.defaultProps,
         clickQueryTemplate: input.clickQueryTemplate,
-        interactionPropName: input.interactionPropName,
         brandSettings: await fetchPanelBrand(api, input.projectId),
       });
     })

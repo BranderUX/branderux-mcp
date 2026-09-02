@@ -1,4 +1,5 @@
 import { transform } from "sucrase";
+import { deriveInteraction } from "../lib/element-actions.js";
 
 /**
  * Server-side prep for the element-preview MCP App: the element's TSX is compiled
@@ -12,6 +13,11 @@ export interface PreviewPayload {
   compiledCode: string;
   defaultProps: Record<string, unknown>;
   clickQueryTemplate: string | null;
+  /**
+   * The DERIVED primary callback (the runtime's own rules — `deriveInteraction`),
+   * never the stored interactionPropName, which the runtime does not trust. The
+   * app's shims decide "primary" from this, so "Would send" matches the site.
+   */
   interactionPropName: string | null;
   callbackNames: string[];
   /** Normalized project brand — the preview themes the element with it. */
@@ -92,9 +98,10 @@ export interface PreviewSource {
   name: string;
   version?: number;
   code: string;
+  /** JSON Schema of Props — the second source of callback names for derivation. */
+  propsSchema?: Record<string, unknown> | null;
   defaultProps?: Record<string, unknown>;
   clickQueryTemplate?: string | null;
-  interactionPropName?: string | null;
 }
 
 /** Null when the code does not compile — callers degrade to a no-preview result. */
@@ -103,16 +110,20 @@ export function buildPreviewPayload(
 ): PreviewPayload | null {
   try {
     const compiledCode = compileForPreview(source.code);
+    // The primary is DERIVED from callback names exactly as the runtime and
+    // list_elements derive it; the stored interactionPropName is never
+    // consulted, so the panel agrees with the site by construction.
+    const primary = deriveInteraction(source.code, source.propsSchema ?? null).actionProp;
     return {
       name: source.name,
       version: source.version,
       compiledCode,
       defaultProps: source.defaultProps ?? {},
       clickQueryTemplate: source.clickQueryTemplate ?? null,
-      interactionPropName: source.interactionPropName ?? null,
+      interactionPropName: primary,
       callbackNames: extractCallbackNames(
         source.code,
-        source.interactionPropName ?? null,
+        primary,
         source.clickQueryTemplate ?? null,
       ),
     };

@@ -19,10 +19,24 @@ The agent never invents prices/stock; if data is missing it says so.
 
 ## THE HOSTED BUILD ARC (follow in order — every step, no step is optional)
 
-1. Ask the FOUR QUESTIONS below (in chat; WAIT for answers before writing config).
+### HOW TO TALK TO THE OWNER (applies to every message in this arc)
+
+Assume the owner is NOT technical: no jargon, no tool, field, config or version names, no
+technical explanations — describe everything as business outcomes ("your order form now
+saves requests", not "the entity's writePolicy is open"; "your shop is updated", not "the
+version counter advanced"). Never paste raw JSON or tool output into chat unless the owner
+asks for it — describe results in plain language. Focus on delivering results, not
+explaining mechanics.
+
+ONE OVERRIDE: consent and safety moments beat this rule — informed-consent questions for
+write tools (question 5 below) keep their EXACT tool names and VERBATIM warnings; safety
+text is never softened, summarized, or de-jargoned.
+
+1. Ask the FIVE QUESTIONS below (in chat; WAIT for answers before writing config).
 2. Brand ∥ `define_entity` (with the right `writePolicy`!) → `seed_records` (or live sources).
-3. `upsert_agent_config` — persona + policies encoding the answers; `upsert_skill` for real
-   domain knowledge.
+3. `upsert_agent_config` — persona + policies encoding the answers, ALWAYS including
+   `policies.language` (the site's language) and `policies.timezone` (IANA zone) — both in
+   EVERY hosted build, see Agent config; `upsert_skill` for real domain knowledge.
 4. Elements (submit elements MUST carry the full write payload — see MAKING A WRITE WORK)
    → screens → `customPages`.
 5. `set_home_screen` — the designed home is a REQUIRED step for hosted apps, not a nicety:
@@ -31,27 +45,52 @@ The agent never invents prices/stock; if data is missing it says so.
    the slug from the business name; it is renameable later (rename moves the key origin
    too), so naming is never a reason to hold. Announce the live URL. Writes, sign-in, and
    owner emails only work on the published site — an unpublished build cannot be truly
-   tested. (If `publish_site` is not among your tools, say publishing is coming soon.)
+   tested. Publishing yields BOTH the interactive site and a SEPARATE read-only MCP
+   endpoint at `https://<slug>.branderux.app/mcp` for visiting agents (reads only — see
+   "Where writes execute"). (If `publish_site` is not among your tools, say publishing is
+   coming soon.)
+   **WRAP-UP — the moment `publish_site` succeeds, tell the owner in plain words (no tool,
+   field or platform-internal names):** (a) the live address of their site; (b) that AI
+   assistants — Claude, ChatGPT and any MCP client — can now LOOK UP their business at the
+   SAME address with `/mcp` on the end and answer about it in their brand, and give them
+   that link too (there is nothing extra to set up or turn on: the address is simply the
+   site URL + "/mcp"); (c) that this lookup address only READS — orders, bookings and
+   requests still happen on the site itself; (d) two or three concrete things to try
+   first, all of them questions ("ask it what's in stock today", "ask it about delivery
+   times", "ask it when you're open") — NEVER suggest placing an order or booking from
+   Claude or ChatGPT. This wrap-up is part of the step — a build that ends without it
+   leaves the owner unaware half of what they now own.
 
-## The four questions you MUST ask the owner (before enabling)
+## The five questions you MUST ask the owner (before enabling)
 
 1. **Login**: "Do your customers need accounts on your site?" → store EXACTLY "none" |
    "optional" | "required" | "approval" in `policies.loginRequirement` (canonical values
    only — never the display phrasing).
 2. **Access follow-up** (MANDATORY when the answer was required/approval): "Who should be
    able to sign in?" → `allowedEmailDomains` / `invitedEmails`.
-3. **Escalation timing** (MANDATORY whenever a handoff email is stored): "When should I
+3. **Handoff email** (MANDATORY before storing `policies.handoff.email`): "Which address
+   should customer requests reach?" → store the address the owner TYPED. Never default to
+   the signed-in account's email (`whoami`) or to an address you inferred from the scrape
+   without confirmation — a stored email arms a REAL outbound channel. If the owner
+   declines or does not answer, store NO `handoff` and say plainly that the site will have
+   no email channel until one is set.
+4. **Escalation timing** (MANDATORY whenever a handoff email is stored): "When should I
    email you about a customer?" (e.g. every booking or order / only when I can't help /
    bookings, complaints and questions) → encode the answer EXPLICITLY in the persona or a
    skill. With no stated policy the agent only escalates when a visitor asks for a human,
    and owners miss their own bookings.
-4. **Write-tool informed consent** (MANDATORY before mounting ANY connected-app write
-   tool): explain in plain business language what each tool lets ANY visitor do, by verb
-   class — create/add tools only ADD entries (low risk, the recommended set);
+5. **Write-tool informed consent** (MANDATORY before mounting ANY write tool — entity,
+   connected-app, or custom-REST): explain in plain business language what each tool lets
+   ANY visitor do, by verb class — create/add tools only ADD entries (low risk, the
+   recommended set; `create_<entity>` is derived for every writable entity);
    update/delete tools MUST carry this warning VERBATIM, inside the question itself: "any
    visitor could change or delete EXISTING entries in your [app] — including ones created
    by other customers or by you; there is no 'only their own' limit"; send/post tools act
-   AS the business. Never mount a write tool the owner hasn't explicitly approved.
+   AS the business. `update_<entity>` is OFF by default and mounts ONLY when you store
+   `policies.writePolicies["update_<entity>"]` as "confirm" or "auto" — store it only
+   after the owner approved editing with the warning above (no delete tool is ever
+   derived for entities). Add-only needs nothing beyond the entity. Never mount a write
+   tool the owner hasn't explicitly approved.
 
 ## Agent config (`upsert_agent_config`)
 
@@ -72,12 +111,22 @@ The agent never invents prices/stock; if data is missing it says so.
   `visitorLimits` (`{"turnsPerDay": N, "anonymousTurnsPerDay": N}`, integers
   1-100000 — per-visitor daily turn caps; ALWAYS ON with platform defaults
   300 signed / 100 anonymous per day, so store overrides only when the
-  owner asks about cost control), `handoff` (human-escalation contacts, both
-  keys optional: `{"whatsapp": "+972501234567", "email": "help@business.com"}`
-  — capture from the scrape or ask the owner). **A stored `handoff.email`
+  owner asks about cost control), `language` (the site's language — free text
+  such as "Hebrew" or a BCP-47 tag such as "he"; the runtime locks EVERY
+  reply, screen label, form field and button to it. SET IT IN EVERY HOSTED
+  BUILD from the business's own site: the platform's click queries and rules
+  are English, so a non-English site without it code-switches mid-reply),
+  `timezone` (IANA zone such as "Asia/Jerusalem"; the runtime tells the agent
+  the current LOCAL date and time so same-day cutoffs and "still available
+  today" are judged correctly — anything invalid resolves to UTC. SET IT IN
+  EVERY HOSTED BUILD from the business's location), `handoff`
+  (human-escalation contacts, both keys optional: `{"whatsapp":
+  "+972501234567", "email": "help@business.com"}` — the email comes from
+  question 3 ONLY: the address the owner typed, never the signed-in account's
+  email, never a guess; no answer = no `handoff`). **A stored `handoff.email`
   ACTIVATES the hosted agent's `escalate_to_owner` tool on the LIVE site:
   calling it REALLY EMAILS the owner (rate-limited) — this is a genuine
-  outbound channel, and with a stated escalation policy (question 3 above)
+  outbound channel, and with a stated escalation policy (question 4 above)
   the agent emails the owner when the matching event completes (a booking,
   an order), not only when a visitor asks for a human. Tell owners this
   accurately: booking/contact requests on the published site DO reach their
@@ -100,9 +149,18 @@ The agent never invents prices/stock; if data is missing it says so.
   (price, stock) must be `"type": "number"` and stored as JSON numbers.
 - `accessPolicy`:
   - `public-read` (default) — catalog-class data, served to any end user.
-  - `end-user-scoped` — rows belong to one end user (carts, orders). Served
-    only with a signed identity (a later milestone) — defining them early is
-    fine, they just read empty until then.
+  - `end-user-scoped` — rows belong to ONE signed visitor (carts, orders).
+    Identity is LIVE: serve verifies the site's signed session cookie and
+    scopes reads to that visitor. With NO identity — an anonymous visitor,
+    the owner test chat, the site-MCP endpoint — the `query_<name>` READ tool
+    is NOT mounted at all (a mounted-but-empty tool read as "this business
+    has no orders"; now the agent simply has no data path). So pick it ONLY
+    under `loginRequirement` "required"/"approval". Under "none"/"optional"
+    use `public-read` for anything a visitor must read back (public-read rows
+    are readable by EVERY visitor — keep personal data off them). Writes:
+    open writes stamp the signed visitor's identity when one is present, so
+    that visitor reads their own rows back; ANONYMOUS open rows have no owner
+    and are visible to the owner only (`list_entity_records` / Data pane).
   - `owner-only` — internal; NEVER served, invisible to the runtime.
 - `writePolicy`:
   - `none` (default) — read-only entity, no write tools.
@@ -110,24 +168,41 @@ The agent never invents prices/stock; if data is missing it says so.
     (bookings, orders). Requires `loginRequirement` "required" or "approval":
     under "none"/"optional" login, anonymous visitors cannot write to it and
     every submission silently fails — use `open` there.
-  - `open` — any visitor may write, confirm-first.
+  - `open` — any visitor may write, confirm-first. NEVER pair it with
+    `accessPolicy: end-user-scoped` under `loginRequirement` "none"/"optional"
+    expecting visitors to read back what they wrote: anonymous rows are
+    owner-visible only, and anonymous visitors carry no `query_<name>` tool.
   Writes always run through the visitor-confirmation plane unless the owner
   sets a tool to auto.
   **Where writes execute**: visitor write tools (entity, connected-app, and
   custom-REST writes) run ONLY on the published site, where the visitor's
   Confirm card can complete them. The owner test chat is read-only by design
   (write tools are not mounted there); previews and the playground cannot
-  write either. Set that expectation before the owner tests a write flow.
+  write either. Publishing also mints a SEPARATE read-only MCP endpoint at
+  `https://<slug>.branderux.app/mcp` for VISITING agents (ChatGPT, Claude,
+  another business's agent): `get_business_info` + `query_*` +
+  `generate_screen` + connected-app READS (`hub_*`) — never
+  `create_*`/`update_*`/`rest_*`/`escalate_to_owner` — by construction, not
+  by configuration. Its `tools/list` says NOTHING about the hosted agent's
+  own tool belt: connecting an MCP client to that URL tells you nothing about
+  whether `create_<entity>` is mounted on the site's own agent. Verify a
+  write by submitting the form on the site itself and checking
+  `list_entity_records` / the Agent tab's Data pane. Set that expectation
+  before the owner tests a write flow.
 - Upserting an existing name replaces the schema (version bumps). Schema is
   advisory-for-generation: the server validates structure/size, YOU are
   responsible for generating conforming rows.
 
 ## MAKING A WRITE ACTUALLY WORK (4 required pieces — a writable entity alone does NOTHING)
 
-A `writePolicy` of `end-user-owned`/`open` derives runtime tools named literally
-**`create_<entity>` / `update_<entity>`** (e.g. `create_orders`) — but a working write
-needs ALL FOUR pieces, and skipping any one ships a confirmation screen that confirms
-nothing:
+A `writePolicy` of `end-user-owned`/`open` derives ONE runtime tool named literally
+**`create_<entity>`** (e.g. `create_orders`) per writable entity. **`update_<entity>` is
+OFF by default**: it mounts ONLY when `policies.writePolicies["update_<entity>"]` is
+explicitly "confirm" or "auto" (an `open` update is UNSCOPED server-side — any visitor
+could patch any row of that entity — which is why it needs the verbatim consent warning
+from question 5). Add-only needs nothing beyond the entity; no delete tool is ever
+derived. But a working write needs ALL FOUR pieces, and skipping any one ships a
+confirmation screen that confirms nothing:
 
 1. **The entity**: `define_entity` with the right `writePolicy` (respect the coherence
    rule above), and a schema whose fields cover everything fulfilment needs (an orders
@@ -143,8 +218,11 @@ nothing:
    agent — it steers screen generation only; write instructions there are dead text.
 4. **Verify**: `list_entities` returns `writePolicy` — check it round-tripped.
 
-Per-tool modes ride `policies.writePolicies` (`{"create_orders": "auto" | "confirm" | "off"}`,
-default confirm). Where confirm-mode writes complete: the published `{slug}.branderux.app`
+Per-tool modes ride `policies.writePolicies`, keyed by the LITERAL tool name:
+`{"create_orders": "auto" | "confirm" | "off", "update_orders": "confirm" | "auto"}` —
+`create_*` defaults to confirm; `update_*` stays unmounted unless you store its key (only
+after the owner approved editing with the verbatim warning; if you told the owner the write
+is add-only, store nothing for `update_*`). Where confirm-mode writes complete: the published `{slug}.branderux.app`
 site (an SDK embed on the customer's own domain completes only `auto`-mode writes — the
 confirm card cannot land there). The owner sees incoming rows in the app's Agent tab →
 **Data** pane (a live records browser), via `list_entity_records` here, and in their inbox
@@ -160,17 +238,49 @@ when escalation is configured — never tell an owner their orders are invisible
   separately; data carries URLs only).
 - Seeding demo data? Mark it clearly in a `_demo: true` field so it can be
   cleaned later, and tell the owner it's sample data.
+- Demo imagery must be SUBJECT-APPROPRIATE or ABSENT. Never point image
+  fields at random-photo services (picsum.photos and the like): they put
+  unrelated subjects on a live catalog that looks real. When the owner has no
+  photos, prefer an EMPTY `imageUrl` (elements must render without it) and
+  ask the owner for photos — the Agent tab's bulk upload → `update_record` on
+  `imageUrl` patches them in later.
+- Time-bearing rows (delivery slots, availability, opening exceptions,
+  events) GO STALE: seeded on build day, they are wrong every day after.
+  Prefer a live source. If you must seed, generate the rows RELATIVE TO TODAY
+  at build time (ISO dates computed from the current date, a rolling window)
+  and tell the owner these rows expire and must be refreshed or replaced by a
+  live source. Never hardcode "today"/"tomorrow"-style labels or a fixed day
+  name into a row — the runtime tells the agent the current local time, so
+  such labels are derived from the ISO date at answer time.
 
 ## What the runtime does with all this (context, not your job)
 
 Serving (`/api/agent/serve`, project-key auth) assembles: persona +
-platform rules + the project's screens + one `query_<name>` READ tool per
-servable entity. The agent queries (filters: eq/neq/lt/lte/gt/gte/contains,
-sort, limit ≤50; results capped at 48KB), then renders screens from real
-rows. Entity writes are governed by `writePolicy` (default `none` =
-read-only); when enabled, write tools run through the visitor-confirmation
-plane — each write is confirmed by the visitor unless the owner sets that
-tool to auto.
+platform rules + the language lock (`policies.language`) + the current LOCAL
+date and time (`policies.timezone`) + the project's screens + the tool belt
+below. The agent queries (filters: eq/neq/lt/lte/gt/gte/contains, sort,
+limit ≤50; results capped at 48KB), then renders screens from real rows.
+Entity writes are governed by `writePolicy` (default `none` = read-only);
+when enabled, write tools run through the visitor-confirmation plane — each
+write is confirmed by the visitor unless the owner sets that tool to auto.
+
+### Runtime tool inventory
+
+| Tool | Mounts when | Surface | Trace label on the site |
+| --- | --- | --- | --- |
+| `query_<entity>` | every servable entity: `public-read` always; `end-user-scoped` ONLY with a verified visitor identity; `owner-only` never | published site, SDK embed, owner test chat, site-MCP | "Queried <entity>" (e.g. "Queried bouquets") |
+| `create_<entity>` | `writePolicy` end-user-owned/open and `writePolicies["create_<entity>"]` not "off"; confirm mode needs the Confirm card (the `{slug}.branderux.app` site), auto also completes on SDK embeds | published/key surfaces only — never the owner test chat, previews, playground, or site-MCP | "Created <entity>" |
+| `update_<entity>` | as `create_` PLUS an explicit `writePolicies["update_<entity>"]` of "confirm"/"auto" | same as `create_` | "Updated <entity>" |
+| `escalate_to_owner` | `policies.handoff.email` stored | published/key surfaces only | "Escalated to owner" |
+| `remember_preference` | a SIGNED-IN visitor (verified site session cookie) | published site only — never owner surfaces, never anonymous visitors | "Remembered preference" |
+| `hub_<toolkit>_<action>` | active connector-hub connections; reads always, writes only those the owner approved (gated like entity writes) | reads on every surface incl. site-MCP; writes published/key only | the action humanized, e.g. `hub_googlecalendar_create_event` → "Created event" |
+| `rest_<name>` | `policies.customWrites` definitions | published/key surfaces only | "Sent <name>" (e.g. `rest_book_table` → "Sent book table") |
+
+The site UI shows each tool call as a humanized step — present tense while
+it runs ("Querying bouquets"), past tense once done — so every trace line
+maps back to exactly one tool above. A "Remembered preference" trace
+therefore PROVES a signed-in published-site session; it can never come from
+the owner test chat.
 
 ## Build order (hosted)
 
