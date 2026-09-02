@@ -10,6 +10,18 @@ interface TemplateSpec {
   actions: Record<string, string>;
 }
 
+/**
+ * Callback names the runtime binds as the primary left-click shim on EVERY
+ * element (lib/elements/click-query.ts GENERIC_ACTION_NAMES): a click through
+ * one of them resolves the PRIMARY template whatever the derived primary is.
+ */
+export const GENERIC_ACTION_NAMES = new Set(["onAction", "onItemRightClick", "onItemContextMenu"]);
+
+/** The runtime's routeActionQuery primary test: a generic shim, or the derived primary. */
+export function isPrimaryAction(action: string, primary: string | null): boolean {
+  return GENERIC_ACTION_NAMES.has(action) || action === primary;
+}
+
 export function parseTemplateSpec(raw: string | null | undefined): TemplateSpec {
   if (!raw) return { primary: null, actions: {} };
   const trimmed = raw.trim();

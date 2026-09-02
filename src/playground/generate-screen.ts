@@ -15,6 +15,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { APP_BASE } from "../config.js";
 import { READ_ONLY, fail, guarded } from "../tools/helpers.js";
+import { deriveInteraction } from "../lib/element-actions.js";
 import {
   compileForPreview,
   extractCallbackNames,
@@ -174,6 +175,7 @@ interface WireElement {
   name?: string;
   currentVersionPayload?: {
     code?: string;
+    propsSchema?: Record<string, unknown> | null;
     defaultProps?: Record<string, unknown>;
     clickQueryTemplate?: string | null;
     interactionPropName?: string | null;
@@ -287,7 +289,14 @@ export function registerGenerateScreen(
           );
         }
         const clickQueryTemplate = payload.clickQueryTemplate ?? null;
-        const interactionPropName = payload.interactionPropName ?? null;
+        // The renderer decides "primary" from this field: DERIVE it with the
+        // runtime's rules, never ship the stored one (same as the element
+        // preview — src/preview/compile.ts), or the panel shows a template
+        // the site never sends.
+        const interactionPropName = deriveInteraction(
+          payload.code,
+          payload.propsSchema ?? null,
+        ).actionProp;
         screenElements.push({
           elementType: "custom",
           props: entry.props,

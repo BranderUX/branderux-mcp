@@ -38,9 +38,16 @@ export default function Component({ items, title, onSelectItem, onItemContextMen
   same node as the item's onClick. Only the component knows which item a gesture hit.
 - EXTERNAL ACTION (agent query) = declared action-named callback. INTERNAL STATE
   (selection, tabs, steps) = useState — resync with useEffect when the prop changes.
-- Wiring is DERIVED from the code: the primary action is the first well-known callback
-  name (onSelect, onRowClick, …), else the first select/click/open/view/press-flavored
-  one. Set it explicitly via `interactionPropName`.
+- Wiring is DERIVED from the code, identically on every surface (runtime, `list_elements`,
+  the publish pre-flight): the primary action is the first well-known callback name
+  (onSelect, onRowClick, …), else the first select/click/open/view/press-flavored one,
+  else the ONLY callback when exactly one is declared. `interactionPropName` is ADVISORY
+  and does NOT override derivation — pass the derived name or null. With 2+ callbacks and
+  no select/click/open/view/press-flavored name there is NO primary: a `$primary` /
+  plain-string template is then orphaned (the runtime never sends it, while the panel
+  preview appears to), so key EVERY template by its callback name in the JSON map form
+  (`{"onStartOrder": "...", "onAskCare": "..."}`) — or rename a callback to a flavored
+  name. `create_element` / `publish_element_version` REJECT the mismatch in pre-flight.
 - **Forms**: every form element must expose an initial-value prop for EACH field
   (per-field defaults, e.g. `initialName`, `initialDate`, or an `initialValues` object)
   so the agent can prefill values it already knows from the conversation — a visitor
@@ -59,6 +66,12 @@ export default function Component({ items, title, onSelectItem, onItemContextMen
 - **Breakpoints resolve against the ELEMENT IFRAME width**, not the page — use `sm` keys
   for anything that must respond inside half-width slots.
 - Images must be absolute https URLs.
+- **Palette tokens**: the sandbox theme maps the brand to `primary` / `secondary` / `info`
+  — the brand ACCENT is `info.main`. Text on a primary fill uses `primary.contrastText`;
+  body text uses `text.primary` / `text.secondary`. NEVER use `background.default` or
+  `accent.main` as a COLOR: `background.default` is the page surface (on a primary fill it
+  has resolved to invisible text), and `accent` is not a palette key (the declaration is
+  dropped and the text inherits).
 
 ## Seeing what you built
 
@@ -66,6 +79,13 @@ After `create_element` / `publish_element_version` (or via `preview_element` at 
 time), clients that support MCP Apps render the element live in the panel with its
 `defaultProps` — every callback is shimmed to display the exact query the click would
 send, so you and the user can verify wiring before it ships to a screen.
+
+The version number the publish tool RETURNS (`create_element` → 1,
+`publish_element_version` → `publishedVersion`) is authoritative: pin screen placements
+to it, never to a remembered or narrated number. Where your client exposes it (Claude Code
+and other MCP clients), `list_element_versions` lists every version with its `createdAt`
+when you need to check what actually landed; without it, `get_element`'s `currentVersion`
+is the check.
 
 ## Query templates
 

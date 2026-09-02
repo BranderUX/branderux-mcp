@@ -65,13 +65,15 @@ Ask me before anything destructive.`,
 ${brandNotes ? `Brand direction: ${brandNotes}\n` : ""}
 This business has no AI of its own — the BranderUX-hosted agent answers. Follow THE HOSTED BUILD ARC exactly:
 1. read_doc "hosted-agent-contract" FIRST (also "custom-elements-contract" and "screens-wire-format" before authoring).
-2. Ask me the FOUR MANDATORY QUESTIONS from the contract (login requirement, access follow-up, escalation timing, write-tool consent) and WAIT for my answers.
+2. Ask me the FIVE MANDATORY QUESTIONS from the contract (login requirement, access follow-up, handoff email — never my account email, escalation timing, write-tool consent) and WAIT for my answers.
 3. whoami → create_project → brand.
 4. define_entity for the real data shapes — writable entities (bookings/orders/enquiries) get the right writePolicy per the coherence rule — then seed_records (marked _demo) or wire live sources.
-5. upsert_agent_config: persona in the business's voice encoding my escalation-timing answer; policies from my answers (handoff email activates escalate_to_owner — real owner email); upsert_skill for real domain knowledge.
+5. upsert_agent_config: persona in the business's voice encoding my escalation-timing answer; policies from my answers (handoff email = the address I typed, it activates escalate_to_owner — real owner email) plus policies.language and policies.timezone (always); upsert_skill for real domain knowledge.
 6. Author the custom elements — every submit element's clickQueryTemplate carries EVERY field its create_<entity> write needs (MAKING A WRITE ACTUALLY WORK).
 7. put_screen the screens, update_project_settings customPages, then set_home_screen (required).
 8. list_entities to VERIFY writePolicy round-tripped, then publish_site IMMEDIATELY — derive the slug from the business name, announce the live URL, remind me writes/sign-in/emails run there.
+Talk to me as a business owner, not an engineer: no jargon and no tool, field, config or version names, and never paste raw JSON or tool output — describe every result as a business outcome ("your order form now saves requests", not "the entity's writePolicy is open"). The ONE exception is consent and safety: the write-tool consent question in step 2 keeps its exact tool names and verbatim warnings.
+The moment the publish succeeds, wrap up in plain words: my live site address, the fact that AI assistants (Claude, ChatGPT and any MCP client) can now look up my business at that same address with /mcp on the end and answer about it in my brand — give me that link too, nothing extra to set up — that this lookup address only reads, so orders, bookings and requests still happen on the site itself, and two or three things to try first, all of them questions to ask (never placing an order from Claude or ChatGPT).
 Ask me before anything destructive.`,
           },
         },

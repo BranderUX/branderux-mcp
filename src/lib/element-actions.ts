@@ -49,6 +49,21 @@ function schemaCallbackNames(propsSchema: Record<string, unknown> | null): strin
   return properties ? Object.keys(properties).filter((key) => /^on[A-Z]/.test(key)) : [];
 }
 
+/**
+ * Whether Props declares the pre-extraction primary shim `onAction`. The
+ * runtime binds `onAction` as the primary left-click handler on EVERY element
+ * (custom-element-builder + the element-sandbox frame) and a click through it
+ * resolves the primary template — so a Props whose ONLY callback is `onAction`
+ * is still interactive even though `deriveInteraction` (by design, like the
+ * runtime registry and list_elements) reports no callbacks for it.
+ */
+export function declaresLegacyPrimaryShim(
+  code: string,
+  propsSchema: Record<string, unknown> | null,
+): boolean {
+  return [...callbackPropsFromCode(code), ...schemaCallbackNames(propsSchema)].includes("onAction");
+}
+
 export interface DerivedInteraction {
   actionProp: string | null;
   extraActionProps: string[];
@@ -74,12 +89,12 @@ export function deriveInteraction(
   return { actionProp, extraActionProps };
 }
 
-interface TemplateSpec {
+export interface TemplateSpec {
   primary: string | null;
   actions: Record<string, string>;
 }
 
-function parseTemplateSpec(raw: string | null | undefined): TemplateSpec {
+export function parseTemplateSpec(raw: string | null | undefined): TemplateSpec {
   if (!raw) return { primary: null, actions: {} };
   const trimmed = raw.trim();
   if (trimmed.startsWith("{")) {
@@ -107,11 +122,30 @@ function parseTemplateSpec(raw: string | null | undefined): TemplateSpec {
  * drop; whitespace collapses; an empty result means "no meaning from the
  * template" (caller falls back to the humanized name).
  */
-function resolveTokens(template: string, payload: Record<string, unknown>): string {
+export function resolveTokens(template: string, payload: Record<string, unknown>): string {
   return template
     .replace(/\{(\w+)\}/g, (_match, token: string) => {
       const value = payload[token];
       if (value === undefined || value === null || typeof value === "object") return "";
+      return String(value);
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * PREVIEW-ONLY resolver for the human-readable `meaning`: tokens the example
+ * payload can fill are filled, every other `{placeholder}` is KEPT verbatim —
+ * a form template (no items prop, so an empty payload) reads as its template
+ * instead of a sentence with holes, and an item action whose template names
+ * fields the derived example lacks still shows what it expects. Never a
+ * query the runtime would send: that is `resolveTokens`, the verbatim port.
+ */
+function previewTokens(template: string, payload: Record<string, unknown>): string {
+  return template
+    .replace(/\{(\w+)\}/g, (match, token: string) => {
+      const value = payload[token];
+      if (value === undefined || value === null || typeof value === "object") return match;
       return String(value);
     })
     .replace(/\s+/g, " ")
@@ -196,7 +230,7 @@ export function buildActionsContract(input: ActionsContractInput): ElementAction
   return names.map(({ name, kind }) => {
     const template = kind === "primary" ? spec.primary : (spec.actions[name] ?? null);
     const payload = exampleItem ?? {};
-    const resolved = template ? resolveTokens(template, payload) : "";
+    const resolved = template ? previewTokens(template, payload) : "";
     let meaning = resolved;
     if (!meaning) {
       // Same fallback shape as the runtime's generic click query.

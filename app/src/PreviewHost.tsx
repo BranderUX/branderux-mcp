@@ -7,7 +7,11 @@ import {
   createTheme,
 } from "@mui/material";
 import { requireShim } from "./require-table";
-import { parseTemplateSpec, resolveActionQuery } from "./click-query-lite";
+import {
+  isPrimaryAction,
+  parseTemplateSpec,
+  resolveActionQuery,
+} from "./click-query-lite";
 
 /** structuredContent.preview shape produced by the server's buildPreviewPayload(). */
 export interface PreviewPayload {
@@ -16,6 +20,7 @@ export interface PreviewPayload {
   compiledCode: string;
   defaultProps: Record<string, unknown>;
   clickQueryTemplate: string | null;
+  /** The DERIVED primary (runtime rules), never the stored field — see compile.ts. */
   interactionPropName: string | null;
   callbackNames: string[];
   /** Normalized project brand (server-side) — themes the preview like the embed. */
@@ -25,13 +30,23 @@ export interface PreviewPayload {
 interface BrandLike {
   primaryColor?: string;
   secondaryColor?: string;
+  accentColor?: string;
   darkMode?: boolean;
   borderRadius?: number;
   backgroundColor?: string;
   fontStyle?: { fontFamily?: string };
 }
 
-/** Branded MUI theme from the shipped settings; neutral defaults when absent. */
+/**
+ * Branded MUI theme from the shipped settings; neutral defaults when absent.
+ * SAME palette mapping as the client's element sandbox
+ * (public/element-sandbox/frame.html buildTheme), so the panel verifies what
+ * the site renders: the brand accent is `info.main`, the mode is DARK unless
+ * the brand says darkMode: false (the client's normalizeBrandSettings defaults
+ * a missing darkMode to true before the frame theme is built), and
+ * `background.default` is the REAL brand background — a colour, so an element
+ * reading it gets a colour.
+ */
 function buildPreviewTheme(brand: BrandLike | undefined) {
   const darkMode = brand?.darkMode !== false;
   return createTheme({
@@ -41,6 +56,7 @@ function buildPreviewTheme(brand: BrandLike | undefined) {
       ...(brand?.secondaryColor
         ? { secondary: { main: brand.secondaryColor } }
         : {}),
+      ...(brand?.accentColor ? { info: { main: brand.accentColor } } : {}),
       ...(brand?.backgroundColor
         ? {
             background: {
@@ -176,7 +192,7 @@ export function PreviewHost({ payload }: { payload: PreviewPayload }) {
   const props = React.useMemo(() => {
     const shims: Record<string, unknown> = {};
     for (const action of payload.callbackNames) {
-      const isPrimary = action === payload.interactionPropName;
+      const isPrimary = isPrimaryAction(action, payload.interactionPropName);
       shims[action] = (...args: unknown[]) => {
         showQuery(
           `Would send: “${resolveActionQuery(action, isPrimary, spec, args)}”`,

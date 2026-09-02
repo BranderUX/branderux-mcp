@@ -24,9 +24,15 @@ BranderUX looks like.
 **FORK FIRST — which lane?** If the business has NO AI of its own (a shop, a service, a
 restaurant that just wants an app), you are building a **BranderUX-HOSTED agent**: the
 platform's agent answers from managed entities, the site publishes to
-`<slug>.branderux.app`, and the arc is DIFFERENT from the steps below — mandatory owner
-questions, entities + write wiring, `set_home_screen`, then `publish_site` immediately.
+`<slug>.branderux.app` (publishing yields BOTH the interactive site and a read-only MCP
+endpoint at `<slug>.branderux.app/mcp` for visiting agents), and the arc is DIFFERENT
+from the steps below — mandatory owner questions, entities + write wiring,
+`set_home_screen`, then `publish_site` immediately.
 → **`read_doc hosted-agent-contract` and follow THE HOSTED BUILD ARC there instead.**
+That owner is a business person, not an engineer: describe everything as business outcomes
+("your order form now saves requests") and never in platform internals — no tool, field,
+config or version names, no raw JSON (consent and safety warnings are the one exception and
+keep their exact wording).
 The steps below (API key, endpoint, env vars) are ONLY for customers whose own agent
 answers.
 

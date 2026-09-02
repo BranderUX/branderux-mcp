@@ -31,9 +31,13 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       description:
         "Create/update the project's hosted-agent configuration (persona, enabled switch, policies, daily token budget). " +
         "Partial: omitted fields keep their current value. persona = the BUSINESS voice + facts only — platform rules are added by the runtime. " +
-        "Read brander://docs/hosted-agent-contract first — its FOUR MANDATORY OWNER QUESTIONS (login, access follow-up, " +
-        "escalation timing, write consent) must be asked and answered BEFORE enabling. A stored handoff.email ACTIVATES " +
-        "escalate_to_owner on the live site — it REALLY emails the owner; encode the owner's escalation-timing answer in the persona or a skill.",
+        "Read brander://docs/hosted-agent-contract first — its FIVE MANDATORY OWNER QUESTIONS (login, access follow-up, " +
+        "handoff email, escalation timing, write consent) must be asked and answered BEFORE enabling. handoff.email is the address " +
+        "the owner TYPED — never the signed-in account's email, never a guess; no answer = store no handoff. A stored handoff.email ACTIVATES " +
+        "escalate_to_owner on the live site — it REALLY emails the owner; encode the owner's escalation-timing answer in the persona or a skill. " +
+        "Set policies.language (the site's language — the runtime locks every reply and screen label to it) and policies.timezone " +
+        "(IANA zone — the runtime tells the agent the current local time) in EVERY hosted build. update_<entity> tools are OFF by default: " +
+        "one mounts only when policies.writePolicies[\"update_<entity>\"] is \"confirm\" or \"auto\" (owner-approved editing, verbatim warning asked).",
       inputSchema: {
         projectId: projectIdSchema.describe("Project id"),
         enabled: z.boolean().optional().describe("Hosted-mode switch — serving refuses when false"),
@@ -46,8 +50,11 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
             'Policy bag: {"loginRequirement": "none"|"optional"|"required"|"approval", ' +
               '"allowedEmailDomains"?: string[], "invitedEmails"?: string[], ' +
               '"visitorLimits"?: {"turnsPerDay", "anonymousTurnsPerDay"}, ' +
-              '"handoff"?: {"whatsapp"?, "email"?} (a stored email activates the escalate_to_owner tool on the live site), ' +
-              '"writePolicies"?: {"create_<entity>": "auto"|"confirm"|"off"}} — semantics in brander://docs/hosted-agent-contract'
+              '"language"?: "Hebrew" | a BCP-47 tag (the site language lock — set in every hosted build), ' +
+              '"timezone"?: IANA zone e.g. "Asia/Jerusalem" (the business clock — set in every hosted build; invalid = UTC), ' +
+              '"handoff"?: {"whatsapp"?, "email"?} (email = the address the owner typed, never the account email; a stored email activates the escalate_to_owner tool on the live site), ' +
+              '"writePolicies"?: {"create_<entity>": "auto"|"confirm"|"off", "update_<entity>": "confirm"|"auto"} (create_ defaults to confirm; ' +
+              'update_ mounts ONLY when its key is stored)} — semantics in brander://docs/hosted-agent-contract'
           ),
         homeScreen: z
           .object({})
@@ -100,7 +107,10 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "Create/replace a managed-entity definition (name → the agent's query_<name> tool). " +
         "name: ^[a-z][a-z0-9_]{0,63}$. jsonSchema needs non-empty properties with descriptions; " +
         "numeric fields (price, stock) MUST be type number. accessPolicy: public-read (default) | " +
-        "end-user-scoped | owner-only. Max 20 entities/project. With `source` (from site-API " +
+        "end-user-scoped | owner-only — end-user-scoped reads mount ONLY with a verified visitor identity " +
+        "(pick it only under loginRequirement required/approval), and NEVER pair end-user-scoped with writePolicy " +
+        "open under none/optional login: anonymous rows are owner-visible only. update_<entity> is OFF by default " +
+        "(mounts only via policies.writePolicies[\"update_<entity>\"] = \"confirm\"|\"auto\"). Max 20 entities/project. With `source` (from site-API " +
         "discovery) the entity is LIVE-backed: queries fetch that endpoint at serve time — do NOT " +
         "seed_records for it, and mirror the discovered sample's field names in jsonSchema. " +
         "Read brander://docs/hosted-agent-contract first.",
@@ -118,7 +128,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
           .describe(
             "Write-tools: none (default, read-only) | end-user-owned (signed visitors create/update " +
               "THEIR rows — bookings/orders; needs loginRequirement required/approval) | open (any visitor, confirm-first). " +
-              "Derives runtime tools named literally create_<entity> / update_<entity>, confirm-first unless the owner sets a tool to auto. " +
+              "Derives ONE runtime tool named literally create_<entity> (confirm-first unless the owner sets it to auto); " +
+              "update_<entity> is OFF by default and mounts only when policies.writePolicies[\"update_<entity>\"] is \"confirm\"|\"auto\" (owner-approved editing). " +
               "A writable entity is NOT a working write by itself: the submit element's clickQueryTemplate must carry EVERY field and the " +
               "persona/skill must say to call create_<entity> — see hosted-agent-contract MAKING A WRITE ACTUALLY WORK."
           ),
@@ -459,7 +470,14 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "slug: 2-40 chars, lowercase letters/digits, inner hyphens. First publish mints the site key " +
         "automatically. Requires a configured hosted agent to be useful — configure it first. " +
         "PUBLISH IMMEDIATELY as the last build step of every hosted build — never wait to be asked: derive the slug from the " +
-        "business name (rename later moves the key origin too), announce the live URL. Writes, sign-in and owner emails only run on the published site.",
+        "business name (rename later moves the key origin too), announce the live URL. Writes, sign-in and owner emails only run on the published site. " +
+        "Publishing yields BOTH the interactive site and a SEPARATE read-only MCP endpoint at https://<slug>.branderux.app/mcp for visiting agents " +
+        "(get_business_info + query_* + generate_screen + connected-app READS (hub_*) — never create_*/update_*/rest_*/escalate_to_owner) — its tools/list says nothing about the hosted agent's own " +
+        "tool belt; verify writes by submitting on the site itself and checking list_entity_records. " +
+        "AFTER a successful publish, tell the owner BOTH addresses in plain, non-technical words: the live site, and the same address with /mcp on the end, " +
+        "which is how Claude, ChatGPT and any other MCP client can now LOOK UP their business and answer about it in their brand (nothing extra to set up). " +
+        "Say plainly that the /mcp address is read-only — orders, bookings and requests still happen on the site itself — and give two or three things to " +
+        "try first that are all questions ('ask it what is in stock today', 'ask it about delivery times'), never placing an order from an assistant.",
       inputSchema: {
         projectId: projectIdSchema,
         slug: z
@@ -486,7 +504,10 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
     "get_site",
     {
       title: "Get the published site",
-      description: "Read the project's published-site state (none = never published).",
+      description:
+        "Read the project's published-site state (none = never published). " +
+        "When reporting it to the owner, present BOTH addresses in plain words: the live site, and the same address with /mcp on the end, where AI " +
+        "assistants can look up the business — read-only, so orders, bookings and requests still happen on the site itself.",
       inputSchema: { projectId: projectIdSchema },
       outputSchema: { site: z.object({}).passthrough().nullable() },
       annotations: READ_ONLY,
