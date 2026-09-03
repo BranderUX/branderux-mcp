@@ -31,7 +31,8 @@ Building for a business with NO AI of its own = a BranderUX-HOSTED agent: read
 hosted-agent-contract FIRST and follow THE HOSTED BUILD ARC — mandatory owner questions
 (login, access follow-up, handoff email, escalation timing, write consent), write wiring,
 set_home_screen, then publish_site immediately as the last build step (don't wait to be
-asked). Publishing yields the site AND a read-only MCP endpoint at <slug>.branderux.app/mcp.`;
+asked). Publishing yields the site AND an identity-free MCP endpoint at <slug>.branderux.app/mcp
+(reads plus the owner's enabled add-only writes; not public when sign-in is required).`;
 
 /**
  * One stateless MCP server per request, bound to the caller's agent bearer.

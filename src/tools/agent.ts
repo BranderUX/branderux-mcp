@@ -471,13 +471,19 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "automatically. Requires a configured hosted agent to be useful — configure it first. " +
         "PUBLISH IMMEDIATELY as the last build step of every hosted build — never wait to be asked: derive the slug from the " +
         "business name (rename later moves the key origin too), announce the live URL. Writes, sign-in and owner emails only run on the published site. " +
-        "Publishing yields BOTH the interactive site and a SEPARATE read-only MCP endpoint at https://<slug>.branderux.app/mcp for visiting agents " +
-        "(get_business_info + query_* + generate_screen + connected-app READS (hub_*) — never create_*/update_*/rest_*/escalate_to_owner) — its tools/list says nothing about the hosted agent's own " +
-        "tool belt; verify writes by submitting on the site itself and checking list_entity_records. " +
+        "Publishing yields BOTH the interactive site and a SEPARATE identity-free MCP endpoint at https://<slug>.branderux.app/mcp for visiting agents: " +
+        "get_business_info + query_* + generate_screen + connected-app READS (hub_*), PLUS the add-only writes the owner enabled — create_<entity> for every " +
+        "writePolicy open entity unless policies.writePolicies sets it off (update_<entity> only on its explicit opt-in) and escalate_to_owner when a handoff " +
+        "email is stored; never rest_* or connected-app writes, and end-user-owned entities never mount there. Those writes execute directly on the MCP client's " +
+        "own approval prompt (no Confirm card) and land as anonymous rows in the Data pane. Under loginRequirement required/approval/private the /mcp endpoint " +
+        "is NOT public — it refuses every assistant with a sign-in error. Its tools/list says nothing about the hosted agent's own tool belt; verify site writes " +
+        "by submitting on the site itself and checking list_entity_records. " +
         "AFTER a successful publish, tell the owner BOTH addresses in plain, non-technical words: the live site, and the same address with /mcp on the end, " +
         "which is how Claude, ChatGPT and any other MCP client can now LOOK UP their business and answer about it in their brand (nothing extra to set up). " +
-        "Say plainly that the /mcp address is read-only — orders, bookings and requests still happen on the site itself — and give two or three things to " +
-        "try first that are all questions ('ask it what is in stock today', 'ask it about delivery times'), never placing an order from an assistant.",
+        "Say plainly what the /mcp address can do: look-up always, and — when writes are enabled — placing requests, orders and bookings too (the assistant " +
+        "asks the person first; the record reaches the owner's Data pane or inbox); with no writes enabled say it is look-up only and orders, bookings and " +
+        "requests happen on the site itself; when sign-in is required say the /mcp address is not public and make neither claim. Then give two or three things " +
+        "to try first ('ask it what is in stock today', 'ask it about delivery times' — and, only when writes are enabled, 'ask it to book a table for two').",
       inputSchema: {
         projectId: projectIdSchema,
         slug: z
@@ -507,7 +513,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       description:
         "Read the project's published-site state (none = never published). " +
         "When reporting it to the owner, present BOTH addresses in plain words: the live site, and the same address with /mcp on the end, where AI " +
-        "assistants can look up the business — read-only, so orders, bookings and requests still happen on the site itself.",
+        "assistants can look up the business and — when the owner enabled writes (open entities / a handoff email) — place requests, orders and bookings " +
+        "too; under loginRequirement required/approval/private that address is not public (sign-in gated), so make neither claim.",
       inputSchema: { projectId: projectIdSchema },
       outputSchema: { site: z.object({}).passthrough().nullable() },
       annotations: READ_ONLY,

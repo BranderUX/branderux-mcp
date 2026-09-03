@@ -45,21 +45,30 @@ text is never softened, summarized, or de-jargoned.
    the slug from the business name; it is renameable later (rename moves the key origin
    too), so naming is never a reason to hold. Announce the live URL. Writes, sign-in, and
    owner emails only work on the published site — an unpublished build cannot be truly
-   tested. Publishing yields BOTH the interactive site and a SEPARATE read-only MCP
-   endpoint at `https://<slug>.branderux.app/mcp` for visiting agents (reads only — see
-   "Where writes execute"). (If `publish_site` is not among your tools, say publishing is
-   coming soon.)
+   tested. Publishing yields BOTH the interactive site and a SEPARATE identity-free MCP
+   endpoint at `https://<slug>.branderux.app/mcp` for visiting agents (reads plus the
+   owner's enabled add-only writes — see "Where writes execute"; NOT public under
+   `loginRequirement` "required"/"approval"/"private"). (If `publish_site` is not among
+   your tools, say publishing is coming soon.)
    **WRAP-UP — the moment `publish_site` succeeds, tell the owner in plain words (no tool,
    field or platform-internal names):** (a) the live address of their site; (b) that AI
    assistants — Claude, ChatGPT and any MCP client — can now LOOK UP their business at the
    SAME address with `/mcp` on the end and answer about it in their brand, and give them
    that link too (there is nothing extra to set up or turn on: the address is simply the
-   site URL + "/mcp"); (c) that this lookup address only READS — orders, bookings and
-   requests still happen on the site itself; (d) two or three concrete things to try
-   first, all of them questions ("ask it what's in stock today", "ask it about delivery
-   times", "ask it when you're open") — NEVER suggest placing an order or booking from
-   Claude or ChatGPT. This wrap-up is part of the step — a build that ends without it
-   leaves the owner unaware half of what they now own.
+   site URL + "/mcp") — LOGIN GATE FIRST: under `loginRequirement` "required", "approval"
+   or "private" that endpoint refuses every assistant with a sign-in error, so say plainly
+   that the `/mcp` address is not public while sign-in is required, make neither the
+   look-up nor the write claim, and point (d) at the site itself; (c) under "none" /
+   "optional", what the address can do: look-up always; and, when this build enabled
+   writes (an `open` entity whose `create_` tool is not set `off`, or a stored handoff
+   email), placing requests, orders and bookings too — the assistant asks the person for
+   approval, then the record lands in the owner's Data pane as an anonymous row or the
+   request reaches their inbox; with no writes enabled, say it is look-up only and orders,
+   bookings and requests happen on the site itself; (d) two or three concrete things to try
+   first ("ask it what's in stock today", "ask it about delivery times", "ask it when
+   you're open" — and, only when writes are enabled, "ask it to book a table for two").
+   This wrap-up is part of the step — a build that ends without it leaves the owner
+   unaware half of what they now own.
 
 ## The five questions you MUST ask the owner (before enabling)
 
@@ -178,17 +187,25 @@ text is never softened, summarized, or de-jargoned.
   custom-REST writes) run ONLY on the published site, where the visitor's
   Confirm card can complete them. The owner test chat is read-only by design
   (write tools are not mounted there); previews and the playground cannot
-  write either. Publishing also mints a SEPARATE read-only MCP endpoint at
+  write either. Publishing also mints a SEPARATE identity-free MCP endpoint at
   `https://<slug>.branderux.app/mcp` for VISITING agents (ChatGPT, Claude,
   another business's agent): `get_business_info` + `query_*` +
-  `generate_screen` + connected-app READS (`hub_*`) — never
-  `create_*`/`update_*`/`rest_*`/`escalate_to_owner` — by construction, not
-  by configuration. Its `tools/list` says NOTHING about the hosted agent's
-  own tool belt: connecting an MCP client to that URL tells you nothing about
-  whether `create_<entity>` is mounted on the site's own agent. Verify a
-  write by submitting the form on the site itself and checking
-  `list_entity_records` / the Agent tab's Data pane. Set that expectation
-  before the owner tests a write flow.
+  `generate_screen` + connected-app READS (`hub_*`), PLUS the hosted agent's
+  add-only entity writes for `open` entities — `create_<entity>` unless
+  `policies.writePolicies` sets it `off` (`update_<entity>` only on its
+  explicit opt-in; `confirm` and `auto` both mount there because the MCP
+  client's own approval prompt IS the confirmation: no Confirm card, the write
+  executes directly and lands as an ANONYMOUS row in the Data pane) — and
+  `escalate_to_owner` when a handoff email is stored. Never `rest_*` or
+  connected-app writes; `end-user-owned` entities never mount there (that
+  transport has no sign-in), and under `loginRequirement` "required" /
+  "approval" / "private" the endpoint refuses every assistant (not public).
+  Its `tools/list` still says NOTHING about the hosted agent's own tool belt:
+  connecting an MCP client to that URL tells you nothing about whether
+  `create_<entity>` is mounted on the site's own agent. Verify a SITE write by
+  submitting the form on the site itself and checking `list_entity_records` /
+  the Agent tab's Data pane. Set that expectation before the owner tests a
+  write flow.
 - Upserting an existing name replaces the schema (version bumps). Schema is
   advisory-for-generation: the server validates structure/size, YOU are
   responsible for generating conforming rows.
