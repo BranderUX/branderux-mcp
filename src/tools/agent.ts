@@ -17,6 +17,23 @@ const httpsUrlSchema = z
   .refine((v) => new URL(v).protocol === "https:", "must be https://");
 
 /**
+ * provider/model gateway slug — SHAPE only, accepting exactly what Spring's
+ * AgentConfigService.MODEL_SLUG accepts (its bounds already cap the column
+ * width at 96). WHICH slugs are enabled is the serve-time model registry's
+ * call, so the two sides never need a synchronized allowlist.
+ *
+ * The trailing (?![\s\S]) is a JS-only guard: JS `$` also matches BEFORE a
+ * final newline while Java's Matcher.matches() does not, so without it a slug
+ * ending in "\n" would pass here and 400 at the API.
+ */
+const modelSlugSchema = z
+  .string()
+  .regex(
+    /^[a-z0-9][a-z0-9-]{0,31}\/[a-z0-9][a-z0-9.:_-]{0,62}$(?![\s\S])/,
+    "provider/model slug, e.g. anthropic/claude-sonnet-5"
+  );
+
+/**
  * Hosted-agent + managed-entities tools (agentic apps). These configure a
  * project's OWN BranderUX-hosted agent — the mode for customers without
  * their own AI. Read brander://docs/hosted-agent-contract BEFORE using them;
@@ -62,6 +79,16 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
           .optional()
           .describe("Pass {} to CLEAR the canned home screen (set one via set_home_screen)"),
         modelTier: z.enum(["standard", "premium"]).optional(),
+        model: modelSlugSchema
+          .optional()
+          .describe(
+            "Gateway model slug behind the hosted agent (e.g. anthropic/claude-sonnet-5, the default). " +
+              "NEVER set this unless the owner explicitly asked to change the model — the default is silent. " +
+              "Today this field is only STORED: it takes effect on the live site once the model seam ships — until then every site serves the default. " +
+              "Green list as of 2026-09-04: anthropic/claude-sonnet-5, anthropic/claude-haiku-4.5, anthropic/claude-opus-5 — " +
+              "any other well-formed slug (openai/*, google/*) is stored but serves the default. " +
+              "After storing, say the choice is SAVED — never that the site now runs on it; get_agent_config echoes the stored slug, not the one serving."
+          ),
         dailyTokenBudget: z
           .number()
           .int()

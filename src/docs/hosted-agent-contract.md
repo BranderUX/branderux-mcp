@@ -36,7 +36,8 @@ text is never softened, summarized, or de-jargoned.
 2. Brand ∥ `define_entity` (with the right `writePolicy`!) → `seed_records` (or live sources).
 3. `upsert_agent_config` — persona + policies encoding the answers, ALWAYS including
    `policies.language` (the site's language) and `policies.timezone` (IANA zone) — both in
-   EVERY hosted build, see Agent config; `upsert_skill` for real domain knowledge.
+   EVERY hosted build, see Agent config; `upsert_skill` for real domain knowledge. Do NOT
+   ask about the model: the default is silent — set `model` only if the owner raises it.
 4. Elements (submit elements MUST carry the full write payload — see MAKING A WRITE WORK)
    → screens → `customPages`.
 5. `set_home_screen` — the designed home is a REQUIRED step for hosted apps, not a nicety:
@@ -145,7 +146,22 @@ text is never softened, summarized, or de-jargoned.
   the visitor's request context.**
 - `dailyTokenBudget` — cost-weighted tokens/day (default 2,000,000). Serving
   429s past it; resets daily (UTC).
-- `modelTier` — "standard" | "premium" (stored; inert until pricing ships).
+- `model` — the AI model behind the hosted agent, as a `provider/model`
+  gateway slug; the default is `anthropic/claude-sonnet-5`. OMIT IT in a normal
+  build: the default is silent and right for almost every business. Set it
+  ONLY when the owner explicitly asks to change the model, and NEVER recommend
+  a model by list price — cost per turn depends on caching, so a cheaper list
+  price can cost more. TODAY THIS FIELD IS ONLY STORED: it takes effect on the
+  live site once the model seam ships — until then every site serves the
+  default. Green list as of 2026-09-04 (the only slugs that will serve once
+  the seam ships): `anthropic/claude-sonnet-5`, `anthropic/claude-haiku-4.5`,
+  `anthropic/claude-opus-5`; any other well-formed slug (`openai/*`,
+  `google/*`) is accepted and stored but serves the default. `get_agent_config`
+  echoes the STORED slug, never the one serving — so after storing a slug say
+  the choice is SAVED; never tell the owner the site now runs on it, and never
+  "verify" a switch by reading the config back.
+- `modelTier` — "standard" | "premium" (stored; a placeholder for future
+  PRICING tiers — it does not choose the model, `model` does).
 
 ## Entities (`define_entity`)
 

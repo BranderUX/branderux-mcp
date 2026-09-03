@@ -30,7 +30,8 @@
     "build:app": "vite build",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/model-field-contract.test.mjs"
   },
   "engines": {
     "node": ">=20"
