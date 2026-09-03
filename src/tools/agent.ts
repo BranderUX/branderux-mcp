@@ -82,12 +82,14 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         model: modelSlugSchema
           .optional()
           .describe(
-            "Gateway model slug behind the hosted agent (e.g. anthropic/claude-sonnet-5, the default). " +
-              "NEVER set this unless the owner explicitly asked to change the model — the default is silent. " +
-              "Today this field is only STORED: it takes effect on the live site once the model seam ships — until then every site serves the default. " +
-              "Green list as of 2026-09-04: anthropic/claude-sonnet-5, anthropic/claude-haiku-4.5, anthropic/claude-opus-5 — " +
-              "any other well-formed slug (openai/*, google/*) is stored but serves the default. " +
-              "After storing, say the choice is SAVED — never that the site now runs on it; get_agent_config echoes the stored slug, not the one serving."
+            "Gateway model slug (provider/model) behind the hosted agent. The silent default is anthropic/claude-sonnet-5 — OMIT it in a normal build. " +
+              "NEVER set this unless the owner explicitly asked to change the model. " +
+              "Stored per project; it takes effect on hosted serving only where the model seam is enabled (SERVE_PROVIDER_SEAM=1 on the BranderUX deployment that serves the site — default off during rollout; your system instructions say when model choice is live, and when they say nothing, treat it as not live), and elsewhere the site serves the default. " +
+              "Green list as of 2026-09-04 (the registry's enabled rows — the only slugs that serve; any other well-formed slug is stored but serves the default): " +
+              "anthropic/claude-sonnet-5 (Claude Sonnet 5), anthropic/claude-haiku-4.5 (Claude Haiku 4.5), anthropic/claude-opus-5 (Claude Opus 5), " +
+              "openai/gpt-5.6-sol (GPT-5.6 Sol), openai/gpt-5.6-terra (GPT-5.6 Terra), openai/gpt-5.6-luna (GPT-5.6 Luna), openai/gpt-5-mini (GPT-5 mini), " +
+              "google/gemini-3.8-flash (Gemini 3.8 Flash), google/gemini-2.5-flash (Gemini 2.5 Flash) — nine rows; name them to the owner by these plain names, the slug is for this call only. " +
+              "After storing, say the choice is SAVED; say the site now answers with it ONLY when your instructions say model choice is live — otherwise say it takes effect when model choice goes live. get_agent_config echoes the stored slug, not the one serving."
           ),
         dailyTokenBudget: z
           .number()

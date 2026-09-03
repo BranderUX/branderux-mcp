@@ -147,21 +147,50 @@ text is never softened, summarized, or de-jargoned.
 - `dailyTokenBudget` — cost-weighted tokens/day (default 2,000,000). Serving
   429s past it; resets daily (UTC).
 - `model` — the AI model behind the hosted agent, as a `provider/model`
-  gateway slug; the default is `anthropic/claude-sonnet-5`. OMIT IT in a normal
-  build: the default is silent and right for almost every business. Set it
-  ONLY when the owner explicitly asks to change the model, and NEVER recommend
-  a model by list price — cost per turn depends on caching, so a cheaper list
-  price can cost more. TODAY THIS FIELD IS ONLY STORED: it takes effect on the
-  live site once the model seam ships — until then every site serves the
-  default. Green list as of 2026-09-04 (the only slugs that will serve once
-  the seam ships): `anthropic/claude-sonnet-5`, `anthropic/claude-haiku-4.5`,
-  `anthropic/claude-opus-5`; any other well-formed slug (`openai/*`,
-  `google/*`) is accepted and stored but serves the default. `get_agent_config`
-  echoes the STORED slug, never the one serving — so after storing a slug say
-  the choice is SAVED; never tell the owner the site now runs on it, and never
-  "verify" a switch by reading the config back.
+  gateway slug; the silent default is `anthropic/claude-sonnet-5`. OMIT IT in a
+  normal build: the default is right for almost every business. Set it ONLY
+  when the owner explicitly asks to change the model, and NEVER recommend a
+  model by list price — never quote prices or per-token rates at all: a
+  published price says nothing about what a turn of THEIR agent costs (models
+  differ in how many tokens the same answer takes). Stored per project; it
+  takes effect on hosted serving only where the model seam is enabled
+  (`SERVE_PROVIDER_SEAM=1` on the BranderUX deployment that serves the site —
+  default off during rollout; your system instructions say when model choice
+  is live, and when they say nothing, treat it as not live), and elsewhere the
+  site serves the default. Green list as of 2026-09-04 (the registry's enabled
+  rows — the only slugs that serve; any other well-formed slug is accepted and
+  stored but serves the default): `anthropic/claude-sonnet-5` (Claude Sonnet 5),
+  `anthropic/claude-haiku-4.5` (Claude Haiku 4.5), `anthropic/claude-opus-5`
+  (Claude Opus 5), `openai/gpt-5.6-sol` (GPT-5.6 Sol), `openai/gpt-5.6-terra`
+  (GPT-5.6 Terra), `openai/gpt-5.6-luna` (GPT-5.6 Luna), `openai/gpt-5-mini`
+  (GPT-5 mini), `google/gemini-3.8-flash` (Gemini 3.8 Flash),
+  `google/gemini-2.5-flash` (Gemini 2.5 Flash) — nine rows; name them to the
+  owner by these plain names, the slug is for the tool call only. Where model
+  choice is live, the Agent tab has the same picker: it shows each model's
+  measured cost per turn as a RATIO to the default — never money — and that
+  comparison is the ONE cost fact you may cite (otherwise describe the
+  trade-off in plain words: bigger models reason more carefully and cost more
+  per turn, smaller ones answer faster and cheaper). `get_agent_config` echoes
+  the STORED slug, never the one serving — so after storing a slug say the
+  choice is SAVED; say the site now answers with it ONLY when your instructions
+  say model choice is live, otherwise say it takes effect when model choice
+  goes live, and never "verify" a switch by reading the config back.
 - `modelTier` — "standard" | "premium" (stored; a placeholder for future
   PRICING tiers — it does not choose the model, `model` does).
+
+**Your own API key (BYOK).** An owner may answer their visitors on their own
+provider key (Anthropic, OpenAI or Google) instead of BranderUX's. The key is
+entered ONLY through the Agent tab's "Your API key" card — or, when you are the
+in-app Builder, its `request_credential` tool with the name `model-<provider>`
+(`model-anthropic` | `model-openai` | `model-google`): a secure field that posts
+straight to the vault, so only a non-secret confirmation enters the
+conversation. It is stored encrypted server-side, never shown again, and used
+only to answer that project's visitors. You NEVER handle it: never ask for a
+key, never read, echo, or place one in the conversation, and never pass one
+through any other tool (`set_connector_credential` is for data-source
+credentials, not model keys). If the owner pastes a key in chat, tell them to
+remove it and enter it in the card instead. Turns answered on the owner's own
+key are billed by that provider to the owner.
 
 ## Entities (`define_entity`)
 
