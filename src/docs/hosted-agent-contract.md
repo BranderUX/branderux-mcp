@@ -179,10 +179,11 @@ text is never softened, summarized, or de-jargoned.
   PRICING tiers — it does not choose the model, `model` does).
 
 **Your own API key (BYOK).** An owner may answer their visitors on their own
-provider key (Anthropic, OpenAI or Google) instead of BranderUX's. The key is
+provider key (Anthropic or OpenAI — Google keys are not supported yet: say so
+plainly and store none) instead of BranderUX's. The key is
 entered ONLY through the Agent tab's "Your API key" card — or, when you are the
 in-app Builder, its `request_credential` tool with the name `model-<provider>`
-(`model-anthropic` | `model-openai` | `model-google`): a secure field that posts
+(`model-anthropic` | `model-openai`): a secure field that posts
 straight to the vault, so only a non-secret confirmation enters the
 conversation. It is stored encrypted server-side, never shown again, and used
 only to answer that project's visitors. You NEVER handle it: never ask for a

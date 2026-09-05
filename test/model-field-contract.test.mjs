@@ -40,8 +40,8 @@ const GREEN_LIST = {
 };
 const GREEN_SLUGS = Object.keys(GREEN_LIST).sort();
 
-/** BYOK vault names: model-<provider> for every green-list provider. */
-const BYOK_CREDENTIALS = ["model-anthropic", "model-openai", "model-google"];
+/** BYOK vault names: model-<provider> for the providers with a VERIFIED gateway BYOK slot — Google is green for SERVING but has no slot, so no vault name exists for it. */
+const BYOK_CREDENTIALS = ["model-anthropic", "model-openai"];
 
 const flat = (text) => text.replace(/\s+/g, " ");
 const escapeRx = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -133,6 +133,8 @@ test("doc BYOK paragraph: the card or request_credential model-<provider>, never
   assert.match(text, /Agent tab's "Your API key" card/);
   assert.match(text, /`request_credential` tool with the name `model-<provider>`/);
   for (const name of BYOK_CREDENTIALS) assert.match(text, new RegExp(`\`${name}\``));
+  assert.doesNotMatch(text, /model-google/, "no vault name for Google — it has no BYOK slot");
+  assert.match(text, /Google keys are not supported yet/);
   assert.match(text, /stored encrypted server-side, never shown again/);
   assert.match(text, /never ask for a key, never read, echo, or place one in the conversation/);
   assert.match(text, /tell them to remove it/);
