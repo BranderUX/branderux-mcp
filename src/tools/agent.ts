@@ -17,23 +17,6 @@ const httpsUrlSchema = z
   .refine((v) => new URL(v).protocol === "https:", "must be https://");
 
 /**
- * provider/model gateway slug — SHAPE only, accepting exactly what Spring's
- * AgentConfigService.MODEL_SLUG accepts (its bounds already cap the column
- * width at 96). WHICH slugs are enabled is the serve-time model registry's
- * call, so the two sides never need a synchronized allowlist.
- *
- * The trailing (?![\s\S]) is a JS-only guard: JS `$` also matches BEFORE a
- * final newline while Java's Matcher.matches() does not, so without it a slug
- * ending in "\n" would pass here and 400 at the API.
- */
-const modelSlugSchema = z
-  .string()
-  .regex(
-    /^[a-z0-9][a-z0-9-]{0,31}\/[a-z0-9][a-z0-9.:_-]{0,62}$(?![\s\S])/,
-    "provider/model slug, e.g. anthropic/claude-sonnet-5"
-  );
-
-/**
  * Hosted-agent + managed-entities tools (agentic apps). These configure a
  * project's OWN BranderUX-hosted agent — the mode for customers without
  * their own AI. Read brander://docs/hosted-agent-contract BEFORE using them;
@@ -78,18 +61,18 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
           .passthrough()
           .optional()
           .describe("Pass {} to CLEAR the canned home screen (set one via set_home_screen)"),
-        modelTier: z.enum(["standard", "premium"]).optional(),
-        model: modelSlugSchema
+        level: z
+          .number()
+          .int()
+          .min(1)
+          .max(5)
           .optional()
           .describe(
-            "Gateway model slug (provider/model) behind the hosted agent. The silent default is anthropic/claude-sonnet-5 — OMIT it in a normal build. " +
-              "NEVER set this unless the owner explicitly asked to change the model. " +
-              "Stored per project; it takes effect on hosted serving only where the model seam is enabled (SERVE_PROVIDER_SEAM=1 on the BranderUX deployment that serves the site — default off during rollout; your system instructions say when model choice is live, and when they say nothing, treat it as not live), and elsewhere the site serves the default. " +
-              "Green list as of 2026-09-04 (the registry's enabled rows — the only slugs that serve; any other well-formed slug is stored but serves the default): " +
-              "anthropic/claude-sonnet-5 (Claude Sonnet 5), anthropic/claude-haiku-4.5 (Claude Haiku 4.5), anthropic/claude-opus-5 (Claude Opus 5), " +
-              "openai/gpt-5.6-sol (GPT-5.6 Sol), openai/gpt-5.6-terra (GPT-5.6 Terra), openai/gpt-5.6-luna (GPT-5.6 Luna), openai/gpt-5-mini (GPT-5 mini), " +
-              "google/gemini-3.8-flash (Gemini 3.8 Flash), google/gemini-2.5-flash (Gemini 2.5 Flash) — nine rows; name them to the owner by these plain names, the slug is for this call only. " +
-              "After storing, say the choice is SAVED; say the site now answers with it ONLY when your instructions say model choice is live — otherwise say it takes effect when model choice goes live. get_agent_config echoes the stored slug, not the one serving."
+            "Answer quality, 1..5, in EXACTLY these owner words: 1 = \"Fastest & cheapest — quick answers to simple questions\", 2 = \"Fast — good for FAQs and lookups\", 3 = \"Balanced — right for most shops (default)\", 4 = \"Smart — thinks longer before answering\", 5 = \"Smartest & most expensive — deepest reasoning, slowest\". " +
+              "OMIT it in a normal build. Set it ONLY when the owner explicitly asks for faster, cheaper or smarter answers. " +
+              "NEVER name a model, a vendor or a price to the owner; if they name one, translate it into a stop in plain words. " +
+              "Which model backs each stop is BranderUX's decision (the admin console), never the owner's. " +
+              "After storing, say the choice is SAVED; say the site now answers with it ONLY when your instructions say answer quality (model choice) is live — otherwise say it takes effect when it goes live. get_agent_config echoes the STORED stop, not the one serving."
           ),
         dailyTokenBudget: z
           .number()

@@ -29,13 +29,14 @@ doc) or @brander/mcp-tools if their product is itself an MCP server.
 
 Building for a business with NO AI of its own = a BranderUX-HOSTED agent: read
 hosted-agent-contract FIRST and follow THE HOSTED BUILD ARC — mandatory owner questions
-(login, access follow-up, handoff email, escalation timing, write consent; never ask which AI
-model to use — Sonnet is the default and changes only when the owner asks), write wiring,
+(login, access follow-up, handoff email, escalation timing, write consent; never ask about answer
+quality or which AI model to use — the balanced default is right; change the stop only when
+the owner asks, never naming a model, a vendor or a price), write wiring,
 set_home_screen, then publish_site immediately as the last build step (don't wait to be
 asked). Publishing yields the site AND an identity-free MCP endpoint at <slug>.branderux.app/mcp
 (reads plus the owner's enabled add-only writes; not public when sign-in is required).
 An owner's own AI-provider key is never handled in chat: never ask for, read or echo one — it goes
-in ONLY through the Agent tab's "Your API key" card (or the in-app Builder's request_credential
+in ONLY through the "Your API key" card under Advanced in the Agent tab's Answer quality panel (or the in-app Builder's request_credential
 tool named model-<provider>).`;
 
 /**

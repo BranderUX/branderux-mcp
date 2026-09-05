@@ -2,7 +2,7 @@
   "name": "@brander/mcp",
   "version": "0.1.0",
   "type": "module",
-  "description": "BranderUX MCP server — let your agent create and control BranderUX projects, custom elements, screens and API keys, with one-click browser OAuth.",
+  "description": "BranderUX MCP server \u2014 let your agent create and control BranderUX projects, custom elements, screens and API keys, with one-click browser OAuth.",
   "homepage": "https://branderux.com/mcp",
   "repository": {
     "type": "git",
@@ -31,7 +31,7 @@
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/model-field-contract.test.mjs"
+    "test": "node --test test/level-field-contract.test.mjs"
   },
   "engines": {
     "node": ">=20"
