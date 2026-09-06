@@ -151,8 +151,8 @@ text is never softened, summarized, or de-jargoned.
 - `level` — ANSWER QUALITY, a stop from 1 to 5; the owner never hears a model,
   a vendor or a price. 1 = "Fastest & cheapest — quick answers to simple
   questions", 2 = "Fast — good for FAQs and lookups", 3 = "Balanced — right
-  for most shops (default)", 4 = "Smart — thinks longer before answering", 5 =
-  "Smartest & most expensive — deepest reasoning, slowest". OMIT IT in a normal
+  for most shops (default)", 4 = "Smart — a stronger model for harder
+  questions", 5 = "Smartest & most expensive — our strongest model". OMIT IT in a normal
   build: the Balanced default is right for almost every business. Set it ONLY
   when the owner explicitly asks for faster, cheaper or smarter answers, using
   exactly those words; if they name a model or a vendor, translate it into a
@@ -161,15 +161,11 @@ text is never softened, summarized, or de-jargoned.
   never the owner's, and it may change without notice. Cost talk: never a
   price, a dollar amount, a per-token rate or a ratio — the ONE fact you may
   state is that higher stops cost more per conversation turn, lower stops
-  less. Stored per project; it takes effect on hosted serving only where the
-  model seam is enabled (`SERVE_PROVIDER_SEAM=1` on the BranderUX deployment
-  that serves the site — default off during rollout; your system instructions
-  say when answer quality is live, and when they say nothing, treat it as not
-  live), and elsewhere the site serves the Balanced default. Where it is live
-  the Agent tab's agent card carries the same five-stop slider. `get_agent_config`
-  echoes the STORED stop, never the one serving — so after storing say the
-  choice is SAVED; say the site now answers with it ONLY when your instructions
-  say answer quality is live, otherwise say it takes effect when it goes live,
+  less. Stored per project and live on the site's next answer (the AI SDK seam
+  is the only serve runner); the Agent tab's agent card carries the same
+  five-stop slider. `get_agent_config` echoes the STORED stop — after storing,
+  say in one sentence which stop now answers their customers and point at the
+  slider,
   and never "verify" a change by reading the config back.
 
 **Your own API key (BYOK).** An owner may answer their visitors on their own

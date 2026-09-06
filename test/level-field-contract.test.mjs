@@ -8,7 +8,7 @@
 // hosted serving only where the model seam is enabled (SERVE_PROVIDER_SEAM=1,
 // default off during rollout), the site serves the Balanced default
 // elsewhere, and "the site now answers with it" is said ONLY when the
-// caller's instructions say answer quality is live. The BYOK paragraph, the
+// stop always answers (the seam is the only serve runner). The BYOK paragraph, the
 // hosted prompt and the server instructions keep the never-handle-a-key rule
 // with the same card (now under Advanced in the Answer quality panel) and
 // credential names. Dependency-free (node:test): this repo has no other runner.
@@ -34,9 +34,9 @@ const LEVEL_WORDS = [
   "Balanced",
   "right for most shops (default)",
   "Smart",
-  "thinks longer before answering",
+  "a stronger model for harder questions",
   "Smartest & most expensive",
-  "deepest reasoning, slowest",
+  "our strongest model",
 ];
 
 /** What an owner must never read on a level surface: the registry's rows and the vendors. */
@@ -137,19 +137,19 @@ for (const [surface, text] of surfaces) {
     assert.doesNotMatch(text, /per-token rate(?!s? at all| or a ratio)/);
   });
 
-  test(`${surface}: a stored stop serves only where the model seam is enabled (SERVE_PROVIDER_SEAM=1, default off); the Balanced default elsewhere; SAVED vs live honesty`, () => {
-    assert.match(text, /SAVED/);
-    assert.match(text, /ONLY when your instructions say answer quality (?:\(model choice\) )?is live/);
-    assert.match(text, /takes effect when it goes live/);
+  test(`${surface}: a stored stop always answers (the seam is the only serve runner) — the tool says which stop now answers and points at the slider, never "SAVED for when it goes live"`, () => {
+    assert.match(text, /which stop now answers their customers/);
+    assert.match(text, /carries the same (?:five-stop )?slider/);
     assert.match(text, /STORED stop/);
+    assert.doesNotMatch(text, /SERVE_PROVIDER_SEAM/);
+    assert.doesNotMatch(text, /takes effect when it goes live/);
+    assert.doesNotMatch(text, /say the choice is SAVED/);
   });
 }
 
-test("doc bullet: the seam-flag truth, the admin map, and the one cost fact", () => {
+test("doc bullet: live on the next answer, the admin map, and the one cost fact", () => {
   const text = docLevelBullet();
-  assert.match(text, /SERVE_PROVIDER_SEAM=1/);
-  assert.match(text, /default off during rollout/);
-  assert.match(text, /serves the Balanced default/);
+  assert.match(text, /live on the site's next answer/);
   assert.match(text, /Admin → Model Levels/);
   assert.match(text, /higher stops cost more per conversation turn, lower stops less/);
   assert.match(text, /never a price, a dollar amount, a per-token rate or a ratio/);
