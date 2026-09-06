@@ -131,7 +131,11 @@ text is never softened, summarized, or de-jargoned.
   `timezone` (IANA zone such as "Asia/Jerusalem"; the runtime tells the agent
   the current LOCAL date and time so same-day cutoffs and "still available
   today" are judged correctly — anything invalid resolves to UTC. SET IT IN
-  EVERY HOSTED BUILD from the business's location), `handoff`
+  EVERY HOSTED BUILD from the business's location), `entityLabels`
+  (`{"courses": "קורסים"}` — what visitors call each entity, plural, in the
+  site language; the live site's activity rows ("Searched courses") show that
+  label, so SET IT FOR EVERY ENTITY OF A NON-ENGLISH SITE — without it those
+  rows stay English), `handoff`
   (human-escalation contacts, both keys optional: `{"whatsapp":
   "+972501234567", "email": "help@business.com"}` — the email comes from
   question 3 ONLY: the address the owner typed, never the signed-in account's
