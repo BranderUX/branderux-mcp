@@ -68,7 +68,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
           .max(5)
           .optional()
           .describe(
-            "Answer quality, 1..5, in EXACTLY these owner words: 1 = \"Fastest & cheapest — quick answers to simple questions\", 2 = \"Fast — good for FAQs and lookups\", 3 = \"Balanced — right for most shops (default)\", 4 = \"Smart — thinks longer before answering\", 5 = \"Smartest & most expensive — deepest reasoning, slowest\". " +
+            "Answer quality, 1..5, in EXACTLY these owner words: 1 = \"Fastest & cheapest — quick answers to simple questions\", 2 = \"Fast — good for FAQs and lookups\", 3 = \"Balanced — right for most shops (default)\", 4 = \"Smart — a stronger model for harder questions\", 5 = \"Smartest & most expensive — our strongest model\". " +
               "OMIT it in a normal build. Set it ONLY when the owner explicitly asks for faster, cheaper or smarter answers. " +
               "NEVER name a model, a vendor or a price to the owner; if they name one, translate it into a stop in plain words. " +
               "Which model backs each stop is BranderUX's decision (the admin console), never the owner's. " +

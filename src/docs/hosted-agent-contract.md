@@ -149,8 +149,8 @@ text is never softened, summarized, or de-jargoned.
 - `level` — ANSWER QUALITY, a stop from 1 to 5; the owner never hears a model,
   a vendor or a price. 1 = "Fastest & cheapest — quick answers to simple
   questions", 2 = "Fast — good for FAQs and lookups", 3 = "Balanced — right
-  for most shops (default)", 4 = "Smart — thinks longer before answering", 5 =
-  "Smartest & most expensive — deepest reasoning, slowest". OMIT IT in a normal
+  for most shops (default)", 4 = "Smart — a stronger model for harder
+  questions", 5 = "Smartest & most expensive — our strongest model". OMIT IT in a normal
   build: the Balanced default is right for almost every business. Set it ONLY
   when the owner explicitly asks for faster, cheaper or smarter answers, using
   exactly those words; if they name a model or a vendor, translate it into a
@@ -163,7 +163,7 @@ text is never softened, summarized, or de-jargoned.
   model seam is enabled (`SERVE_PROVIDER_SEAM=1` on the BranderUX deployment
   that serves the site — default off during rollout; your system instructions
   say when answer quality is live, and when they say nothing, treat it as not
-  live), and elsewhere the site serves the Balanced default. Where it is live
+  live), and elsewhere every site keeps answering on the stop your instructions name (the seam-off stop), whatever was saved. Where it is live
   the Agent tab's agent card carries the same five-stop slider. `get_agent_config`
   echoes the STORED stop, never the one serving — so after storing say the
   choice is SAVED; say the site now answers with it ONLY when your instructions

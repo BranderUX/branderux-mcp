@@ -34,9 +34,9 @@ const LEVEL_WORDS = [
   "Balanced",
   "right for most shops (default)",
   "Smart",
-  "thinks longer before answering",
+  "a stronger model for harder questions",
   "Smartest & most expensive",
-  "deepest reasoning, slowest",
+  "our strongest model",
 ];
 
 /** What an owner must never read on a level surface: the registry's rows and the vendors. */
