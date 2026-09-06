@@ -357,7 +357,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
     {
       title: "Create custom element",
       description:
-        "Create AND publish a custom element from agent-written TSX. Pre-flight validates the code (compile + sandbox import allowlist + export contract) AND the action wiring (the primary is DERIVED from callback names; a $primary template with no derivable primary, or an interactionPropName derivation disagrees with, is rejected with the remedy) before anything is sent. Read the custom-elements-contract doc first. In clients with MCP Apps support the published element renders live in the panel.",
+        "Create AND publish a custom element from agent-written TSX. Pre-flight validates the code (compile + sandbox import allowlist + export contract) AND the action wiring (the primary is DERIVED from callback names; a $primary template with no derivable primary, or an interactionPropName derivation disagrees with, is rejected with the remedy) before anything is sent. Read the custom-elements-contract doc first — including its direction-neutral layout rule: space siblings with flex/grid gap, never left/right margins or any physical side, so the element renders correctly on RTL sites too. In clients with MCP Apps support the published element renders live in the panel.",
       annotations: WRITE,
       outputSchema: {
         element: z.object({}).passthrough(),
