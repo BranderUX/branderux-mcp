@@ -73,6 +73,24 @@ export default function Component({ items, title, onSelectItem, onItemContextMen
   has resolved to invisible text), and `accent` is not a palette key (the declaration is
   dropped and the text inherits).
 
+## Layout is direction-neutral (LTR and RTL sites)
+
+Published sites and embeds can run right-to-left (Hebrew, Arabic…); the host document sets
+`dir`, and the element must render correctly either way WITHOUT knowing which:
+
+- Space siblings with flex/grid `gap` (`gap`, `rowGap`, `columnGap`) — never with left/right
+  margins or paddings.
+- Never write a physical side: no `ml`/`mr`/`pl`/`pr`, `marginLeft/Right`, `paddingLeft/Right`,
+  `left`/`right`, `textAlign: "left"|"right"`, `float`, or per-corner radii.
+- When one side truly must differ, use the logical form: `marginInlineStart/End`,
+  `paddingInlineStart/End`, `insetInlineStart/End`, `textAlign: "start"|"end"`,
+  `borderStartStartRadius`.
+- Never set `dir` yourself. Icons that point somewhere (arrows, chevrons, send) mirror under RTL:
+  `sx={{ '[dir="rtl"] &': { transform: "scaleX(-1)" } }}`.
+
+`<Stack direction="row" sx={{ gap: 1.5, alignItems: "center" }}>` is right; `sx={{ ml: 2 }}` on
+the second child is wrong.
+
 ## Seeing what you built
 
 After `create_element` / `publish_element_version` (or via `preview_element` at any

@@ -121,8 +121,10 @@ text is never softened, summarized, or de-jargoned.
   `visitorLimits` (`{"turnsPerDay": N, "anonymousTurnsPerDay": N}`, integers
   1-100000 — per-visitor daily turn caps; ALWAYS ON with platform defaults
   300 signed / 100 anonymous per day, so store overrides only when the
-  owner asks about cost control), `language` (the site's language — free text
-  such as "Hebrew" or a BCP-47 tag such as "he"; the runtime locks EVERY
+  owner asks about cost control), `language` (the site's language as a BCP-47
+  tag such as "he" — preferred; a name such as "Hebrew" is also understood.
+  Besides the reply lock, the published site and embed render their own chrome
+  in it and flip to right-to-left for RTL languages; the runtime locks EVERY
   reply, screen label, form field and button to it. SET IT IN EVERY HOSTED
   BUILD from the business's own site: the platform's click queries and rules
   are English, so a non-English site without it code-switches mid-reply),

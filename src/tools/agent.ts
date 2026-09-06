@@ -50,7 +50,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
             'Policy bag: {"loginRequirement": "none"|"optional"|"required"|"approval", ' +
               '"allowedEmailDomains"?: string[], "invitedEmails"?: string[], ' +
               '"visitorLimits"?: {"turnsPerDay", "anonymousTurnsPerDay"}, ' +
-              '"language"?: "Hebrew" | a BCP-47 tag (the site language lock — set in every hosted build), ' +
+              '"language"?: a BCP-47 tag such as "he" (preferred; a name such as "Hebrew" also works) — the site language lock AND the site\'s own chrome/direction (RTL flips automatically); set in every hosted build, ' +
               '"timezone"?: IANA zone e.g. "Asia/Jerusalem" (the business clock — set in every hosted build; invalid = UTC), ' +
               '"handoff"?: {"whatsapp"?, "email"?} (email = the address the owner typed, never the account email; a stored email activates the escalate_to_owner tool on the live site), ' +
               '"writePolicies"?: {"create_<entity>": "auto"|"confirm"|"off", "update_<entity>": "confirm"|"auto"} (create_ defaults to confirm; ' +
