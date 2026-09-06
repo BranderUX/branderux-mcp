@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { siteDirection, siteLanguage, type SiteDirection } from "../lib/site-direction.js";
 import {
   buildActionsContract,
   declaresLegacyPrimaryShim,
@@ -169,7 +170,7 @@ interface WireVersionRow {
  */
 function withPreview(
   result: ReturnType<typeof ok>,
-  source: { name: string; version?: number; brandSettings?: Record<string, unknown> } & WireVersionPayload
+  source: { name: string; version?: number; panel?: PanelContext } & WireVersionPayload
 ): ReturnType<typeof ok> {
   if (!isPreviewAppAvailable() || !source.code) return result;
   // No interactionPropName here on purpose: the payload's primary is DERIVED
@@ -183,7 +184,9 @@ function withPreview(
     clickQueryTemplate: source.clickQueryTemplate,
   });
   if (!preview) return result;
-  if (source.brandSettings) preview.brandSettings = source.brandSettings;
+  if (source.panel?.brandSettings) preview.brandSettings = source.panel.brandSettings;
+  if (source.panel?.language) preview.language = source.panel.language;
+  if (source.panel?.direction) preview.direction = source.panel.direction;
   return {
     ...result,
     structuredContent: { ...(result.structuredContent ?? {}), preview },
@@ -191,11 +194,19 @@ function withPreview(
   };
 }
 
-/** Project brand for preview theming — fail-soft to undefined (preview stays neutral). */
-async function fetchPanelBrand(
-  api: ApiClient,
-  projectId: string
-): Promise<Record<string, unknown> | undefined> {
+interface PanelContext {
+  brandSettings?: Record<string, unknown>;
+  language?: string;
+  direction?: SiteDirection;
+}
+
+/**
+ * Project brand + language for preview theming — fail-soft (the preview stays
+ * neutral / LTR). The language comes from the hosted agent config; a project
+ * without one previews left-to-right, exactly like its site.
+ */
+async function fetchPanelContext(api: ApiClient, projectId: string): Promise<PanelContext> {
+  const context: PanelContext = {};
   try {
     const project = await api.get<{ brandSettings?: Record<string, unknown> }>(
       `/projects/${projectId}`
@@ -203,10 +214,23 @@ async function fetchPanelBrand(
     // normalizeBrandForPanel's darkMode: true default mirrors the client's
     // normalizeBrandSettings (defaultSettings.darkMode: true): a brand that
     // never set darkMode renders DARK on the site, so the panel must too.
-    return project?.brandSettings ? normalizeBrandForPanel(project.brandSettings) : undefined;
+    if (project?.brandSettings) context.brandSettings = normalizeBrandForPanel(project.brandSettings);
   } catch {
-    return undefined;
+    /* neutral preview */
   }
+  try {
+    const config = await api.get<{ policies?: Record<string, unknown> }>(
+      `/projects/${projectId}/agent-config`
+    );
+    const language = siteLanguage(config);
+    if (language) {
+      context.language = language;
+      context.direction = siteDirection(language);
+    }
+  } catch {
+    /* no hosted agent → LTR */
+  }
+  return context;
 }
 
 
@@ -347,7 +371,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
       return withPreview(result, {
         name: element.name ?? element.elementKey ?? "Custom element",
         ...payload,
-        brandSettings: await fetchPanelBrand(api, projectId),
+        panel: await fetchPanelContext(api, projectId),
       });
     })
   );
@@ -420,7 +444,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
         propsSchema: input.propsSchema,
         defaultProps: input.defaultProps,
         clickQueryTemplate: input.clickQueryTemplate,
-        brandSettings: await fetchPanelBrand(api, input.projectId),
+        panel: await fetchPanelContext(api, input.projectId),
       });
     })
   );
@@ -490,7 +514,7 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
         propsSchema: input.propsSchema,
         defaultProps: input.defaultProps,
         clickQueryTemplate: input.clickQueryTemplate,
-        brandSettings: await fetchPanelBrand(api, input.projectId),
+        panel: await fetchPanelContext(api, input.projectId),
       });
     })
   );

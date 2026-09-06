@@ -11,6 +11,7 @@
  */
 
 import { z } from "zod";
+import { siteDirection, siteLanguage, type SiteDirection } from "../lib/site-direction.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { APP_BASE } from "../config.js";
@@ -242,6 +243,7 @@ export function registerGenerateScreen(
         PLAYGROUND_CONFIG.brandSettings as unknown as Record<string, unknown>,
       );
       let projectSettings: Record<string, unknown> = {};
+      let siteLocale: { language: string; direction: SiteDirection } | undefined;
       const byKey = new Map<string, WireElement>();
 
       if (projectId) {
@@ -252,6 +254,17 @@ export function registerGenerateScreen(
         if (!project) return fail(`Project ${projectId} not found.`);
         brandSettings = normalizeBrandForPanel(project.brandSettings ?? {});
         projectSettings = project.settings ?? {};
+        try {
+          const config = await api.get<{ policies?: Record<string, unknown> }>(
+            `/projects/${projectId}/agent-config`,
+          );
+          const language = siteLanguage(config);
+          if (language) {
+            siteLocale = { language, direction: siteDirection(language) };
+          }
+        } catch {
+          /* no hosted agent → LTR */
+        }
         if (needsCustom) {
           const wire = await api.get<WireElement[]>(
             `/projects/${projectId}/elements`,
@@ -325,6 +338,7 @@ export function registerGenerateScreen(
         elements: screenElements,
         brandSettings,
         projectSettings,
+        ...(siteLocale ?? {}),
       };
 
       const imageOrigins = extractImageOrigins(
