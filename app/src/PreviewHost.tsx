@@ -1,4 +1,6 @@
 import * as React from "react";
+import createCache, { type EmotionCache } from "@emotion/cache";
+import { CacheProvider } from "@emotion/react";
 import {
   Box,
   CssBaseline,
@@ -6,6 +8,8 @@ import {
   Typography,
   createTheme,
 } from "@mui/material";
+import { prefixer } from "stylis";
+import rtlPlugin from "stylis-plugin-rtl";
 import { requireShim } from "./require-table";
 import {
   isPrimaryAction,
@@ -25,6 +29,9 @@ export interface PreviewPayload {
   callbackNames: string[];
   /** Normalized project brand (server-side) — themes the preview like the embed. */
   brandSettings?: Record<string, unknown>;
+  /** The site's language and text direction — the preview renders like the site. */
+  language?: string;
+  direction?: "ltr" | "rtl";
 }
 
 interface BrandLike {
@@ -37,6 +44,12 @@ interface BrandLike {
   fontStyle?: { fontFamily?: string };
 }
 
+let rtlCache: EmotionCache | null = null;
+function getRtlCache(): EmotionCache {
+  if (!rtlCache) rtlCache = createCache({ key: "mui-rtl", stylisPlugins: [prefixer, rtlPlugin] });
+  return rtlCache;
+}
+
 /**
  * Branded MUI theme from the shipped settings; neutral defaults when absent.
  * SAME palette mapping as the client's element sandbox
@@ -47,9 +60,10 @@ interface BrandLike {
  * `background.default` is the REAL brand background — a colour, so an element
  * reading it gets a colour.
  */
-function buildPreviewTheme(brand: BrandLike | undefined) {
+function buildPreviewTheme(brand: BrandLike | undefined, direction: "ltr" | "rtl") {
   const darkMode = brand?.darkMode !== false;
   return createTheme({
+    direction,
     palette: {
       mode: darkMode ? "dark" : "light",
       ...(brand?.primaryColor ? { primary: { main: brand.primaryColor } } : {}),
@@ -202,9 +216,10 @@ export function PreviewHost({ payload }: { payload: PreviewPayload }) {
     return { ...payload.defaultProps, ...shims };
   }, [payload, spec, showQuery]);
 
+  const direction = payload.direction === "rtl" ? "rtl" : "ltr";
   const theme = React.useMemo(
-    () => buildPreviewTheme(payload.brandSettings as BrandLike | undefined),
-    [payload.brandSettings],
+    () => buildPreviewTheme(payload.brandSettings as BrandLike | undefined, direction),
+    [payload.brandSettings, direction],
   );
 
   if (!evaluated.Component) {
@@ -218,10 +233,14 @@ export function PreviewHost({ payload }: { payload: PreviewPayload }) {
   }
   const Component = evaluated.Component;
 
-  return (
+  const tree = (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ position: "relative", p: 1.5, bgcolor: "background.default" }}>
+      <Box
+        dir={direction}
+        lang={payload.language}
+        sx={{ position: "relative", p: 1.5, bgcolor: "background.default" }}
+      >
         <PreviewErrorBoundary>
           <Component {...props} />
         </PreviewErrorBoundary>
@@ -265,4 +284,7 @@ export function PreviewHost({ payload }: { payload: PreviewPayload }) {
       </Box>
     </ThemeProvider>
   );
+  // RTL sites: an emotion cache with the stylis RTL plugin flips MUI's physical sides — the same
+  // mechanism as the site; LTR renders through the default cache, untouched.
+  return direction === "rtl" ? <CacheProvider value={getRtlCache()}>{tree}</CacheProvider> : tree;
 }

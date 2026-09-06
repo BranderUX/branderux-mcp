@@ -22,6 +22,9 @@ export interface PreviewPayload {
   callbackNames: string[];
   /** Normalized project brand — the preview themes the element with it. */
   brandSettings?: Record<string, unknown>;
+  /** The site's language (policies.language) and its text direction — the panel renders like the site. */
+  language?: string;
+  direction?: "ltr" | "rtl";
 }
 
 export function compileForPreview(code: string): string {
