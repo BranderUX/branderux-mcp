@@ -31,7 +31,8 @@
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/level-field-contract.test.mjs"
+    "pretest": "npm run build",
+    "test": "node --test test/level-field-contract.test.mjs test/policy-bag.test.mjs"
   },
   "engines": {
     "node": ">=20"

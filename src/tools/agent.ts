@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
+import { isPlainObject, mergePolicyBag } from "../lib/policy-bag.js";
 
 const projectIdSchema = z.string().uuid();
 const entityNameSchema = z
@@ -30,7 +31,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       title: "Configure hosted agent",
       description:
         "Create/update the project's hosted-agent configuration (persona, enabled switch, policies, daily token budget). " +
-        "Partial: omitted fields keep their current value. persona = the BUSINESS voice + facts only — platform rules are added by the runtime. " +
+        "Partial: omitted fields keep their current value, and policies MERGES key by key with the stored bag (send only the keys that change; a key set to null is removed). persona = the BUSINESS voice + facts only — platform rules are added by the runtime. " +
         "Read brander://docs/hosted-agent-contract first — its FIVE MANDATORY OWNER QUESTIONS (login, access follow-up, " +
         "handoff email, escalation timing, write consent) must be asked and answered BEFORE enabling. handoff.email is the address " +
         "the owner TYPED — never the signed-in account's email, never a guess; no answer = store no handoff. A stored handoff.email ACTIVATES " +
@@ -87,10 +88,14 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       annotations: IDEMPOTENT_WRITE,
     },
     guarded(async ({ projectId, ...body }) => {
-      const config = await api.put<Record<string, unknown>>(
-        `/projects/${encodeURIComponent(projectId)}/agent-config`,
-        body
-      );
+      const path = `/projects/${encodeURIComponent(projectId)}/agent-config`;
+      // The server stores the bag whole — merge the patch over what is there so a
+      // partial write (entityLabels alone) never drops language, handoff or writePolicies.
+      if (isPlainObject(body.policies)) {
+        const current = await api.get<Record<string, unknown>>(path);
+        body.policies = mergePolicyBag(current?.policies, body.policies);
+      }
+      const config = await api.put<Record<string, unknown>>(path, body);
       return ok({ config: config ?? {} });
     })
   );
