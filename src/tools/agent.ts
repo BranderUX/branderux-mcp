@@ -52,6 +52,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
               '"visitorLimits"?: {"turnsPerDay", "anonymousTurnsPerDay"}, ' +
               '"language"?: a BCP-47 tag such as "he" (preferred; a name such as "Hebrew" also works) — the site language lock AND the site\'s own chrome/direction (RTL flips automatically); set in every hosted build, ' +
               '"timezone"?: IANA zone e.g. "Asia/Jerusalem" (the business clock — set in every hosted build; invalid = UTC), ' +
+              '"entityLabels"?: {"<entity>": "what visitors call it, plural, in the site language"} — set for EVERY entity of a non-English site; the live site\'s activity rows ("Searched courses") show it, without it they stay English, ' +
               '"handoff"?: {"whatsapp"?, "email"?} (email = the address the owner typed, never the account email; a stored email activates the escalate_to_owner tool on the live site), ' +
               '"writePolicies"?: {"create_<entity>": "auto"|"confirm"|"off", "update_<entity>": "confirm"|"auto"} (create_ defaults to confirm; ' +
               'update_ mounts ONLY when its key is stored)} — semantics in brander://docs/hosted-agent-contract'
