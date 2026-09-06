@@ -149,7 +149,7 @@ test("doc bullet: the seam-flag truth, the admin map, and the one cost fact", ()
   const text = docLevelBullet();
   assert.match(text, /SERVE_PROVIDER_SEAM=1/);
   assert.match(text, /default off during rollout/);
-  assert.match(text, /serves the Balanced default/);
+  assert.match(text, /keeps answering on the stop your instructions name/);
   assert.match(text, /Admin → Model Levels/);
   assert.match(text, /higher stops cost more per conversation turn, lower stops less/);
   assert.match(text, /never a price, a dollar amount, a per-token rate or a ratio/);
