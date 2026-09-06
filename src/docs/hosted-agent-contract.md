@@ -36,7 +36,8 @@ text is never softened, summarized, or de-jargoned.
 2. Brand ∥ `define_entity` (with the right `writePolicy`!) → `seed_records` (or live sources).
 3. `upsert_agent_config` — persona + policies encoding the answers, ALWAYS including
    `policies.language` (the site's language) and `policies.timezone` (IANA zone) — both in
-   EVERY hosted build, see Agent config; `upsert_skill` for real domain knowledge.
+   EVERY hosted build, see Agent config; `upsert_skill` for real domain knowledge. Do NOT
+   ask about the model: the default is silent — set `model` only if the owner raises it.
 4. Elements (submit elements MUST carry the full write payload — see MAKING A WRITE WORK)
    → screens → `customPages`.
 5. `set_home_screen` — the designed home is a REQUIRED step for hosted apps, not a nicety:
@@ -145,7 +146,41 @@ text is never softened, summarized, or de-jargoned.
   the visitor's request context.**
 - `dailyTokenBudget` — cost-weighted tokens/day (default 2,000,000). Serving
   429s past it; resets daily (UTC).
-- `modelTier` — "standard" | "premium" (stored; inert until pricing ships).
+- `level` — ANSWER QUALITY, a stop from 1 to 5; the owner never hears a model,
+  a vendor or a price. 1 = "Fastest & cheapest — quick answers to simple
+  questions", 2 = "Fast — good for FAQs and lookups", 3 = "Balanced — right
+  for most shops (default)", 4 = "Smart — a stronger model for harder
+  questions", 5 = "Smartest & most expensive — our strongest model". OMIT IT in a normal
+  build: the Balanced default is right for almost every business. Set it ONLY
+  when the owner explicitly asks for faster, cheaper or smarter answers, using
+  exactly those words; if they name a model or a vendor, translate it into a
+  stop in plain words without confirming what backs it. Which model and how
+  much thinking back each stop is BranderUX's decision (Admin → Model Levels),
+  never the owner's, and it may change without notice. Cost talk: never a
+  price, a dollar amount, a per-token rate or a ratio — the ONE fact you may
+  state is that higher stops cost more per conversation turn, lower stops
+  less. Stored per project and live on the site's next answer (the AI SDK seam
+  is the only serve runner); the Agent tab's agent card carries the same
+  five-stop slider. `get_agent_config` echoes the STORED stop — after storing,
+  say in one sentence which stop now answers their customers and point at the
+  slider,
+  and never "verify" a change by reading the config back.
+
+**Your own API key (BYOK).** An owner may answer their visitors on their own
+provider key (Anthropic or OpenAI — Google keys are not supported yet: say so
+plainly and store none) instead of BranderUX's. The key is
+entered ONLY through the "Your API key" card (under Advanced in the Agent tab's
+Answer quality panel) — or, when you are the
+in-app Builder, its `request_credential` tool with the name `model-<provider>`
+(`model-anthropic` | `model-openai`): a secure field that posts
+straight to the vault, so only a non-secret confirmation enters the
+conversation. It is stored encrypted server-side, never shown again, and used
+only to answer that project's visitors. You NEVER handle it: never ask for a
+key, never read, echo, or place one in the conversation, and never pass one
+through any other tool (`set_connector_credential` is for data-source
+credentials, not model keys). If the owner pastes a key in chat, tell them to
+remove it and enter it in the card instead. Turns answered on the owner's own
+key are billed by that provider to the owner.
 
 ## Entities (`define_entity`)
 
