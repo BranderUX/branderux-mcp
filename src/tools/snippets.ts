@@ -1,6 +1,6 @@
 /**
  * Verified integration snippets. Two rules govern this file:
- *  1. Every snippet forwards `params.system` and optional-chains `params.tools` —
+ *  1. Every SDK snippet forwards `params.system` and optional-chains `params.tools` —
  *     the two omissions that silently break integrations.
  *  2. We never invent third-party APIs. For agent frameworks we show the BranderUX
  *     side of the boundary (which we own and can guarantee) and point at the
@@ -242,6 +242,34 @@ registerBranderTools(server, {
 // This is a DIFFERENT product from the BranderUX MCP you are talking to right now:
 //   • BranderUX MCP (this server)  → YOU build and control BranderUX projects.
 //   • @brander/mcp-tools           → YOUR MCP app renders branded screens to ITS users.`,
+
+  widget: `<!-- BranderUX chat widget: ONE line for a plain website (Wix, WordPress, Shopify,
+     Squarespace, static HTML…). NOT for React/Next apps: those mount the SDK instead
+     (the "sdk-integration" doc and the other snippets here, e.g.
+     <BranderChatWidget apiKey projectId />). -->
+<script src="https://branderux.com/widget/v1.js" data-key="<your-key>" async></script>
+
+<!-- Optional brand attributes: add them to the SAME tag.
+     data-color="#hex"                                    the bubble color = the brand's primary color
+     data-icon="https://<slug>.branderux.app/brand-icon"  the business's icon in the bubble
+     Also: data-position="left" (bubble on the left), data-launcher="none" (no bubble; the
+     owner's own button opens it), data-label="…" (accessible name), data-lang="he". -->
+
+<!-- THE KEY: <your-key> is a project API key (create_api_key, bux_pk_…) whose origin
+     allow-list (set_key_origins) MUST contain the site's EXACT origin, e.g.
+     https://their-site.com — the loader exchanges the key for a short token from the
+     owner's page, and any origin not on the list is refused. -->
+
+<!-- WHERE TO PASTE IT:
+     Wix:           Settings → Custom Code (needs a Premium plan with a connected domain)
+     WordPress:     the theme's custom code, a headers-and-footers plugin, or a Custom HTML block
+     Shopify:       theme.liquid, right before </body>
+     Anything else: right before </body> -->
+
+<!-- OWN BUTTONS (optional): any element with data-brander-open, the class brander-open,
+     or a link to #brander-chat opens the widget; data-brander-open="anchor" opens it
+     above that element. The widget serves visitors anonymously (no site sign-in inside it). -->
+<button data-brander-open>Chat with us</button>`,
 } as const;
 
 export type SnippetKey = keyof typeof SNIPPETS;

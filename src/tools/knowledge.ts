@@ -82,7 +82,7 @@ export function registerKnowledgeTools(server: McpServer): void {
     {
       title: "Get an integration snippet",
       description:
-        "Verified integration snippet for connecting a customer-facing agent to BranderUX. Covers direct provider SDKs, a framework-agnostic backend, and the AG-UI agent frameworks. These shapes are correct: params.system is forwarded, params.tools is optional-chained, and sseStream bodies are read from `params`.",
+        "Verified integration snippet for connecting a customer-facing agent to BranderUX. Covers direct provider SDKs, a framework-agnostic backend, the AG-UI agent frameworks, and `widget` — the one-line script tag for a plain website (Wix, WordPress, Shopify, Squarespace, static HTML; a React/Next app mounts the SDK instead). The SDK shapes are correct: params.system is forwarded, params.tools is optional-chained, and sseStream bodies are read from `params`.",
       inputSchema: { target: z.enum(snippetKeys) },
       outputSchema: { target: z.string(), snippet: z.string() },
       annotations: READ_ONLY,

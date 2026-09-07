@@ -70,6 +70,21 @@ text is never softened, summarized, or de-jargoned.
    you're open" — and, only when writes are enabled, "ask it to book a table for two").
    This wrap-up is part of the step — a build that ends without it leaves the owner
    unaware half of what they now own.
+7. **Their existing website, if they have one — put the agent on it too.** Right after
+   the wrap-up, look at what that site is built on. A React/Next codebase (you can see
+   it) → the SDK's hosted one-liner (`read_doc sdk-integration`:
+   `<BranderChatWidget apiKey projectId />`, handler-free — never a backend route), on a
+   key allow-listed for that origin the same way as below. Anything else (Wix, WordPress,
+   Shopify, Squarespace, static HTML) → `get_integration_snippet` target `widget`: mint
+   the key (`create_api_key`) and set its allow-list with `set_key_origins` to that
+   site's EXACT origin (`https://their-site.com`, no wildcards; the list replaces, it
+   does not merge — keep every origin that must stay), fill `data-color` from the brand's
+   primary color and `data-icon` with `https://<slug>.branderux.app/brand-icon`, and tell
+   the owner where to paste the one line (Wix: Settings → Custom Code, Premium plan with
+   a connected domain; WordPress: the theme's custom code, a headers-and-footers plugin
+   or a Custom HTML block; Shopify: theme.liquid before `</body>`; anything else: before
+   `</body>`). The widget serves visitors anonymously — no site sign-in inside it. With
+   no existing site, say nothing about any of this.
 
 ## The five questions you MUST ask the owner (before enabling)
 
@@ -346,7 +361,11 @@ The arc at the top of this doc is the build order: questions → brand ∥ entit
 (writePolicy!) → seed ∥ persona/config/skills → elements (submit payloads!) → screens →
 pages → `set_home_screen` → **`publish_site`, immediately, unprompted**. Screens
 referencing entity data should name real fields from the schema in their element
-structure. The arc ends at a LIVE URL, not at "verified with a test query".
+structure. The arc ends at a LIVE URL, not at "verified with a test query" — then, ONLY
+when the owner already has a website, one closing step puts the agent on it (step 7):
+`get_integration_snippet` target `widget` for Wix, WordPress, Shopify, Squarespace or
+static HTML (its key allow-listed for that site's origin via `set_key_origins`), the
+SDK's hosted one-liner for a React/Next codebase.
 
 ## Live external data sources (V25)
 
