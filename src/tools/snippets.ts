@@ -247,11 +247,15 @@ registerBranderTools(server, {
      Squarespace, static HTML…). NOT for React/Next apps: those mount the SDK instead
      (the "sdk-integration" doc and the other snippets here, e.g.
      <BranderChatWidget apiKey projectId />). -->
-<script src="https://branderux.com/widget/v1.js" data-key="<your-key>" async></script>
+<script src="https://branderux.com/widget/v1.js" data-key="<your-key>" data-preload="eager" async></script>
 
 <!-- Optional brand attributes: add them to the SAME tag.
      data-color="#hex"                                    the bubble color = the brand's primary color
      data-icon="https://<slug>.branderux.app/brand-icon"  the business's icon in the bubble
+     data-preload="eager" — keep it: a hosted build has a designed home page that replays
+     with no model call, so loading the chat with the page costs nothing and it opens
+     instantly (drop it only for a project with no designed home: the chat then loads on
+     the visitor's first hover/touch).
      Also: data-position="left" (bubble on the left), data-launcher="none" (no bubble; the
      owner's own button opens it), data-label="…" (accessible name), data-lang="he". -->
 

@@ -2,7 +2,7 @@
 // SNIPPETS (the one script line an owner pastes into Wix, WordPress, Shopify,
 // Squarespace or static HTML), get_integration_snippet's description and the
 // hosted-agent-contract doc's closing step — against drift. The line is
-// `<script src="https://branderux.com/widget/v1.js" data-key="…" async>`; the
+// `<script src="https://branderux.com/widget/v1.js" data-key="…" data-preload="eager" async>`; the
 // key's origin allow-list must carry the site's EXACT origin (the loader
 // exchanges the key from the owner's page and any other origin is refused),
 // the two brand attributes ride as commented options, own buttons open it via
@@ -73,7 +73,12 @@ function docBuildOrder() {
 
 test("widget snippet: the one script line — the v1 loader, data-key, async", () => {
   const line = scriptLine();
-  assert.match(line, /^<script src="https:\/\/branderux\.com\/widget\/v1\.js" data-key="<your-key>" async><\/script>$/);
+  assert.match(
+    line,
+    /^<script src="https:\/\/branderux\.com\/widget\/v1\.js" data-key="<your-key>" data-preload="eager" async><\/script>$/
+  );
+  // Every handed-out line preloads: a hosted build's designed home replays with no model call.
+  assert.match(widgetSnippet(), /data-preload="eager" — keep it/);
 });
 
 test("widget snippet: the two brand attributes ride as commented options, never on the line", () => {

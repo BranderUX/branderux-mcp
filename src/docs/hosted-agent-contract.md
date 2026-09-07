@@ -79,7 +79,9 @@ text is never softened, summarized, or de-jargoned.
    the key (`create_api_key`) and set its allow-list with `set_key_origins` to that
    site's EXACT origin (`https://their-site.com`, no wildcards; the list replaces, it
    does not merge — keep every origin that must stay), fill `data-color` from the brand's
-   primary color and `data-icon` with `https://<slug>.branderux.app/brand-icon`, and tell
+   primary color and `data-icon` with `https://<slug>.branderux.app/brand-icon`, keep
+   `data-preload="eager"` (the designed home replays with no model call, so the background
+   load costs nothing and the chat opens instantly), and tell
    the owner where to paste the one line (Wix: Settings → Custom Code, Premium plan with
    a connected domain; WordPress: the theme's custom code, a headers-and-footers plugin
    or a Custom HTML block; Shopify: theme.liquid before `</body>`; anything else: before
