@@ -31,7 +31,7 @@ your access opens. While you wait: try a live BranderUX-built app at
 
 **Screens** (`projects:write`): `list_screens` · `get_screen` · `put_screen` ·
 `delete_screen`, reads fetch the project aggregate; writes are atomic per-screen
-(row-locked server merge — parallel saves of different screens are safe).
+(row-locked server merge: parallel saves of different screens are safe).
 
 **Custom elements** (`elements:*`): `list_elements` · `get_element` · `list_element_versions` ·
 `create_element` · `publish_element_version` · `preview_element` · `delete_element`, your agent writes the
@@ -42,6 +42,26 @@ demo props applied, clicks showing the exact query they would send.
 
 **API keys** (`keys:manage`): `create_api_key` · `list_api_keys` · `set_key_origins` ·
 `revoke_api_key`
+
+**Hosted agent**: `upsert_agent_config` · `get_agent_config`, give the project
+its own agent: persona, policies (language and clock, login, access, handoff, write consent),
+answer quality and budgets.
+
+**Business data**: `define_entity` · `list_entities` · `seed_records` ·
+`update_record` · `list_entity_records`, managed records or live store/API feeds; every entity
+becomes a query tool for the agent (add-only writes by default).
+
+**Connectors**: `set_connector_credential` · `probe_api`, vaulted credentials and a
+probe so tools are wired against the real API shape.
+
+**Skills**: `upsert_skill` · `list_skills` · `delete_skill`, SKILL.md behavior packs
+that ride every conversation.
+
+**Home screen**: `set_home_screen`, a designed first paint with live data bindings,
+zero model cost per visit.
+
+**Publish**: `publish_site` · `get_site`, one call and the full application is live:
+a website for people, an MCP app for AI agents.
 
 **Playground** (no project needed): `generate_screen`, renders a real branded,
 interactive screen in the panel with demo data, powered by the same published
