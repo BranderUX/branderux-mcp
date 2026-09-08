@@ -148,6 +148,9 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
     })
   );
 
+  /** Fixed elements the AI may never lose (mirrors the app's lib/elements/element-visibility). */
+const ALWAYS_ENABLED_ELEMENTS: readonly string[] = ["chat-bubble"];
+
   server.registerTool(
     "update_project_settings",
     {
@@ -156,7 +159,7 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
         "Merge changes into project.settings — uiGenerationMode ('flexible' | 'deterministic'), elementVisibility, customPages, flexibleModeRules, elementStyleVariant. " +
         "Every finished build MUST set customPages (2-5 nav entries matching the screens) — without them the playground opens to a setup dialog instead of the product. " +
         "Each customPages entry is EXACTLY {id, name, query} (all non-empty strings; name is the nav label, query is what clicking the page asks) — other keys are rejected, and the server nulls anything misshapen. " +
-        "elementVisibility merges key-wise: fixed-element keys are the kebab type names (header, stats-grid, data-table, line-chart, pie-chart, bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert, video), custom elements are custom:<key>; false disables, absent = enabled.",
+        "elementVisibility merges key-wise: fixed-element keys are the kebab type names (header, stats-grid, data-table, line-chart, pie-chart, bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert, video), custom elements are custom:<key>; false disables, absent = enabled. chat-bubble is ALWAYS on — every text answer renders through it — so a false for it is ignored.",
       inputSchema: {
         projectId: z.string().uuid(),
         // customPages is pinned STRICTLY: agents kept inventing key names
@@ -191,10 +194,16 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
       // elementVisibility merges KEY-WISE — a partial write must never wipe the
       // other toggles (especially custom:<key> entries the dashboard manages).
       if (settings.elementVisibility && typeof settings.elementVisibility === "object") {
-        merged.elementVisibility = {
+        const visibility: Record<string, boolean> = {
           ...((current.elementVisibility as Record<string, boolean> | undefined) ?? {}),
           ...(settings.elementVisibility as Record<string, boolean>),
         };
+        // The chat bubble carries every text answer: a project with it switched off
+        // cannot answer at all, so a false for it never reaches the store.
+        for (const id of ALWAYS_ENABLED_ELEMENTS) {
+          if (visibility[id] === false) delete visibility[id];
+        }
+        merged.elementVisibility = visibility;
       }
       const updated = await api.patch<Record<string, unknown>>(`/projects/${projectId}`, {
         settings: merged,

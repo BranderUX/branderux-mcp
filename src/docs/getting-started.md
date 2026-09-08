@@ -69,8 +69,9 @@ Build WITH the user, not silently — gather intent first, show results as you g
    the panel as it publishes (supporting clients), so the user approves as you go.
 5. Disable the FIXED elements that don't fit the product via `update_project_settings`
    `{"elementVisibility": {"data-table": false, ...}}` — a branded app should compose
-   from ITS OWN elements, not generic tables/charts. Rule of thumb: keep `header` and
-   `chat-bubble`; keep others only when the product genuinely needs them (charts for
+   from ITS OWN elements, not generic tables/charts. Rule of thumb: keep `header`;
+   `chat-bubble` is ALWAYS on (a false for it is ignored — every text answer renders
+   through it); keep others only when the product genuinely needs them (charts for
    analytics, form for lead capture, …). The map merges key-wise; `custom:<key>`
    entries are never touched by fixed-element writes.
 6. Compose example screens with `put_screen` following `screens-wire-format` — these teach
