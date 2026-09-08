@@ -1,13 +1,13 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
   "name": "com.branderux/mcp",
-  "description": "Build agentic applications from any MCP client: projects, brand, elements, screens, keys, agent.",
+  "description": "One message in, a full agentic application out: website and MCP app, live. Built from any AI client.",
   "repository": {
     "url": "https://github.com/BranderUX/branderux-mcp",
     "source": "github"
   },
   "websiteUrl": "https://branderux.com/mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "remotes": [
     {
       "type": "streamable-http",
