@@ -26,6 +26,7 @@ Facts an integrator (or a canned-response generator) must know:
 - Custom elements are addressed as `custom:<element-key>`.
 - EXACTLY ONE A2UI block per response. Text before the markers renders as the assistant
   bubble; text after renders as the closing note.
-- Deterministic intents can skip the LLM entirely: the customer's endpoint can return a
-  pre-built A2UI block as canned SSE for known queries (instant, zero tokens) — the
-  Atelier Nova home screen works this way.
+- Deterministic intents can skip the model entirely. On the hosted path the builder stores
+  the landing screen with `set_home_screen` and serve replays it as canned frames, instant,
+  zero tokens (the Atelier Nova home works this way). An own-agent endpoint gets the same
+  effect by returning a pre-built A2UI block as canned SSE for known queries.
