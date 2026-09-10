@@ -145,6 +145,14 @@ text is never softened, summarized, or de-jargoned.
   reply, screen label, form field and button to it. SET IT IN EVERY HOSTED
   BUILD from the business's own site: the platform's click queries and rules
   are English, so a non-English site without it code-switches mid-reply),
+  `transcriptRetentionDays` (a JSON NUMBER of days, 30–730, default 180, out of
+  range clamped and a fraction truncated: end-user conversations, visitor
+  events and session analytics are hard-deleted by a nightly sweep once older
+  than this — the period the site's privacy notice states must be whatever
+  resolves here; set it only when the owner asks. A QUOTED string (`"365"`) is
+  ignored by the server and the 180-day default silently applies, so the tool
+  refuses one: send `{"transcriptRetentionDays": 365}`, or `null` to remove
+  it),
   `timezone` (IANA zone such as "Asia/Jerusalem"; the runtime tells the agent
   the current LOCAL date and time so same-day cutoffs and "still available
   today" are judged correctly — anything invalid resolves to UTC. SET IT IN
