@@ -216,6 +216,10 @@ key are billed by that provider to the owner.
   (price, stock) must be `"type": "number"` and stored as JSON numbers.
 - `accessPolicy`:
   - `public-read` (default) — catalog-class data, served to any end user.
+    **Never for intake.** Rows a visitor submits about themselves (enquiries,
+    bookings, orders, requests — names, phones, emails, free text) are readable
+    by EVERY visitor and every MCP client on public-read, ids included. Make
+    intake entities `end-user-scoped`.
   - `end-user-scoped` — rows belong to ONE signed visitor (carts, orders).
     Identity is LIVE: serve verifies the site's signed session cookie and
     scopes reads to that visitor. With NO identity — an anonymous visitor,

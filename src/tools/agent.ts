@@ -125,7 +125,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "Create/replace a managed-entity definition (name → the agent's query_<name> tool). " +
         "name: ^[a-z][a-z0-9_]{0,63}$. jsonSchema needs non-empty properties with descriptions; " +
         "numeric fields (price, stock) MUST be type number. accessPolicy: public-read (default) | " +
-        "end-user-scoped | owner-only — end-user-scoped reads mount ONLY with a verified visitor identity " +
+        "end-user-scoped | owner-only. INTAKE entities (what a visitor submits about themselves: enquiries, bookings, orders, requests) are NEVER public-read — public-read rows are readable by every visitor and every MCP client, ids included — make them end-user-scoped. end-user-scoped reads mount ONLY with a verified visitor identity " +
         "(pick it only under loginRequirement required/approval), and NEVER pair end-user-scoped with writePolicy " +
         "open under none/optional login: anonymous rows are owner-visible only. update_<entity> is OFF by default " +
         "(mounts only via policies.writePolicies[\"update_<entity>\"] = \"confirm\"|\"auto\"). Max 20 entities/project. With `source` (from site-API " +
