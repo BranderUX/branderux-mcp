@@ -125,7 +125,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "Create/replace a managed-entity definition (name → the agent's query_<name> tool). " +
         "name: ^[a-z][a-z0-9_]{0,63}$. jsonSchema needs non-empty properties with descriptions; " +
         "numeric fields (price, stock) MUST be type number. accessPolicy: public-read (default) | " +
-        "end-user-scoped | owner-only. INTAKE entities (what a visitor submits about themselves: enquiries, bookings, orders, requests) are NEVER public-read — public-read rows are readable by every visitor and every MCP client, ids included — make them end-user-scoped. end-user-scoped reads mount ONLY with a verified visitor identity " +
+        "end-user-scoped | owner-only. INTAKE entities (what a visitor submits about themselves: enquiries, bookings, orders, requests) are NEVER public-read — public-read rows are readable by every visitor and every MCP client, ids included — make them end-user-scoped. Re-defining an entity keeps its accessPolicy unless you pass a new one. " +
+        "end-user-scoped reads mount ONLY with a verified visitor identity " +
         "(pick it only under loginRequirement required/approval), and NEVER pair end-user-scoped with writePolicy " +
         "open under none/optional login: anonymous rows are owner-visible only. update_<entity> is OFF by default " +
         "(mounts only via policies.writePolicies[\"update_<entity>\"] = \"confirm\"|\"auto\"). Max 20 entities/project. With `source` (from site-API " +
@@ -188,10 +189,12 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
           'source.kind "custom-rest" requires fieldMap — probe_api the endpoint first, then author {rows, fields} from the sample.'
         );
       }
+      const carried = accessPolicy ? {} : await storedAccessPolicy(api, projectId, name);
       const entity = await api.put<Record<string, unknown>>(
         `/projects/${encodeURIComponent(projectId)}/entities/${encodeURIComponent(name)}`,
         {
           jsonSchema,
+          ...carried,
           ...(accessPolicy ? { accessPolicy } : {}),
           ...(source ? { source } : {}),
           ...(writePolicy ? { writePolicy } : {}),
@@ -545,6 +548,28 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
     })
   );
 
+}
+
+/**
+ * The accessPolicy already stored under this entity name, as a PUT fragment.
+ * A definition PUT with NO accessPolicy resolves server-side to `public-read`
+ * and overwrites the row, so the ordinary update cycle — re-defining an entity
+ * with a new jsonSchema and nothing else — would silently reopen an INTAKE
+ * entity (enquiries, bookings, orders) to every visitor and every MCP client.
+ * Carrying the stored value forward makes the omission mean "unchanged".
+ * BEST EFFORT: a failing or absent lookup falls back to the server's own
+ * default rather than failing the definition.
+ */
+async function storedAccessPolicy(
+  api: ApiClient,
+  projectId: string,
+  name: string
+): Promise<{ accessPolicy?: string }> {
+  const entities = await api
+    .get<Record<string, unknown>[]>(`/projects/${encodeURIComponent(projectId)}/entities`)
+    .catch(() => null);
+  const stored = (entities ?? []).find((candidate) => candidate.name === name)?.accessPolicy;
+  return typeof stored === "string" ? { accessPolicy: stored } : {};
 }
 
 function registerEntityRecordPeek(server: McpServer, api: ApiClient): void {
