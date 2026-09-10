@@ -38,6 +38,9 @@ text is never softened, summarized, or de-jargoned.
    `policies.language` (the site's language) and `policies.timezone` (IANA zone) — both in
    EVERY hosted build, see Agent config; `upsert_skill` for real domain knowledge. Do NOT
    ask about the model: the default is silent — set `model` only if the owner raises it.
+   ASK the owner here for `policies.legalName` (the registered business name) and
+   `policies.noticeContact` (one email or phone for privacy requests) and store their
+   answers: the site's privacy notice shows both, so neither is ever scraped or guessed.
 4. Elements (submit elements MUST carry the full write payload — see MAKING A WRITE WORK)
    → screens → `customPages`.
 5. `set_home_screen` — the designed home is a REQUIRED step for hosted apps, not a nicety:
@@ -168,7 +171,20 @@ plainly either way, because the owner is the one who may not market to that list
   (`{"courses": "קורסים"}` — what visitors call each entity, plural, in the
   site language; the live site's activity rows ("Searched courses") show that
   label, so SET IT FOR EVERY ENTITY OF A NON-ENGLISH SITE — without it those
-  rows stay English), `handoff`
+  rows stay English), `legalName` (the business's REGISTERED legal name, such
+  as `"Blossom Flowers Ltd"` or `"פרחי לבלב בע״מ"`, not the shop sign: the
+  published site's privacy notice names it as the business responsible for
+  visitors' details), `noticeContact` (ONE email address or phone number for
+  privacy requests, shown in that same notice, such as
+  `"privacy@blossom.co.il"`). **ASK THE OWNER for both, with `ask_user`, in
+  every hosted build ("What is the registered name of the business?", "Which
+  email or phone should privacy requests reach?"), and store exactly what they
+  answer. Never scrape, infer or guess either one: the notice is a legal page,
+  and a name lifted off a website footer can name the wrong company, while a
+  scraped address can hand privacy requests to someone who never agreed to
+  field them. A question they did not answer stores nothing, never a
+  placeholder: tell the owner their notice is missing that detail and ask
+  again at the wrap-up.** `handoff`
   (human-escalation contacts, both keys optional: `{"whatsapp":
   "+972501234567", "email": "help@business.com"}` — the email comes from
   question 3 ONLY: the address the owner typed, never the signed-in account's

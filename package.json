@@ -32,7 +32,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "pretest": "npm run build",
-    "test": "node --test test/contact-fields.test.mjs test/entity-access-policy.test.mjs test/level-field-contract.test.mjs test/policy-bag.test.mjs test/retention-policy.test.mjs test/widget-snippet-contract.test.mjs"
+    "test": "node --test test/contact-fields.test.mjs test/dpa-acceptance.test.mjs test/entity-access-policy.test.mjs test/level-field-contract.test.mjs test/notice-identity-policies.test.mjs test/order-taking-warning.test.mjs test/policy-bag.test.mjs test/retention-policy.test.mjs test/widget-snippet-contract.test.mjs"
   },
   "engines": {
     "node": ">=20"

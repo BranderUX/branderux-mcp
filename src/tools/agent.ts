@@ -3,7 +3,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
 import { contactFields, contactRecordsNotice } from "../lib/contact-fields.js";
+import { DPA_PUBLISH_NOTE, hasAcceptedDpa } from "../lib/dpa.js";
 import { isPlainObject, mergePolicyBag } from "../lib/policy-bag.js";
+import { ORDER_TAKING_NOTE, pricedRequestEntities } from "../lib/priced-orders.js";
 
 const projectIdSchema = z.string().uuid();
 const entityNameSchema = z
@@ -39,6 +41,9 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "escalate_to_owner on the live site — it REALLY emails the owner; encode the owner's escalation-timing answer in the persona or a skill. " +
         "Set policies.language (the site's language — the runtime locks every reply and screen label to it) and policies.timezone " +
         "(IANA zone — the runtime tells the agent the current local time) in EVERY hosted build. " +
+        "WHO THE NOTICE NAMES: ask the owner for policies.legalName (the registered business name) and policies.noticeContact " +
+        "(one email or phone for privacy requests) with ask_user and store their answer; the site's privacy notice shows both, " +
+        "so a scraped or guessed value would put the wrong party on a legal page. " +
         "COLLECTION NOTICE: on the live site the agent tells a visitor WHERE their details go before it asks for them (every write tool carries that instruction) — " +
         "never write a persona, skill or policy that suppresses it, and an entity collecting a phone or an email needs the marketingConsent convention from the contract " +
         "or its list stays service-only. update_<entity> tools are OFF by default: " +
@@ -61,6 +66,9 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
               'A QUOTED string ("365") is ignored by the server and the 180-day default silently applies — this tool refuses one. ' +
               'End-user conversations, visitor events and session analytics are hard-deleted after it; set only when the owner asks for a different period, ' +
               '"entityLabels"?: {"<entity>": "what visitors call it, plural, in the site language"} — set for EVERY entity of a non-English site; the live site\'s activity rows ("Searched courses") show it, without it they stay English, ' +
+              '"legalName"?: the business\'s REGISTERED legal name ("Blossom Flowers Ltd", not the shop sign): the site\'s privacy notice names it as the business responsible for visitors\' details, ' +
+              '"noticeContact"?: ONE email address or phone number for privacy requests, shown in that same notice. ' +
+              'ASK THE OWNER for both (ask_user) in every hosted build and store exactly what they answer; never scrape, infer or guess either one, and store nothing for a question they did not answer, ' +
               '"handoff"?: {"whatsapp"?, "email"?} (email = the address the owner typed, never the account email; a stored email activates the escalate_to_owner tool on the live site), ' +
               '"writePolicies"?: {"create_<entity>": "auto"|"confirm"|"off", "update_<entity>": "confirm"|"auto"} (create_ defaults to confirm; ' +
               'update_ mounts ONLY when its key is stored)} — semantics in brander://docs/hosted-agent-contract'
@@ -529,14 +537,22 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "Say plainly what the /mcp address can do: look-up always, and — when writes are enabled — placing requests, orders and bookings too (the assistant " +
         "asks the person first; the record reaches the owner's Data pane or inbox); with no writes enabled say it is look-up only and orders, bookings and " +
         "requests happen on the site itself; when sign-in is required say the /mcp address is not public and make neither claim. Then give two or three things " +
-        "to try first ('ask it what is in stock today', 'ask it about delivery times' — and, only when writes are enabled, 'ask it to book a table for two').",
+        "to try first ('ask it what is in stock today', 'ask it about delivery times' — and, only when writes are enabled, 'ask it to book a table for two'). " +
+        "The result may also carry `notes`: plain sentences about this account or this site (a data-processing engagement nobody has accepted yet, " +
+        "a site that takes requests carrying a price). Relay each one to the owner in your own plain words as part of that wrap-up, and honour it in what you build. " +
+        "They are never a failure: a publish succeeds, and the site is live, whatever the notes say.",
       inputSchema: {
         projectId: projectIdSchema,
         slug: z
           .string()
           .regex(/^[a-z0-9][a-z0-9-]{0,38}[a-z0-9]$/, "2-40 chars, lowercase, inner hyphens"),
       },
-      outputSchema: { slug: z.string(), status: z.string(), url: z.string() },
+      outputSchema: {
+        slug: z.string(),
+        status: z.string(),
+        url: z.string(),
+        notes: z.array(z.string()).optional(),
+      },
       annotations: IDEMPOTENT_WRITE,
     },
     guarded(async ({ projectId, slug }) => {
@@ -544,10 +560,12 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         `/projects/${encodeURIComponent(projectId)}/site`,
         { slug }
       );
+      const notes = await publishNotes(api, projectId);
       return ok({
         slug: site?.slug ?? slug,
         status: site?.status ?? "live",
         url: site?.url ?? `https://${slug}.branderux.app`,
+        ...(notes.length > 0 ? { notes } : {}),
       });
     })
   );
@@ -573,6 +591,28 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
     })
   );
 
+}
+
+/**
+ * The plain sentences a SUCCESSFUL publish carries for the owner: the
+ * data-processing engagement nobody has accepted for this account yet, and the
+ * distance-selling limit of a site that takes priced requests.
+ *
+ * BEST EFFORT by design: both reads follow a publish that already succeeded,
+ * so a failing (or absent) lookup degrades to no note, never to a failed
+ * publish, and the site never waits on either. An account we could not read at
+ * all earns no engagement note: we ask only where we positively know it is
+ * unaccepted.
+ */
+async function publishNotes(api: ApiClient, projectId: string): Promise<string[]> {
+  const notes: string[] = [];
+  const me = await api.get<Record<string, unknown>>("/auth/me").catch(() => null);
+  if (me && !hasAcceptedDpa(me)) notes.push(DPA_PUBLISH_NOTE);
+  const entities = await api
+    .get<Record<string, unknown>[]>(`/projects/${encodeURIComponent(projectId)}/entities`)
+    .catch(() => null);
+  if (pricedRequestEntities(entities).length > 0) notes.push(ORDER_TAKING_NOTE);
+  return notes;
 }
 
 /**

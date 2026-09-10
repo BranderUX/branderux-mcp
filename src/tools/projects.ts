@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
+import { DPA_ACCEPT_URL, hasAcceptedDpa } from "../lib/dpa.js";
 
 const brandSettingsShape = z
   .object({})
@@ -53,11 +54,18 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
     "whoami",
     {
       title: "Who am I",
-      description: "Who is authenticated, and their projects. Call this first to orient yourself.",
+      description:
+        "Who is authenticated, and their projects. Call this first to orient yourself. " +
+        "It also reports `dpaAccepted`: whether this account has accepted the data-processing engagement, " +
+        "which is what lets us handle their visitors' data on their behalf. When it is false, ask the owner " +
+        `to open ${DPA_ACCEPT_URL} (dpaAcceptUrl) and accept it, one click, at a natural moment in the build. ` +
+        "It never blocks anything: no build step and no publish waits on it.",
       inputSchema: {},
       outputSchema: {
         user: z.object({}).passthrough(),
         projects: z.array(z.object(projectSummary).passthrough()),
+        dpaAccepted: z.boolean(),
+        dpaAcceptUrl: z.string(),
       },
       annotations: READ_ONLY,
     },
@@ -67,6 +75,10 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
       const payload = {
         user: me ?? {},
         projects: (projects ?? []).map((p) => ({ id: p.id, name: p.name })),
+        // Accounts from before the engagement existed count as accepted: they
+        // signed up under the previous terms and are never asked here.
+        dpaAccepted: hasAcceptedDpa(me),
+        dpaAcceptUrl: DPA_ACCEPT_URL,
       };
       return ok(payload);
     })
