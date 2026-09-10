@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
+import { contactFields, contactRecordsNotice } from "../lib/contact-fields.js";
 import { isPlainObject, mergePolicyBag } from "../lib/policy-bag.js";
 
 const projectIdSchema = z.string().uuid();
@@ -37,7 +38,10 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "the owner TYPED — never the signed-in account's email, never a guess; no answer = store no handoff. A stored handoff.email ACTIVATES " +
         "escalate_to_owner on the live site — it REALLY emails the owner; encode the owner's escalation-timing answer in the persona or a skill. " +
         "Set policies.language (the site's language — the runtime locks every reply and screen label to it) and policies.timezone " +
-        "(IANA zone — the runtime tells the agent the current local time) in EVERY hosted build. update_<entity> tools are OFF by default: " +
+        "(IANA zone — the runtime tells the agent the current local time) in EVERY hosted build. " +
+        "COLLECTION NOTICE: on the live site the agent tells a visitor WHERE their details go before it asks for them (every write tool carries that instruction) — " +
+        "never write a persona, skill or policy that suppresses it, and an entity collecting a phone or an email needs the marketingConsent convention from the contract " +
+        "or its list stays service-only. update_<entity> tools are OFF by default: " +
         "one mounts only when policies.writePolicies[\"update_<entity>\"] is \"confirm\" or \"auto\" (owner-approved editing, verbatim warning asked).",
       inputSchema: {
         projectId: projectIdSchema.describe("Project id"),
@@ -131,6 +135,9 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "(mounts only via policies.writePolicies[\"update_<entity>\"] = \"confirm\"|\"auto\"). Max 20 entities/project. With `source` (from site-API " +
         "discovery) the entity is LIVE-backed: queries fetch that endpoint at serve time — do NOT " +
         "seed_records for it, and mirror the discovered sample's field names in jsonSchema. " +
+        "CONTACT DETAILS: an entity collecting a phone or an email (bookings, orders, enquiries, waitlists) either carries a boolean marketingConsent field whose " +
+        "description is the exact wording the visitor is shown at collection, or its list is SERVICE-ONLY — answering that person's own request is always fine, " +
+        "marketing to them without recorded consent is not. " +
         "Read brander://docs/hosted-agent-contract first.",
       inputSchema: {
         projectId: projectIdSchema,
@@ -552,20 +559,53 @@ function registerEntityRecordPeek(server: McpServer, api: ApiClient): void {
     "list_entity_records",
     {
       title: "Peek entity records",
-      description: "Read up to 50 records of an entity (verification after seeding).",
+      description:
+        "Read up to 50 records of an entity (verification after seeding). When the entity's " +
+        "schema holds contact details (email/phone), the result also carries a `notice`: that " +
+        "list may NOT be marketed to without the consent recorded on each row.",
       inputSchema: {
         projectId: projectIdSchema,
         entityName: entityNameSchema,
         limit: z.number().int().min(1).max(50).optional(),
       },
-      outputSchema: { rows: z.array(z.object({}).passthrough()), count: z.number() },
+      outputSchema: {
+        rows: z.array(z.object({}).passthrough()),
+        count: z.number(),
+        notice: z.string().optional(),
+      },
       annotations: READ_ONLY,
     },
     guarded(async ({ projectId, entityName, limit }) => {
       const result = await api.get<{ rows: Record<string, unknown>[]; count: number }>(
         `/projects/${encodeURIComponent(projectId)}/entities/${encodeURIComponent(entityName)}/records?limit=${limit ?? 20}`
       );
-      return ok({ rows: result?.rows ?? [], count: result?.count ?? 0 });
+      const notice = contactRecordsNotice(await entityContactFields(api, projectId, entityName));
+      return ok({
+        rows: result?.rows ?? [],
+        count: result?.count ?? 0,
+        ...(notice ? { notice } : {}),
+      });
     })
   );
+}
+
+/**
+ * The entity definition's contact-bearing field names. BEST EFFORT by design:
+ * the notice is an addition to a read, so a failing (or absent) definition
+ * lookup degrades to no notice — never to a failed peek.
+ */
+async function entityContactFields(
+  api: ApiClient,
+  projectId: string,
+  entityName: string
+): Promise<string[]> {
+  try {
+    const entities = await api.get<Record<string, unknown>[]>(
+      `/projects/${encodeURIComponent(projectId)}/entities`
+    );
+    const entity = (entities ?? []).find((candidate) => candidate.name === entityName);
+    return contactFields(entity?.jsonSchema);
+  } catch {
+    return [];
+  }
 }
