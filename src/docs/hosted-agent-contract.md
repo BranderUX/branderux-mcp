@@ -119,6 +119,14 @@ text is never softened, summarized, or de-jargoned.
    derived for entities). Add-only needs nothing beyond the entity. Never mount a write
    tool the owner hasn't explicitly approved.
 
+**Also ask — marketing consent** (CONDITIONAL, which is why it is not one of the five:
+only when an entity collects a phone number or an email address — bookings, orders,
+enquiries, waitlists, newsletter signups): "Do you plan to send offers or news to the
+people who leave their details?" A yes means the entity carries a `marketingConsent`
+field and the agent asks the visitor for it; a no means the list is service-only. The
+convention is under "Collecting contact details" in Entities below — say the outcome
+plainly either way, because the owner is the one who may not market to that list.
+
 ## Agent config (`upsert_agent_config`)
 
 - `persona` — the business voice + facts, ≤20k chars. Write it about the
@@ -279,6 +287,29 @@ key are billed by that provider to the owner.
   submitting the form on the site itself and checking `list_entity_records` /
   the Agent tab's Data pane. Set that expectation before the owner tests a
   write flow.
+- **Collecting contact details (phone, email)** — two rules every intake entity
+  (bookings, orders, enquiries, waitlists, newsletter signups) follows:
+  - **Say where it goes BEFORE collecting.** The live agent tells the visitor, in the
+    site's language, where their details land BEFORE it asks for a name, phone, email
+    or address: stored in the business's own records (its bookings, its orders — and
+    processed by BranderUX on the business's behalf), emailed to the business,
+    sent to the business's own system, or written into a connected app. Every write
+    tool carries that instruction in its own description, so it happens by default —
+    never write a persona, skill, element instruction or house rule that suppresses,
+    shortens or postpones it, and never tell an owner the agent collects details
+    silently.
+  - **Marketing consent, or service-only.** Contact details may always be used to
+    answer or fulfil that person's OWN request; MARKETING to them (offers,
+    newsletters, SMS campaigns) needs their recorded consent. So either add a boolean
+    **`marketingConsent`** field to the entity — its `description` carrying the EXACT
+    wording the visitor is shown at collection ("Agreed to receive offers and updates
+    from <business> by email or SMS"), plus a persona/skill line telling the agent to
+    ask that wording in plain words and store `true` ONLY on a clear yes (never
+    defaulted, never inferred from silence, never a condition of the order) — or store
+    no consent field and tell the owner plainly that the list is service-only.
+    `list_entity_records` returns a top-level `notice` for any entity whose schema
+    holds contact fields, restating that the list may not be marketed to without the
+    consent on each row.
 - Upserting an existing name replaces the schema (version bumps).
   Re-defining an entity keeps its `accessPolicy` unless you pass a new one —
   the tool carries the stored value forward, so a schema-only update never
@@ -299,7 +330,9 @@ confirmation screen that confirms nothing:
 
 1. **The entity**: `define_entity` with the right `writePolicy` (respect the coherence
    rule above), and a schema whose fields cover everything fulfilment needs (an orders
-   schema without delivery address/recipient phone produces rows no one can act on).
+   schema without delivery address/recipient phone produces rows no one can act on) —
+   plus, when it collects a phone or an email, the `marketingConsent` field or an
+   explicit service-only decision (see "Collecting contact details").
 2. **A submit element that carries the FULL payload**: the submit callback's
    `clickQueryTemplate` must name EVERY field the write tool needs
    (`"Submit order: {name}, {phone}, deliver to {deliveryAddress}, message: {cardMessage}, total {total}"`)
@@ -308,7 +341,10 @@ confirmation screen that confirms nothing:
 3. **Instructions to write**: the persona or a skill must explicitly say to call
    `create_<entity>` when a submission arrives (and `escalate_to_owner` in the same turn,
    per the owner's escalation policy). `flexibleModeRules` does NOT reach the answering
-   agent — it steers screen generation only; write instructions there are dead text.
+   agent — it steers screen generation only; write instructions there are dead text. What
+   those instructions must NEVER do is suppress the write tool's own collection notice
+   (where the details go, said before they are asked for) or the consent question when the
+   entity carries `marketingConsent`.
 4. **Verify**: `list_entities` returns `writePolicy` — check it round-tripped.
 
 Per-tool modes ride `policies.writePolicies`, keyed by the LITERAL tool name:
