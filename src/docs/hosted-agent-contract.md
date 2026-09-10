@@ -216,6 +216,13 @@ key are billed by that provider to the owner.
   (price, stock) must be `"type": "number"` and stored as JSON numbers.
 - `accessPolicy`:
   - `public-read` (default) — catalog-class data, served to any end user.
+    **Never for intake.** Rows a visitor submits about themselves (enquiries,
+    bookings, orders, requests — names, phones, emails, free text) are readable
+    by EVERY visitor and every MCP client on public-read, ids included. Make
+    intake entities `end-user-scoped`. On an EXISTING project run
+    `list_entities` FIRST and re-define any intake entity that is public-read
+    as `end-user-scoped` (same `jsonSchema`) before anything else — an entity
+    defined before this rule is still open.
   - `end-user-scoped` — rows belong to ONE signed visitor (carts, orders).
     Identity is LIVE: serve verifies the site's signed session cookie and
     scopes reads to that visitor. With NO identity — an anonymous visitor,
@@ -264,9 +271,12 @@ key are billed by that provider to the owner.
   submitting the form on the site itself and checking `list_entity_records` /
   the Agent tab's Data pane. Set that expectation before the owner tests a
   write flow.
-- Upserting an existing name replaces the schema (version bumps). Schema is
-  advisory-for-generation: the server validates structure/size, YOU are
-  responsible for generating conforming rows.
+- Upserting an existing name replaces the schema (version bumps).
+  Re-defining an entity keeps its `accessPolicy` unless you pass a new one —
+  the tool carries the stored value forward, so a schema-only update never
+  reopens an intake entity. Schema is advisory-for-generation: the server
+  validates structure/size, YOU are responsible for generating conforming
+  rows.
 
 ## MAKING A WRITE ACTUALLY WORK (4 required pieces — a writable entity alone does NOTHING)
 
