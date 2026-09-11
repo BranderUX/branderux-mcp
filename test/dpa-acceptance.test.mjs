@@ -167,3 +167,14 @@ test("publish_site's description tells the agent to relay the notes and that the
   assert.match(description, /never a failure/);
   assert.match(description, /the site is live/);
 });
+
+test("hasAcceptedDpa: a bare createdAt (the server's LocalDateTime, no zone) is read as UTC, not local time", () => {
+  // Spring serializes LocalDateTime without a zone designator; Date.parse would
+  // read that as the machine's LOCAL time and move the cutoff by the offset.
+  assert.equal(hasAcceptedDpa({ createdAt: "2026-09-10T23:00:00" }), true);
+  assert.equal(hasAcceptedDpa({ createdAt: "2026-09-10T23:59:59.123456" }), true);
+  assert.equal(hasAcceptedDpa({ createdAt: "2026-09-11T01:00:00" }), false);
+  // A timestamp that names its zone passes through untouched.
+  assert.equal(hasAcceptedDpa({ createdAt: "2026-09-11T02:00:00+03:00" }), true);
+  assert.equal(hasAcceptedDpa({ createdAt: "2026-09-11T00:00:00Z" }), false);
+});

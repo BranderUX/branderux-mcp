@@ -39,8 +39,18 @@ export function hasAcceptedDpa(me: unknown): boolean {
   if (accepted === true || isPlainObject(accepted)) return true;
   const createdAt = me.createdAt;
   if (typeof createdAt !== "string") return false;
-  const created = Date.parse(createdAt);
+  const created = Date.parse(asUtc(createdAt));
   return Number.isFinite(created) && created < REQUIRED_FROM;
+}
+
+/**
+ * The server serializes its LocalDateTime WITHOUT a zone designator, and by
+ * contract that clock is UTC; Date.parse reads a bare timestamp as the
+ * machine's LOCAL time, which moves the cutoff by the local offset. Append the
+ * Z the wire left out; a timestamp that names its zone passes through.
+ */
+function asUtc(iso: string): string {
+  return /(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`;
 }
 
 /**
