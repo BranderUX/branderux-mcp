@@ -2,7 +2,10 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
+import { contactFields, contactRecordsNotice } from "../lib/contact-fields.js";
+import { DPA_PUBLISH_NOTE, hasAcceptedDpa } from "../lib/dpa.js";
 import { isPlainObject, mergePolicyBag } from "../lib/policy-bag.js";
+import { ORDER_TAKING_NOTE, pricedRequestEntities } from "../lib/priced-orders.js";
 
 const projectIdSchema = z.string().uuid();
 const entityNameSchema = z
@@ -37,7 +40,13 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "the owner TYPED — never the signed-in account's email, never a guess; no answer = store no handoff. A stored handoff.email ACTIVATES " +
         "escalate_to_owner on the live site — it REALLY emails the owner; encode the owner's escalation-timing answer in the persona or a skill. " +
         "Set policies.language (the site's language — the runtime locks every reply and screen label to it) and policies.timezone " +
-        "(IANA zone — the runtime tells the agent the current local time) in EVERY hosted build. update_<entity> tools are OFF by default: " +
+        "(IANA zone — the runtime tells the agent the current local time) in EVERY hosted build. " +
+        "WHO THE NOTICE NAMES: ask the owner for policies.legalName (the registered business name) and policies.noticeContact " +
+        "(one email or phone for privacy requests) with ask_user and store their answer; the site's privacy notice shows both, " +
+        "so a scraped or guessed value would put the wrong party on a legal page. " +
+        "COLLECTION NOTICE: on the live site the agent tells a visitor WHERE their details go before it asks for them (every write tool carries that instruction) — " +
+        "never write a persona, skill or policy that suppresses it, and an entity collecting a phone or an email needs the marketingConsent convention from the contract " +
+        "or its list stays service-only. update_<entity> tools are OFF by default: " +
         "one mounts only when policies.writePolicies[\"update_<entity>\"] is \"confirm\" or \"auto\" (owner-approved editing, verbatim warning asked).",
       inputSchema: {
         projectId: projectIdSchema.describe("Project id"),
@@ -53,7 +62,15 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
               '"visitorLimits"?: {"turnsPerDay", "anonymousTurnsPerDay"}, ' +
               '"language"?: a BCP-47 tag such as "he" (preferred; a name such as "Hebrew" also works) — the site language lock AND the site\'s own chrome/direction (RTL flips automatically); set in every hosted build, ' +
               '"timezone"?: IANA zone e.g. "Asia/Jerusalem" (the business clock — set in every hosted build; invalid = UTC), ' +
+              '"transcriptRetentionDays"?: a JSON NUMBER of days, 30–730 (default 180; out of range is clamped, a fraction truncated). ' +
+              'A QUOTED string ("365") is ignored by the server and the 180-day default silently applies — this tool refuses one. ' +
+              'End-user conversations, visitor events and session analytics are hard-deleted after it; set only when the owner asks for a different period, ' +
               '"entityLabels"?: {"<entity>": "what visitors call it, plural, in the site language"} — set for EVERY entity of a non-English site; the live site\'s activity rows ("Searched courses") show it, without it they stay English, ' +
+              '"legalName"?: the business\'s REGISTERED legal name ("Blossom Flowers Ltd", not the shop sign): the site\'s privacy notice names it as the business responsible for visitors\' details, ' +
+              '"noticeContact"?: ONE email address or phone number for privacy requests, shown in that same notice. ' +
+              'ASK THE OWNER for both (ask_user) in every hosted build and store exactly what they answer; never scrape, infer or guess either one, and store nothing for a question they did not answer, ' +
+              '"accessibilityCoordinator"?: {"name", "contact"} — ONLY when the owner says the business employs 25 people or more (the law then requires an appointed accessibility coordinator; ask for the name and a way to reach them), ' +
+              '"accessibilityExemption"?: the wording of an exemption from full accessibility the business itself holds, ONLY when the owner states it (plain text, <=2000 chars). Both render on the site\'s auto-hosted /accessibility statement, which every published site carries; never infer, suggest or invent either one, ' +
               '"handoff"?: {"whatsapp"?, "email"?} (email = the address the owner typed, never the account email; a stored email activates the escalate_to_owner tool on the live site), ' +
               '"writePolicies"?: {"create_<entity>": "auto"|"confirm"|"off", "update_<entity>": "confirm"|"auto"} (create_ defaults to confirm; ' +
               'update_ mounts ONLY when its key is stored)} — semantics in brander://docs/hosted-agent-contract'
@@ -92,6 +109,21 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       // The server stores the bag whole — merge the patch over what is there so a
       // partial write (entityLabels alone) never drops language, handoff or writePolicies.
       if (isPlainObject(body.policies)) {
+        // A quoted number is IGNORED by the server: the 180-day default silently
+        // applies and the site's privacy notice then states a period nothing
+        // enforces. Refuse the string instead of storing a lie. (null = remove.)
+        const retention = body.policies.transcriptRetentionDays;
+        if (
+          "transcriptRetentionDays" in body.policies &&
+          retention !== null &&
+          typeof retention !== "number"
+        ) {
+          return fail(
+            'transcriptRetentionDays must be a JSON number of days, 30–730 — {"transcriptRetentionDays": 365}, ' +
+              'not "365". A quoted value is ignored by the server and the 180-day default applies. ' +
+              "Send null to remove it."
+          );
+        }
         const current = await api.get<Record<string, unknown>>(path);
         body.policies = mergePolicyBag(current?.policies, body.policies);
       }
@@ -125,12 +157,16 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "Create/replace a managed-entity definition (name → the agent's query_<name> tool). " +
         "name: ^[a-z][a-z0-9_]{0,63}$. jsonSchema needs non-empty properties with descriptions; " +
         "numeric fields (price, stock) MUST be type number. accessPolicy: public-read (default) | " +
-        "end-user-scoped | owner-only — end-user-scoped reads mount ONLY with a verified visitor identity " +
+        "end-user-scoped | owner-only. INTAKE entities (what a visitor submits about themselves: enquiries, bookings, orders, requests) are NEVER public-read — public-read rows are readable by every visitor and every MCP client, ids included — make them end-user-scoped. Re-defining an entity keeps its accessPolicy unless you pass a new one. " +
+        "end-user-scoped reads mount ONLY with a verified visitor identity " +
         "(pick it only under loginRequirement required/approval), and NEVER pair end-user-scoped with writePolicy " +
         "open under none/optional login: anonymous rows are owner-visible only. update_<entity> is OFF by default " +
         "(mounts only via policies.writePolicies[\"update_<entity>\"] = \"confirm\"|\"auto\"). Max 20 entities/project. With `source` (from site-API " +
         "discovery) the entity is LIVE-backed: queries fetch that endpoint at serve time — do NOT " +
         "seed_records for it, and mirror the discovered sample's field names in jsonSchema. " +
+        "CONTACT DETAILS: an entity collecting a phone or an email (bookings, orders, enquiries, waitlists) either carries a boolean marketingConsent field whose " +
+        "description is the exact wording the visitor is shown at collection, or its list is SERVICE-ONLY — answering that person's own request is always fine, " +
+        "marketing to them without recorded consent is not. " +
         "Read brander://docs/hosted-agent-contract first.",
       inputSchema: {
         projectId: projectIdSchema,
@@ -188,10 +224,12 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
           'source.kind "custom-rest" requires fieldMap — probe_api the endpoint first, then author {rows, fields} from the sample.'
         );
       }
+      const carried = accessPolicy ? {} : await storedAccessPolicy(api, projectId, name);
       const entity = await api.put<Record<string, unknown>>(
         `/projects/${encodeURIComponent(projectId)}/entities/${encodeURIComponent(name)}`,
         {
           jsonSchema,
+          ...carried,
           ...(accessPolicy ? { accessPolicy } : {}),
           ...(source ? { source } : {}),
           ...(writePolicy ? { writePolicy } : {}),
@@ -501,14 +539,22 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "Say plainly what the /mcp address can do: look-up always, and — when writes are enabled — placing requests, orders and bookings too (the assistant " +
         "asks the person first; the record reaches the owner's Data pane or inbox); with no writes enabled say it is look-up only and orders, bookings and " +
         "requests happen on the site itself; when sign-in is required say the /mcp address is not public and make neither claim. Then give two or three things " +
-        "to try first ('ask it what is in stock today', 'ask it about delivery times' — and, only when writes are enabled, 'ask it to book a table for two').",
+        "to try first ('ask it what is in stock today', 'ask it about delivery times' — and, only when writes are enabled, 'ask it to book a table for two'). " +
+        "The result may also carry `notes`: plain sentences about this account or this site (a data-processing engagement nobody has accepted yet, " +
+        "a site that takes requests carrying a price). Relay each one to the owner in your own plain words as part of that wrap-up, and honour it in what you build. " +
+        "They are never a failure: a publish succeeds, and the site is live, whatever the notes say.",
       inputSchema: {
         projectId: projectIdSchema,
         slug: z
           .string()
           .regex(/^[a-z0-9][a-z0-9-]{0,38}[a-z0-9]$/, "2-40 chars, lowercase, inner hyphens"),
       },
-      outputSchema: { slug: z.string(), status: z.string(), url: z.string() },
+      outputSchema: {
+        slug: z.string(),
+        status: z.string(),
+        url: z.string(),
+        notes: z.array(z.string()).optional(),
+      },
       annotations: IDEMPOTENT_WRITE,
     },
     guarded(async ({ projectId, slug }) => {
@@ -516,10 +562,12 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         `/projects/${encodeURIComponent(projectId)}/site`,
         { slug }
       );
+      const notes = await publishNotes(api, projectId);
       return ok({
         slug: site?.slug ?? slug,
         status: site?.status ?? "live",
         url: site?.url ?? `https://${slug}.branderux.app`,
+        ...(notes.length > 0 ? { notes } : {}),
       });
     })
   );
@@ -547,25 +595,102 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
 
 }
 
+/**
+ * The plain sentences a SUCCESSFUL publish carries for the owner: the
+ * data-processing engagement nobody has accepted for this account yet, and the
+ * distance-selling limit of a site that takes priced requests.
+ *
+ * BEST EFFORT by design: both reads follow a publish that already succeeded,
+ * so a failing (or absent) lookup degrades to no note, never to a failed
+ * publish, and the site never waits on either. An account we could not read at
+ * all earns no engagement note: we ask only where we positively know it is
+ * unaccepted.
+ */
+async function publishNotes(api: ApiClient, projectId: string): Promise<string[]> {
+  const notes: string[] = [];
+  const me = await api.get<Record<string, unknown>>("/auth/me").catch(() => null);
+  if (me && !hasAcceptedDpa(me)) notes.push(DPA_PUBLISH_NOTE);
+  const entities = await api
+    .get<Record<string, unknown>[]>(`/projects/${encodeURIComponent(projectId)}/entities`)
+    .catch(() => null);
+  if (pricedRequestEntities(entities).length > 0) notes.push(ORDER_TAKING_NOTE);
+  return notes;
+}
+
+/**
+ * The accessPolicy already stored under this entity name, as a PUT fragment.
+ * A definition PUT with NO accessPolicy resolves server-side to `public-read`
+ * and overwrites the row, so the ordinary update cycle — re-defining an entity
+ * with a new jsonSchema and nothing else — would silently reopen an INTAKE
+ * entity (enquiries, bookings, orders) to every visitor and every MCP client.
+ * Carrying the stored value forward makes the omission mean "unchanged".
+ * BEST EFFORT: a failing or absent lookup falls back to the server's own
+ * default rather than failing the definition.
+ */
+async function storedAccessPolicy(
+  api: ApiClient,
+  projectId: string,
+  name: string
+): Promise<{ accessPolicy?: string }> {
+  const entities = await api
+    .get<Record<string, unknown>[]>(`/projects/${encodeURIComponent(projectId)}/entities`)
+    .catch(() => null);
+  const stored = (entities ?? []).find((candidate) => candidate.name === name)?.accessPolicy;
+  return typeof stored === "string" ? { accessPolicy: stored } : {};
+}
+
 function registerEntityRecordPeek(server: McpServer, api: ApiClient): void {
   server.registerTool(
     "list_entity_records",
     {
       title: "Peek entity records",
-      description: "Read up to 50 records of an entity (verification after seeding).",
+      description:
+        "Read up to 50 records of an entity (verification after seeding). When the entity's " +
+        "schema holds contact details (email/phone), the result also carries a `notice`: that " +
+        "list may NOT be marketed to without the consent recorded on each row.",
       inputSchema: {
         projectId: projectIdSchema,
         entityName: entityNameSchema,
         limit: z.number().int().min(1).max(50).optional(),
       },
-      outputSchema: { rows: z.array(z.object({}).passthrough()), count: z.number() },
+      outputSchema: {
+        rows: z.array(z.object({}).passthrough()),
+        count: z.number(),
+        notice: z.string().optional(),
+      },
       annotations: READ_ONLY,
     },
     guarded(async ({ projectId, entityName, limit }) => {
       const result = await api.get<{ rows: Record<string, unknown>[]; count: number }>(
         `/projects/${encodeURIComponent(projectId)}/entities/${encodeURIComponent(entityName)}/records?limit=${limit ?? 20}`
       );
-      return ok({ rows: result?.rows ?? [], count: result?.count ?? 0 });
+      const notice = contactRecordsNotice(await entityContactFields(api, projectId, entityName));
+      return ok({
+        rows: result?.rows ?? [],
+        count: result?.count ?? 0,
+        ...(notice ? { notice } : {}),
+      });
     })
   );
+}
+
+/**
+ * The entity definition's contact-bearing field names. BEST EFFORT by design:
+ * the notice is an addition to a read, so a failing (or absent) definition
+ * lookup degrades to no notice — never to a failed peek.
+ */
+async function entityContactFields(
+  api: ApiClient,
+  projectId: string,
+  entityName: string
+): Promise<string[]> {
+  try {
+    const entities = await api.get<Record<string, unknown>[]>(
+      `/projects/${encodeURIComponent(projectId)}/entities`
+    );
+    const entity = (entities ?? []).find((candidate) => candidate.name === entityName);
+    return contactFields(entity?.jsonSchema);
+  } catch {
+    return [];
+  }
 }

@@ -73,6 +73,56 @@ export default function Component({ items, title, onSelectItem, onItemContextMen
   has resolved to invisible text), and `accent` is not a palette key (the declaration is
   dropped and the text inherits).
 
+## Accessible by construction (WCAG 2.0 AA / IS 5568)
+
+Elements ship into real customer sites that carry a legal accessibility duty, so the FIRST
+version is accessible — never a later pass:
+
+- **Every activatable thing is a real control.** Anything with `onClick` must be a `<Button>`,
+  `<IconButton>`, `<CardActionArea>`, `<ListItemButton>`, a `<Tab>`, or a node with
+  `component="button"`. A `Box`/`Card`/`Paper`/`Stack`/`Grid`/`TableRow`/`div` whose only
+  interaction is `onClick` is mouse-only: no tab stop, Enter and Space do nothing, and a screen
+  reader never announces it. When the markup forbids a control (a `TableRow`), give the SAME node
+  all four — `role="button"`, `tabIndex={0}`, an `aria-label` naming the item, and an Enter/Space
+  `onKeyDown` that calls exactly what the click calls:
+
+```tsx
+<TableRow
+  key={row.id}
+  hover
+  role="button"
+  tabIndex={0}
+  aria-label={`Open ${row.name}`}
+  sx={{ cursor: "pointer" }}
+  onClick={() => onSelectItem?.(row)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onSelectItem?.(row);
+    }
+  }}
+  onContextMenu={(e) => { e.preventDefault(); onItemContextMenu?.(e, row); }}
+>
+```
+
+- That focusable node is also what makes **right-click reachable without a mouse** — the context
+  menu opens with Shift+F10 / the Menu key on the FOCUSED element, so an unfocusable host has no
+  right-click at all for keyboard users.
+- **Images carry `alt`** describing what the image SHOWS (`alt={item.name}`) — never a file name,
+  a URL fragment, or "image". Only a purely decorative image takes `alt=""`.
+- **Icon-only buttons carry `aria-label`**: `<IconButton aria-label="Remove from cart">` — an icon
+  alone announces as "button" and nothing else.
+- **The element's own title is a real heading**: `<Typography variant="h6" component="h3">` — the
+  variant is the SIZE, `component` is the MEANING. Never `component="div"`/`"span"` on a title.
+  Screen-reader users navigate a screen by its headings (IS 5568 raises WCAG's Section Headings to
+  a level-AA requirement); the host screen owns h1/h2, so start at h3.
+- **Tables are tables** (`TableHead` + `TableCell` header cells, never a `Box` grid imitating one),
+  **form fields are labelled** (a `label`, or `aria-label` when there is no visible one, plus
+  `error` + `helperText` when a field can be invalid — a placeholder is never a label).
+- **Never remove the focus ring.** If you set `outline: "none"`, replace it in the same `sx`:
+  `"&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 }`.
+- **Colour is never the only signal** — a red "Out of stock" chip must SAY "Out of stock".
+
 ## Layout is direction-neutral (LTR and RTL sites)
 
 Published sites and embeds can run right-to-left (Hebrew, Arabic…); the host document sets

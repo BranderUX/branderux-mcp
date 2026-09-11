@@ -38,6 +38,9 @@ text is never softened, summarized, or de-jargoned.
    `policies.language` (the site's language) and `policies.timezone` (IANA zone) — both in
    EVERY hosted build, see Agent config; `upsert_skill` for real domain knowledge. Do NOT
    ask about the model: the default is silent — set `model` only if the owner raises it.
+   ASK the owner here for `policies.legalName` (the registered business name) and
+   `policies.noticeContact` (one email or phone for privacy requests) and store their
+   answers: the site's privacy notice shows both, so neither is ever scraped or guessed.
 4. Elements (submit elements MUST carry the full write payload — see MAKING A WRITE WORK)
    → screens → `customPages`.
 5. `set_home_screen` — the designed home is a REQUIRED step for hosted apps, not a nicety:
@@ -119,6 +122,14 @@ text is never softened, summarized, or de-jargoned.
    derived for entities). Add-only needs nothing beyond the entity. Never mount a write
    tool the owner hasn't explicitly approved.
 
+**Also ask — marketing consent** (CONDITIONAL, which is why it is not one of the five:
+only when an entity collects a phone number or an email address — bookings, orders,
+enquiries, waitlists, newsletter signups): "Do you plan to send offers or news to the
+people who leave their details?" A yes means the entity carries a `marketingConsent`
+field and the agent asks the visitor for it; a no means the list is service-only. The
+convention is under "Collecting contact details" in Entities below — say the outcome
+plainly either way, because the owner is the one who may not market to that list.
+
 ## Agent config (`upsert_agent_config`)
 
 - `persona` — the business voice + facts, ≤20k chars. Write it about the
@@ -145,6 +156,14 @@ text is never softened, summarized, or de-jargoned.
   reply, screen label, form field and button to it. SET IT IN EVERY HOSTED
   BUILD from the business's own site: the platform's click queries and rules
   are English, so a non-English site without it code-switches mid-reply),
+  `transcriptRetentionDays` (a JSON NUMBER of days, 30–730, default 180, out of
+  range clamped and a fraction truncated: end-user conversations, visitor
+  events and session analytics are hard-deleted by a nightly sweep once older
+  than this — the period the site's privacy notice states must be whatever
+  resolves here; set it only when the owner asks. A QUOTED string (`"365"`) is
+  ignored by the server and the 180-day default silently applies, so the tool
+  refuses one: send `{"transcriptRetentionDays": 365}`, or `null` to remove
+  it),
   `timezone` (IANA zone such as "Asia/Jerusalem"; the runtime tells the agent
   the current LOCAL date and time so same-day cutoffs and "still available
   today" are judged correctly — anything invalid resolves to UTC. SET IT IN
@@ -152,7 +171,20 @@ text is never softened, summarized, or de-jargoned.
   (`{"courses": "קורסים"}` — what visitors call each entity, plural, in the
   site language; the live site's activity rows ("Searched courses") show that
   label, so SET IT FOR EVERY ENTITY OF A NON-ENGLISH SITE — without it those
-  rows stay English), `handoff`
+  rows stay English), `legalName` (the business's REGISTERED legal name, such
+  as `"Blossom Flowers Ltd"` or `"פרחי לבלב בע״מ"`, not the shop sign: the
+  published site's privacy notice names it as the business responsible for
+  visitors' details), `noticeContact` (ONE email address or phone number for
+  privacy requests, shown in that same notice, such as
+  `"privacy@blossom.co.il"`). **ASK THE OWNER for both, with `ask_user`, in
+  every hosted build ("What is the registered name of the business?", "Which
+  email or phone should privacy requests reach?"), and store exactly what they
+  answer. Never scrape, infer or guess either one: the notice is a legal page,
+  and a name lifted off a website footer can name the wrong company, while a
+  scraped address can hand privacy requests to someone who never agreed to
+  field them. A question they did not answer stores nothing, never a
+  placeholder: tell the owner their notice is missing that detail and ask
+  again at the wrap-up.** `handoff`
   (human-escalation contacts, both keys optional: `{"whatsapp":
   "+972501234567", "email": "help@business.com"}` — the email comes from
   question 3 ONLY: the address the owner typed, never the signed-in account's
@@ -167,6 +199,13 @@ text is never softened, summarized, or de-jargoned.
   whenever a handoff email is stored. It never mounts on owner test/preview
   surfaces (published site only). The wa.me link gets a `?text=` prefill with
   the visitor's request context.**
+  Two more facts are the owner's alone and REACTIVE: `accessibilityCoordinator`
+  (`{name, contact}`, ONLY when the owner says the business employs 25 people or
+  more, which is when the law requires an appointed accessibility coordinator) and
+  `accessibilityExemption` (the wording of an exemption from full accessibility
+  the business itself holds, ONLY when the owner states it, at most 2000 chars).
+  Both render on the site's auto-hosted `/accessibility` statement, which every
+  published site carries; never infer, suggest or invent either one.
 - `dailyTokenBudget` — cost-weighted tokens/day (default 2,000,000). Serving
   429s past it; resets daily (UTC).
 - `level` — ANSWER QUALITY, a stop from 1 to 5; the owner never hears a model,
@@ -216,6 +255,13 @@ key are billed by that provider to the owner.
   (price, stock) must be `"type": "number"` and stored as JSON numbers.
 - `accessPolicy`:
   - `public-read` (default) — catalog-class data, served to any end user.
+    **Never for intake.** Rows a visitor submits about themselves (enquiries,
+    bookings, orders, requests — names, phones, emails, free text) are readable
+    by EVERY visitor and every MCP client on public-read, ids included. Make
+    intake entities `end-user-scoped`. On an EXISTING project run
+    `list_entities` FIRST and re-define any intake entity that is public-read
+    as `end-user-scoped` (same `jsonSchema`) before anything else — an entity
+    defined before this rule is still open.
   - `end-user-scoped` — rows belong to ONE signed visitor (carts, orders).
     Identity is LIVE: serve verifies the site's signed session cookie and
     scopes reads to that visitor. With NO identity — an anonymous visitor,
@@ -264,9 +310,35 @@ key are billed by that provider to the owner.
   submitting the form on the site itself and checking `list_entity_records` /
   the Agent tab's Data pane. Set that expectation before the owner tests a
   write flow.
-- Upserting an existing name replaces the schema (version bumps). Schema is
-  advisory-for-generation: the server validates structure/size, YOU are
-  responsible for generating conforming rows.
+- **Collecting contact details (phone, email)** — two rules every intake entity
+  (bookings, orders, enquiries, waitlists, newsletter signups) follows:
+  - **Say where it goes BEFORE collecting.** The live agent tells the visitor, in the
+    site's language, where their details land BEFORE it asks for a name, phone, email
+    or address: stored in the business's own records (its bookings, its orders — and
+    processed by BranderUX on the business's behalf), emailed to the business,
+    sent to the business's own system, or written into a connected app. Every write
+    tool carries that instruction in its own description, so it happens by default —
+    never write a persona, skill, element instruction or house rule that suppresses,
+    shortens or postpones it, and never tell an owner the agent collects details
+    silently.
+  - **Marketing consent, or service-only.** Contact details may always be used to
+    answer or fulfil that person's OWN request; MARKETING to them (offers,
+    newsletters, SMS campaigns) needs their recorded consent. So either add a boolean
+    **`marketingConsent`** field to the entity — its `description` carrying the EXACT
+    wording the visitor is shown at collection ("Agreed to receive offers and updates
+    from <business> by email or SMS"), plus a persona/skill line telling the agent to
+    ask that wording in plain words and store `true` ONLY on a clear yes (never
+    defaulted, never inferred from silence, never a condition of the order) — or store
+    no consent field and tell the owner plainly that the list is service-only.
+    `list_entity_records` returns a top-level `notice` for any entity whose schema
+    holds contact fields, restating that the list may not be marketed to without the
+    consent on each row.
+- Upserting an existing name replaces the schema (version bumps).
+  Re-defining an entity keeps its `accessPolicy` unless you pass a new one —
+  the tool carries the stored value forward, so a schema-only update never
+  reopens an intake entity. Schema is advisory-for-generation: the server
+  validates structure/size, YOU are responsible for generating conforming
+  rows.
 
 ## MAKING A WRITE ACTUALLY WORK (4 required pieces — a writable entity alone does NOTHING)
 
@@ -281,7 +353,9 @@ confirmation screen that confirms nothing:
 
 1. **The entity**: `define_entity` with the right `writePolicy` (respect the coherence
    rule above), and a schema whose fields cover everything fulfilment needs (an orders
-   schema without delivery address/recipient phone produces rows no one can act on).
+   schema without delivery address/recipient phone produces rows no one can act on) —
+   plus, when it collects a phone or an email, the `marketingConsent` field or an
+   explicit service-only decision (see "Collecting contact details").
 2. **A submit element that carries the FULL payload**: the submit callback's
    `clickQueryTemplate` must name EVERY field the write tool needs
    (`"Submit order: {name}, {phone}, deliver to {deliveryAddress}, message: {cardMessage}, total {total}"`)
@@ -290,7 +364,10 @@ confirmation screen that confirms nothing:
 3. **Instructions to write**: the persona or a skill must explicitly say to call
    `create_<entity>` when a submission arrives (and `escalate_to_owner` in the same turn,
    per the owner's escalation policy). `flexibleModeRules` does NOT reach the answering
-   agent — it steers screen generation only; write instructions there are dead text.
+   agent — it steers screen generation only; write instructions there are dead text. What
+   those instructions must NEVER do is suppress the write tool's own collection notice
+   (where the details go, said before they are asked for) or the consent question when the
+   entity carries `marketingConsent`.
 4. **Verify**: `list_entities` returns `writePolicy` — check it round-tripped.
 
 Per-tool modes ride `policies.writePolicies`, keyed by the LITERAL tool name:
