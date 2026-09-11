@@ -199,6 +199,13 @@ plainly either way, because the owner is the one who may not market to that list
   whenever a handoff email is stored. It never mounts on owner test/preview
   surfaces (published site only). The wa.me link gets a `?text=` prefill with
   the visitor's request context.**
+  Two more facts are the owner's alone and REACTIVE: `accessibilityCoordinator`
+  (`{name, contact}`, ONLY when the owner says the business employs 25 people or
+  more, which is when the law requires an appointed accessibility coordinator) and
+  `accessibilityExemption` (the wording of an exemption from full accessibility
+  the business itself holds, ONLY when the owner states it, at most 2000 chars).
+  Both render on the site's auto-hosted `/accessibility` statement, which every
+  published site carries; never infer, suggest or invent either one.
 - `dailyTokenBudget` — cost-weighted tokens/day (default 2,000,000). Serving
   429s past it; resets daily (UTC).
 - `level` — ANSWER QUALITY, a stop from 1 to 5; the owner never hears a model,

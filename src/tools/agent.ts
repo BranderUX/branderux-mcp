@@ -69,6 +69,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
               '"legalName"?: the business\'s REGISTERED legal name ("Blossom Flowers Ltd", not the shop sign): the site\'s privacy notice names it as the business responsible for visitors\' details, ' +
               '"noticeContact"?: ONE email address or phone number for privacy requests, shown in that same notice. ' +
               'ASK THE OWNER for both (ask_user) in every hosted build and store exactly what they answer; never scrape, infer or guess either one, and store nothing for a question they did not answer, ' +
+              '"accessibilityCoordinator"?: {"name", "contact"} — ONLY when the owner says the business employs 25 people or more (the law then requires an appointed accessibility coordinator; ask for the name and a way to reach them), ' +
+              '"accessibilityExemption"?: the wording of an exemption from full accessibility the business itself holds, ONLY when the owner states it (plain text, <=2000 chars). Both render on the site\'s auto-hosted /accessibility statement, which every published site carries; never infer, suggest or invent either one, ' +
               '"handoff"?: {"whatsapp"?, "email"?} (email = the address the owner typed, never the account email; a stored email activates the escalate_to_owner tool on the live site), ' +
               '"writePolicies"?: {"create_<entity>": "auto"|"confirm"|"off", "update_<entity>": "confirm"|"auto"} (create_ defaults to confirm; ' +
               'update_ mounts ONLY when its key is stored)} — semantics in brander://docs/hosted-agent-contract'
