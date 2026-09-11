@@ -33,7 +33,9 @@ write tools (question 5 below) keep their EXACT tool names and VERBATIM warnings
 text is never softened, summarized, or de-jargoned.
 
 1. Ask the FIVE QUESTIONS below (in chat; WAIT for answers before writing config).
-2. Brand ∥ `define_entity` (with the right `writePolicy`!) → `seed_records` (or live sources).
+2. Brand (colors, fonts, and the site's logo URL as `iconUrl` when it has one; `logoHasWordmark: true`
+   when that logo spells the name, so the header shows it alone and `brandName` stays the real name)
+   ∥ `define_entity` (with the right `writePolicy`!) → `seed_records` (or live sources).
 3. `upsert_agent_config` — persona + policies encoding the answers, ALWAYS including
    `policies.language` (the site's language) and `policies.timezone` (IANA zone) — both in
    EVERY hosted build, see Agent config; `upsert_skill` for real domain knowledge. Do NOT

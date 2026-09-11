@@ -52,7 +52,9 @@ Build WITH the user, not silently — gather intent first, show results as you g
    SDK's `actionHandlers` (see the `action-handlers` snippet).
 1. `whoami` — confirm identity and existing projects.
 2. `create_project` — name + brand settings (colors/fonts, or set later with
-   `update_brand_settings`).
+   `update_brand_settings`); when the business has a site, its logo URL goes in `iconUrl`
+   (the apple-touch-icon or header logo, never invented) and `logoHasWordmark: true` when that
+   logo spells the name, so the header shows the logo alone while `brandName` stays real.
 3. `update_project_settings` — set `customPages`: the embed's nav entries, one per
    top-level destination —
    `[{"id": "home", "name": "Home", "query": "Show me the home page"}, ...]` (3-5,

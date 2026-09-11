@@ -10,7 +10,9 @@ const brandSettingsShape = z
   .describe(
     "Partial BrandSettings — only the fields to change. Colors: brandName, primaryColor, secondaryColor, accentColor, backgroundColor, darkMode (boolean), borderRadius (number). " +
       'fontStyle MUST be a computed object: {"fontFamily": "\'Inter\', sans-serif", "weight": 500, "displayName": "Inter"} — never a bare string or null. ' +
-      'layoutStyle likewise: {"spacing": 16, "elevation": 2, "displayName": "Clean"}. Strings are auto-coerced server-side, but send the object form.'
+      'layoutStyle likewise: {"spacing": 16, "elevation": 2, "displayName": "Clean"}. Strings are auto-coerced server-side, but send the object form. ' +
+      "iconUrl: an https URL of the business's logo — the site's apple-touch-icon or header logo when one exists, never invented. " +
+      "logoHasWordmark (boolean): true when that logo image itself spells the business name, so the customer header shows the logo alone; brandName stays the real name either way (titles, the welcome line and the site icon's monogram use it)."
   );
 
 /**
