@@ -62,6 +62,17 @@ export function validateElementCode(code: string, kind: "component" | "skeleton"
     if (!/export\s+interface\s+Props\b/.test(code)) {
       problems.push("The file must `export interface Props` describing every prop (no defaults on props).");
     }
+    // Links inside elements open in a new tab: the element frame allows popups but never
+    // top-level navigation, so an href WITHOUT target="_blank" loads its destination inside
+    // the element's own frame. Fragment links (href="#…") stay in-document and are allowed.
+    for (const tag of code.matchAll(/<[A-Za-z][\w.]*\b[^>]*\bhref\s*=[^>]*>/g)) {
+      const text = tag[0];
+      if (/\bhref\s*=\s*["']#/.test(text) || /\btarget\s*=/.test(text)) continue;
+      problems.push(
+        'A link without target="_blank" loads its destination inside the element\'s own frame — add target="_blank" rel="noopener" to every <a>/<Link> with an href (fragment links "#…" excepted).'
+      );
+      break;
+    }
   } else if (!/export\s+default\s+function\s+SkeletonComponent\s*\(/.test(code)) {
     problems.push("The skeleton must be `export default function SkeletonComponent()`.");
   }
