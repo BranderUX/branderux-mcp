@@ -66,6 +66,10 @@ export default function Component({ items, title, onSelectItem, onItemContextMen
 - **Breakpoints resolve against the ELEMENT IFRAME width**, not the page — use `sm` keys
   for anything that must respond inside half-width slots.
 - Images must be absolute https URLs.
+- **Links open in a new tab** — `<a href="…" target="_blank" rel="noopener">` (MUI `Link`
+  with the same props). The element frame allows popups but never top-level navigation: a
+  link WITHOUT `target="_blank"` loads its destination inside the element's own frame, and
+  `window.location` never navigates the visitor's page. `create_element` WARNs `LINK_TARGET`.
 - **Palette tokens**: the sandbox theme maps the brand to `primary` / `secondary` / `info`
   — the brand ACCENT is `info.main`. Text on a primary fill uses `primary.contrastText`;
   body text uses `text.primary` / `text.secondary`. NEVER use `background.default` or
