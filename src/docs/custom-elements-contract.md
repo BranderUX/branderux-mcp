@@ -174,6 +174,233 @@ leaves the iframe. Name every field the downstream write tool (`create_<entity>`
 `"Submit order: {name}, {phone}, deliver to {deliveryAddress}, card message: {cardMessage}, total {total}"`.
 See read_doc hosted-agent-contract → MAKING A WRITE ACTUALLY WORK.
 
+## Queries list (a widget's home)
+
+The home of a CHAT WIDGET is the welcome text plus ONE element: the questions this
+business's visitors actually ask, as things they can tap. Every tap sends that item's
+query VERBATIM, which is what lets a stored fixed screen answer it instantly
+(`read_doc hosted-agent-contract` → "The widget home (a default)" and "Fixed screens for
+fixed queries").
+
+This is a complete reference element. It is a STARTING POINT, not a house style: adapt
+the layout to the scraped design and to the business (plain chips, cards, two columns
+with the featured block beside the list, a plain list, a stepper for the action), and
+keep only the callback contract below, so every tap still sends its query verbatim. The
+cards below take their corners from the theme (`borderRadius: 2` is the site's own
+radius) and spend ONE accent, the brand's `info.main`, on the focus ring.
+
+```tsx
+import { useState } from "react";
+import { Box, Button, Card, CardActionArea, Stack, TextField, Typography } from "@mui/material";
+
+export interface Props {
+  items: {
+    id: string;
+    label: string;
+    query: string;
+    kind: "question" | "action";
+    fields?: {
+      name: string;
+      label: string;
+      type: "text" | "date" | "time" | "number" | "select";
+      options?: string[];
+      required?: boolean;
+    }[];
+  }[];
+  featured?: {
+    title: string;
+    items: { id: string; name: string; price?: number; imageUrl?: string }[];
+  };
+  onAsk?: (item: { id: string; label: string; query: string }) => void;
+  onSubmitAction?: (payload: Record<string, string>) => void;
+  onSelectFeatured?: (item: { id: string; name: string }) => void;
+  onItemContextMenu?: (event: React.MouseEvent, item: unknown) => void;
+}
+
+export default function Component({ items, featured, onAsk, onSubmitAction, onSelectFeatured, onItemContextMenu }: Props) {
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
+
+  // At most ONE item collects fields; every other item is a plain question chip.
+  const action = items.find((item) => item.kind === "action" && (item.fields?.length ?? 0) > 0);
+  const questions = items.filter((item) => item !== action);
+  const fields = action?.fields ?? [];
+  const blocked = fields.some((field) => field.required && !(values[field.name] ?? "").trim());
+
+  const submit = () => {
+    setSubmitted(true);
+    if (blocked) return;
+    onSubmitAction?.(Object.fromEntries(fields.map((field) => [field.name, values[field.name] ?? ""])));
+  };
+
+  const pill = {
+    borderRadius: "999px",
+    px: 2,
+    py: 1,
+    textTransform: "none",
+    "&:focus-visible": { outline: "2px solid", outlineColor: "info.main", outlineOffset: 2 },
+  };
+
+  return (
+    <Stack sx={{ gap: 2, p: 2 }}>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25 }}>
+        {questions.map((item) => (
+          <Button
+            key={item.id}
+            variant="outlined"
+            onClick={() => onAsk?.(item)}
+            onContextMenu={(event) => { event.preventDefault(); onItemContextMenu?.(event, item); }}
+            sx={pill}
+          >
+            {item.label}
+          </Button>
+        ))}
+      </Box>
+
+      {action ? (
+        <Card variant="outlined" sx={{ p: 2, borderRadius: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Typography variant="subtitle1" component="h3">{action.label}</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+            {fields.map((field) => {
+              const invalid = submitted && Boolean(field.required) && !(values[field.name] ?? "").trim();
+              return (
+                <TextField
+                  key={field.name}
+                  label={field.label}
+                  size="small"
+                  required={field.required}
+                  select={field.type === "select"}
+                  type={field.type === "select" ? undefined : field.type}
+                  value={values[field.name] ?? ""}
+                  onChange={(event) => setValues((current) => ({ ...current, [field.name]: event.target.value }))}
+                  error={invalid}
+                  helperText={invalid ? `${field.label} is required` : " "}
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    ...(field.type === "select" ? { select: { native: true } } : {}),
+                  }}
+                >
+                  {field.type === "select"
+                    ? [<option key="" value="" />, ...(field.options ?? []).map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))]
+                    : null}
+                </TextField>
+              );
+            })}
+          </Box>
+          <Button
+            variant="contained"
+            onClick={submit}
+            onContextMenu={(event) => { event.preventDefault(); onItemContextMenu?.(event, action); }}
+            sx={{ ...pill, alignSelf: "start", px: 3 }}
+          >
+            {action.label}
+          </Button>
+        </Card>
+      ) : null}
+
+      {featured ? (
+        <Stack sx={{ gap: 1 }}>
+          <Typography variant="subtitle1" component="h3">{featured.title}</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)" }, gap: 1.5 }}>
+            {featured.items.map((item) => (
+              <Card key={item.id} variant="outlined" sx={{ borderRadius: 2 }}>
+                <CardActionArea
+                  onClick={() => onSelectFeatured?.(item)}
+                  onContextMenu={(event) => { event.preventDefault(); onItemContextMenu?.(event, item); }}
+                  sx={{ p: 1, display: "flex", flexDirection: "column", alignItems: "stretch", gap: 0.5 }}
+                >
+                  {item.imageUrl ? (
+                    <Box
+                      component="img"
+                      src={item.imageUrl}
+                      alt={item.name}
+                      sx={{ width: "100%", height: 96, objectFit: "cover", borderRadius: 1 }}
+                    />
+                  ) : null}
+                  <Typography variant="body2" sx={{ color: "text.primary" }}>{item.name}</Typography>
+                  {typeof item.price === "number" ? (
+                    <Typography variant="caption" sx={{ color: "text.secondary" }}>{item.price}</Typography>
+                  ) : null}
+                </CardActionArea>
+              </Card>
+            ))}
+          </Box>
+        </Stack>
+      ) : null}
+    </Stack>
+  );
+}
+```
+
+**`clickQueryTemplate`** (JSON map, keyed per action):
+
+```json
+{
+  "$primary": "Show details for {name} (ID: {id})",
+  "onAsk": "{query}",
+  "onSubmitAction": "Book a table: {date}, {time}, {people} people, {name}, {phone}"
+}
+```
+
+`onSelectFeatured` is the DERIVED primary here (the only select/click/open/view/press
+flavored callback name), so ITS template rides under `$primary`; `onAsk` and
+`onSubmitAction` ride under their own names. Rename the featured callback to an
+unflavored name and there is no primary at all, so every template then keys by name (see
+Interactivity rules above). Pass `interactionPropName: "onSelectFeatured"` or null.
+
+`onAsk`'s template is `{query}` and nothing else: the query the chip sends must equal the
+`matchQuery` of the fixed screen stored for it, character for character, or the fixed
+screen never fires. **The action template must name EVERY field** of the action item, in
+`{token}` form: a field the template omits is discarded before the agent ever sees it, so
+a booking loses the phone number the visitor typed.
+
+**`structurePrompt`**: "The home of a chat widget: the questions this business's visitors
+actually ask, as tappable chips. Use it as the only element of the home screen, under the
+welcome line. items[].query is the exact query a chip fires, so it must match the stored
+fixed screen character for character. At most ONE item is kind 'action' and carries
+fields (a booking, an order number, a size); every other item is kind 'question' with no
+fields. Add featured only for a catalogue, bound to live rows. Write every label in the
+site's language."
+
+**`defaultProps`** (demo data for the panel preview):
+
+```json
+{
+  "items": [
+    { "id": "menu", "label": "See the menu", "query": "Show the menu", "kind": "question" },
+    { "id": "hours", "label": "Opening hours", "query": "What are your opening hours", "kind": "question" },
+    { "id": "delivery", "label": "Delivery areas", "query": "Where do you deliver", "kind": "question" },
+    {
+      "id": "book",
+      "label": "Book a table",
+      "query": "Book a table",
+      "kind": "action",
+      "fields": [
+        { "name": "date", "label": "Date", "type": "date", "required": true },
+        { "name": "time", "label": "Time", "type": "time", "required": true },
+        { "name": "people", "label": "People", "type": "number", "required": true },
+        { "name": "name", "label": "Name", "type": "text", "required": true },
+        { "name": "phone", "label": "Phone", "type": "text", "required": true }
+      ]
+    }
+  ],
+  "featured": {
+    "title": "New this week",
+    "items": [
+      { "id": "p1", "name": "Roasted pumpkin soup", "price": 42, "imageUrl": "https://images.unsplash.com/photo-1547592166-23ac45744acd" },
+      { "id": "p2", "name": "Winter salad", "price": 54, "imageUrl": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd" }
+    ]
+  }
+}
+```
+
+The same data in Hebrew ("התפריט שלנו", "שעות פתיחה", "הזמנת שולחן") renders identically:
+nothing in the element names a physical side, so the chips, the form grid and the
+featured row mirror themselves under `dir="rtl"`. The currency symbol belongs in the data
+or in the screen's static copy; the element never guesses one.
+
 ## Porting existing components
 
 Customers with their OWN gen-UI components: read_doc port-existing-components —
