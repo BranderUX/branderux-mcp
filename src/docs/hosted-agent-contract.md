@@ -46,7 +46,14 @@ text is never softened, summarized, or de-jargoned.
 4. Elements (submit elements MUST carry the full write payload — see MAKING A WRITE WORK)
    → screens → `customPages`.
 5. `set_home_screen` — the designed home is a REQUIRED step for hosted apps, not a nicety:
-   without it every landing costs a model call and loads slow.
+   without it every landing costs a model call and loads slow. Then `set_fixed_screens`
+   for the questions this business answers over and over (the menu, the price list,
+   opening hours, what is new, a size guide): one designed screen each, replayed
+   instantly on any turn, and whatever fires the question must carry its query verbatim.
+   For a CHAT-WIDGET build with no home instructions from the owner, the home is the
+   welcome text plus a queries list, with fixed screens behind its answerable questions;
+   check the coverage with `list_fixed_screens` and `list_skills` before publishing. See
+   "Fixed screens for fixed queries" and "The widget home (a default)" below.
 6. **`publish_site` IMMEDIATELY as the last build step — do NOT wait to be asked.** Derive
    the slug from the business name; it is renameable later (rename moves the key origin
    too), so naming is never a reason to hold. Announce the live URL. Writes, sign-in, and
@@ -440,7 +447,9 @@ the owner test chat.
 
 The arc at the top of this doc is the build order: questions → brand ∥ entities
 (writePolicy!) → seed ∥ persona/config/skills → elements (submit payloads!) → screens →
-pages → `set_home_screen` → **`publish_site`, immediately, unprompted**. Screens
+pages → `set_home_screen` (plus `set_fixed_screens` for the queries asked over and over,
+and the widget-home default when the build is a chat bubble on the owner's own site) →
+**`publish_site`, immediately, unprompted**. Screens
 referencing entity data should name real fields from the schema in their element
 structure. The arc ends at a LIVE URL, not at "verified with a test query" — then, ONLY
 when the owner already has a website, one closing step puts the agent on it (step 7):
@@ -523,3 +532,73 @@ Works in flexible (the default) and deterministic modes.
   write copy that introduces what is below it.
 - Refresh after changing the home screen's layout. Clear with
   `upsert_agent_config {"homeScreen": {}}`.
+
+## Fixed screens for fixed queries (`set_fixed_screens`)
+
+The same canned paint as the home, for the questions a business answers over and over:
+the menu, the price list, opening hours, what is new this week, a size guide, the
+delivery areas. Each fixed screen is stored in the home's EXACT shape and serve replays
+it with zero model calls whenever a visitor's query matches, on the first turn or the
+twentieth. The bindings still run live, so a price list is never stale.
+
+- `screens` (max 12), each entry exactly as the home screen above: `matchQuery`,
+  `screenId`, `data`, `bindings?` (max 3), `followUpText?`.
+- **The match is EXACT**, after trim, lowercase and collapsed whitespace. Nothing else
+  matches: not a substring, not a paraphrase, not "close enough". Whatever fires the
+  question (a chip on the home's queries list, a custom page, a link on the owner's site)
+  must carry that query VERBATIM, character for character, or the agent answers it live
+  and the owner never sees the screen they designed.
+- **The home is separate.** `set_home_screen` keeps its own rules and its own entry; a
+  substring match on the FIRST turn is the home's alone. A fixed screen never matches on
+  a substring, and it works on every turn.
+- `data` is STATIC layout and copy only. Rows arrive through `bindings`, never baked in.
+- The call REPLACES the stored set: send every screen worth keeping. `screens: []` clears
+  them all.
+- The server refuses the whole write (400, with the reason) when a screen id, an entity
+  or a field does not exist, when two match queries collide after normalisation, when one
+  collides with the home's, or when the set is over 128 KB.
+- **Coverage is a habit, not a memory.** After storing, call `list_fixed_screens` and
+  read what is actually there before adding more and again before publishing. Never
+  answer "is that one covered?" from what you remember writing.
+
+## The widget home (a default)
+
+When the build is the floating CHAT BUBBLE on the owner's own site (`BranderChatWidget`
+in a React site, or the one-line script-tag widget on Wix, WordPress, Shopify,
+Squarespace or plain HTML) AND the owner has said nothing about what the home should be,
+the home is:
+
+1. the welcome text exactly as it is today (`followUpText`), then
+2. ONE "queries list" element carrying the questions this business's visitors ask. Most
+   are static chips. At most ONE of them collects a field or fields before it fires (a
+   booking, an order number, a size). A catalogue may add ONE featured block bound to
+   live rows.
+
+Number, wording, order and layout come from THIS customer, never from a template: the
+entities and the fields they can be filtered by, the skills, the write tools that
+mounted, the scraped navigation and page titles, the custom pages, and the site language
+(`policies.language`, so the chips read in the visitor's language and lay out in its
+direction). Three chips can be right; eight can be right. There is no fixed count and no
+fixed layout.
+
+- **The askable test.** For every question on the list, name what answers it: a fixed
+  screen, a skill, or a tool. A question nothing answers is dropped, not guessed at.
+- **Behind the list.** Every question the data can answer gets a fixed screen
+  (`set_fixed_screens`) whose `matchQuery` is that chip's query VERBATIM. The rest are
+  answered live from the skills and the persona.
+- **The owner's instructions win.** Anything the owner says about the home beats this
+  default, in whole or in part. The default is what to do when they said nothing.
+- **Where it does NOT apply**: a hosted full site (the `<slug>.branderux.app` build), and
+  a full page or an inline panel inside the owner's own site (the SDK's `<Brander />`).
+  Those keep today's home.
+- **Unclear usage: ask ONCE** (the in-app Builder's `ask_user`; in any other client, ask
+  in chat): "Where will this run: as a chat bubble on your site, as a page inside your
+  site, or as the whole site?"
+- **Before publishing, walk the list.** One question at a time, check with
+  `list_fixed_screens` and `list_skills` that each one has a fixed screen or a skill
+  behind it, and build whatever is missing. A chip that lands on a shrug is worse than no
+  chip.
+
+The element itself: `read_doc custom-elements-contract` → "Queries list (a widget's
+home)" is a complete reference element with its query templates, and the layout there is
+a starting point, not a house style to copy.

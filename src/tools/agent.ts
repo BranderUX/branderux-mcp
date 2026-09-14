@@ -21,6 +21,79 @@ const httpsUrlSchema = z
   .refine((v) => new URL(v).protocol === "https:", "must be https://");
 
 /**
+ * ONE binding: where the live rows go in a canned screen. Shared by the home
+ * screen and the fixed screens, which the runtime stores and splices the SAME
+ * way, so the two can never drift apart.
+ */
+const screenBindingSchema = z.object({
+  path: z.string().regex(/^[a-zA-Z0-9_-]{1,64}\.[a-zA-Z][a-zA-Z0-9_]{0,63}$/),
+  entityName: entityNameSchema,
+  filters: z
+    .array(
+      z.object({
+        field: z.string(),
+        op: z.string(),
+        value: z
+          .union([z.string(), z.number(), z.boolean()])
+          .describe("Numbers as JSON numbers — range ops (lt/gt/…) need numerics"),
+      })
+    )
+    .max(4)
+    .optional(),
+  sort: z.object({ field: z.string(), dir: z.enum(["asc", "desc"]) }).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+
+const screenBindingsSchema = z.array(screenBindingSchema).max(3);
+
+/** STATIC layout/copy props of a canned screen (`{elementId: props}`). */
+const screenDataSchema = z
+  .object({})
+  .passthrough()
+  .describe("STATIC layout/copy props only — rows come from bindings");
+
+/**
+ * ONE fixed screen: the home screen's exact shape, stored for a query the
+ * owner wants answered identically and instantly on ANY turn.
+ */
+const fixedScreenSchema = z.object({
+  matchQuery: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe("The query this screen answers, matched EXACTLY (trim + lowercase + collapsed spaces)"),
+  screenId: z.string().min(1).describe("An existing custom screen"),
+  data: screenDataSchema,
+  bindings: screenBindingsSchema
+    .optional()
+    .describe("Live-row queries spliced into data at serve time"),
+  followUpText: z
+    .string()
+    .max(2000)
+    .optional()
+    .describe("Optional short line rendered ABOVE this screen"),
+});
+
+type CannedScreen = z.infer<typeof fixedScreenSchema>;
+
+/** The config's fixed screens, always an array (both tools declare one). */
+function storedFixedScreens(config: Record<string, unknown> | null): Record<string, unknown>[] {
+  const stored = config?.fixedScreens;
+  return Array.isArray(stored) ? (stored as Record<string, unknown>[]) : [];
+}
+
+/** The stored shape of a canned screen, with the empty parts dropped. */
+function cannedScreen(entry: CannedScreen): Record<string, unknown> {
+  return {
+    matchQuery: entry.matchQuery,
+    screenId: entry.screenId,
+    data: entry.data,
+    ...(entry.bindings && entry.bindings.length > 0 ? { bindings: entry.bindings } : {}),
+    ...(entry.followUpText ? { followUpText: entry.followUpText } : {}),
+  };
+}
+
+/**
  * Hosted-agent + managed-entities tools (agentic apps). These configure a
  * project's OWN BranderUX-hosted agent — the mode for customers without
  * their own AI. Read brander://docs/hosted-agent-contract BEFORE using them;
@@ -349,30 +422,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         projectId: projectIdSchema,
         matchQuery: z.string().min(1).max(200),
         screenId: z.string().min(1),
-        data: z.object({}).passthrough()
-          .describe("STATIC layout/copy props only — rows come from bindings"),
-        bindings: z
-          .array(
-            z.object({
-              path: z.string().regex(/^[a-zA-Z0-9_-]{1,64}\.[a-zA-Z][a-zA-Z0-9_]{0,63}$/),
-              entityName: entityNameSchema,
-              filters: z
-                .array(
-                  z.object({
-                    field: z.string(),
-                    op: z.string(),
-                    value: z
-                      .union([z.string(), z.number(), z.boolean()])
-                      .describe("Numbers as JSON numbers — range ops (lt/gt/…) need numerics"),
-                  })
-                )
-                .max(4)
-                .optional(),
-              sort: z.object({ field: z.string(), dir: z.enum(["asc", "desc"]) }).optional(),
-              limit: z.number().int().min(1).max(50).optional(),
-            })
-          )
-          .max(3)
+        data: screenDataSchema,
+        bindings: screenBindingsSchema
           .optional()
           .describe("Live-row queries spliced into data at serve time"),
         followUpText: z.string().max(2000).optional()
@@ -384,17 +435,71 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
     guarded(async ({ projectId, matchQuery, screenId, data, bindings, followUpText }) => {
       const config = await api.put<Record<string, unknown>>(
         `/projects/${encodeURIComponent(projectId)}/agent-config`,
-        {
-          homeScreen: {
-            matchQuery,
-            screenId,
-            data,
-            ...(bindings && bindings.length > 0 ? { bindings } : {}),
-            ...(followUpText ? { followUpText } : {}),
-          },
-        }
+        { homeScreen: cannedScreen({ matchQuery, screenId, data, bindings, followUpText }) }
       );
       return ok({ homeScreen: (config?.homeScreen as Record<string, unknown>) ?? {} });
+    })
+  );
+
+  server.registerTool(
+    "set_fixed_screens",
+    {
+      title: "Fixed screens for fixed queries",
+      description:
+        "Store the screens that answer the owner's DISTINCTIVE queries identically and instantly, on any turn. " +
+        "Each entry is the home screen's exact shape ({matchQuery, screenId, data, bindings?, followUpText?}): serve replays it with " +
+        "ZERO model calls when a visitor's query matches matchQuery EXACTLY (after trim, lowercase and collapsed whitespace), while every " +
+        "binding's query still runs LIVE, so prices, stock and hours stay current. " +
+        "WHAT IT IS FOR: the questions a business answers over and over, where the owner wants one designed answer every time: the menu, " +
+        "the price list, opening hours, what is new this week, a size guide, the delivery areas. " +
+        "THE EXACT MATCH IS THE WHOLE CONTRACT: whatever fires the question (a chip on the home's queries list, a custom page, a link on the " +
+        "owner's site) must carry that query VERBATIM, character for character, or the agent answers it live and the owner never sees the " +
+        "screen they designed. " +
+        "data carries STATIC layout and copy only (headers, greetings, labels); ROWS come only from bindings (max 3 per screen), never baked " +
+        "into data. " +
+        "The call REPLACES the whole set, so send every screen worth keeping; max 12 screens, and screens: [] CLEARS them all. " +
+        "The server refuses the write (400, with the reason) when a screen id, an entity or a field does not exist, when two match queries " +
+        "collide after normalisation, when one collides with the home's, or when the set is over 128 KB. " +
+        "The home screen is separate and untouched here: set_home_screen owns it, and its substring match on the FIRST turn is the home's " +
+        "alone. After storing, list_fixed_screens is how you check what exists. " +
+        "Read brander://docs/hosted-agent-contract (Fixed screens for fixed queries) first.",
+      inputSchema: {
+        projectId: projectIdSchema.describe("Project id"),
+        screens: z
+          .array(fixedScreenSchema)
+          .max(12)
+          .describe("The whole set (max 12). [] clears every stored fixed screen."),
+      },
+      outputSchema: { fixedScreens: z.array(z.object({}).passthrough()) },
+      annotations: IDEMPOTENT_WRITE,
+    },
+    guarded(async ({ projectId, screens }) => {
+      const config = await api.put<Record<string, unknown>>(
+        `/projects/${encodeURIComponent(projectId)}/agent-config`,
+        { fixedScreens: screens.map(cannedScreen) }
+      );
+      return ok({ fixedScreens: storedFixedScreens(config) });
+    })
+  );
+
+  server.registerTool(
+    "list_fixed_screens",
+    {
+      title: "List fixed screens",
+      description:
+        "List the project's stored fixed screens (match query, screen id, data, bindings); empty when none. " +
+        "Read it before storing more and again before publishing: check what is COVERED instead of recalling it. " +
+        "With list_skills it is the coverage check for a widget home's queries list, where every question needs a fixed screen or a " +
+        "skill behind it.",
+      inputSchema: { projectId: projectIdSchema },
+      outputSchema: { fixedScreens: z.array(z.object({}).passthrough()) },
+      annotations: READ_ONLY,
+    },
+    guarded(async ({ projectId }) => {
+      const config = await api.get<Record<string, unknown>>(
+        `/projects/${encodeURIComponent(projectId)}/agent-config`
+      );
+      return ok({ fixedScreens: storedFixedScreens(config) });
     })
   );
 
