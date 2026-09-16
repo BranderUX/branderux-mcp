@@ -531,7 +531,8 @@ Works in flexible (the default) and deterministic modes.
   greetings, category labels); NEVER bake product rows into it.
 - `bindings` (≤3) — where the live rows go: `{path: "elementId.propName",
   entityName, filters? (≤4; numbers as JSON numbers — range ops need
-  numerics), sort?, limit? (≤50), optional?}`.
+  numerics), sort?, limit? (≤50), optional?}`. A boolean filter value is sent to the
+  server as the string `"true"`/`"false"`, which is what the server matches as a boolean.
 - `optional: true` marks a SECONDARY block (a featured strip, a "new this
   week" row). When an optional binding errors or returns no rows the screen
   still replays with an empty list at that path, and elements hide an empty
@@ -566,7 +567,8 @@ it with zero model calls whenever a visitor's query matches, on the first turn o
 twentieth. The bindings still run live, so a price list is never stale.
 
 - `screens` (max 12), each entry exactly as the home screen above: `matchQuery`,
-  `screenId`, `data`, `bindings?` (max 3), `followUpText?`.
+  `screenId`, `data`, `bindings?` (max 3), `followUpText?`. Binding filters follow the home's
+  rules, so a boolean filter value is sent as the string `"true"`/`"false"`.
 - **The match is EXACT**, after trim, lowercase and collapsed whitespace. Nothing else
   matches: not a substring, not a paraphrase, not "close enough". A chip on the home's
   queries list, a custom page or a link on the owner's site whose query equals a stored
