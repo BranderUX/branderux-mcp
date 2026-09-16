@@ -528,6 +528,8 @@ Works in flexible (the default) and deterministic modes.
 - `bindings` (≤3) — where the live rows go: `{path: "elementId.propName",
   entityName, filters? (≤4; numbers as JSON numbers — range ops need
   numerics), sort?, limit? (≤50)}`.
+  A boolean filter value is sent to the server as the string `"true"`/`"false"`,
+  which is what the server matches as a boolean.
 - `followUpText` — optional short greeting rendered ABOVE the home screen;
   write copy that introduces what is below it.
 - Refresh after changing the home screen's layout. Clear with
@@ -543,6 +545,8 @@ twentieth. The bindings still run live, so a price list is never stale.
 
 - `screens` (max 12), each entry exactly as the home screen above: `matchQuery`,
   `screenId`, `data`, `bindings?` (max 3), `followUpText?`.
+  Binding filters follow the home's rules, so a boolean filter value is sent as the
+  string `"true"`/`"false"`, which is what the server matches as a boolean.
 - **The match is EXACT**, after trim, lowercase and collapsed whitespace. Nothing else
   matches: not a substring, not a paraphrase, not "close enough". Whatever fires the
   question (a chip on the home's queries list, a custom page, a link on the owner's site)

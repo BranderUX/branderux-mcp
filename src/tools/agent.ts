@@ -4,6 +4,7 @@ import type { ApiClient } from "../api-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
 import { contactFields, contactRecordsNotice } from "../lib/contact-fields.js";
 import { DPA_PUBLISH_NOTE, hasAcceptedDpa } from "../lib/dpa.js";
+import { normalizeBindingFilters } from "../lib/binding-filters.js";
 import { isPlainObject, mergePolicyBag } from "../lib/policy-bag.js";
 import { ORDER_TAKING_NOTE, pricedRequestEntities } from "../lib/priced-orders.js";
 
@@ -35,7 +36,9 @@ const screenBindingSchema = z.object({
         op: z.string(),
         value: z
           .union([z.string(), z.number(), z.boolean()])
-          .describe("Numbers as JSON numbers — range ops (lt/gt/…) need numerics"),
+          .describe(
+            "Numbers as JSON numbers — range ops (lt/gt/…) need numerics. A boolean is sent to the server as the string \"true\"/\"false\" (what it matches as a boolean)"
+          ),
       })
     )
     .max(4)
@@ -84,11 +87,12 @@ function storedFixedScreens(config: Record<string, unknown> | null): Record<stri
 
 /** The stored shape of a canned screen, with the empty parts dropped. */
 function cannedScreen(entry: CannedScreen): Record<string, unknown> {
+  const bindings = normalizeBindingFilters(entry.bindings);
   return {
     matchQuery: entry.matchQuery,
     screenId: entry.screenId,
     data: entry.data,
-    ...(entry.bindings && entry.bindings.length > 0 ? { bindings: entry.bindings } : {}),
+    ...(bindings && bindings.length > 0 ? { bindings } : {}),
     ...(entry.followUpText ? { followUpText: entry.followUpText } : {}),
   };
 }
