@@ -52,8 +52,11 @@ text is never softened, summarized, or de-jargoned.
    instantly on any turn, and whatever fires the question must carry its query verbatim.
    For a CHAT-WIDGET build with no home instructions from the owner, the home is the
    welcome text plus a queries list, with fixed screens behind its answerable questions;
-   check the coverage with `list_fixed_screens` and `list_skills` before publishing. See
-   "Fixed screens for fixed queries" and "The widget home (a default)" below.
+   check the coverage with `list_fixed_screens` and `list_skills` before publishing. Read
+   the `verification` each write answers with, and run `verify_canned_screens` before you
+   publish: a screen whose rows do not come back is answered by the live agent, not by
+   the design. See "Fixed screens for fixed queries", "When a store blocks our fetcher"
+   and "The widget home (a default)" below.
 6. **`publish_site` IMMEDIATELY as the last build step — do NOT wait to be asked.** Derive
    the slug from the business name; it is renameable later (rename moves the key origin
    too), so naming is never a reason to hold. Announce the live URL. Writes, sign-in, and
@@ -449,6 +452,7 @@ The arc at the top of this doc is the build order: questions → brand ∥ entit
 (writePolicy!) → seed ∥ persona/config/skills → elements (submit payloads!) → screens →
 pages → `set_home_screen` (plus `set_fixed_screens` for the queries asked over and over,
 and the widget-home default when the build is a chat bubble on the owner's own site) →
+`verify_canned_screens` (rows proven, not assumed) →
 **`publish_site`, immediately, unprompted**. Screens
 referencing entity data should name real fields from the schema in their element
 structure. The arc ends at a LIVE URL, not at "verified with a test query" — then, ONLY
@@ -527,11 +531,27 @@ Works in flexible (the default) and deterministic modes.
   greetings, category labels); NEVER bake product rows into it.
 - `bindings` (≤3) — where the live rows go: `{path: "elementId.propName",
   entityName, filters? (≤4; numbers as JSON numbers — range ops need
-  numerics), sort?, limit? (≤50)}`.
+  numerics), sort?, limit? (≤50), optional?}`.
+- `optional: true` marks a SECONDARY block (a featured strip, a "new this
+  week" row). When an optional binding errors or returns no rows the screen
+  still replays with an empty list at that path, and elements hide an empty
+  block. Everything the page exists to show stays required.
 - `followUpText` — optional short greeting rendered ABOVE the home screen;
   write copy that introduces what is below it.
 - Refresh after changing the home screen's layout. Clear with
   `upsert_agent_config {"homeScreen": {}}`.
+
+**Verification.** The write answers with `verification`: every binding of the
+home (and of every fixed screen) run through the REAL serve fetcher, on the
+serve network. Each binding reports a row count or the error it hit, and each
+screen carries `ok`. A screen with `ok: false` is NOT replayed: the live agent
+answers that query instead, slowly and in words nobody designed. Read it every
+time. Fix what it names (repoint the source, loosen the filter) or mark a
+secondary block `optional`, then write again and read the new report.
+`verification: {unavailable, reason}` means the check could not run at all; the
+stored screen is untouched and nothing about it is proven. `probe_api` is not a
+substitute: a probe shows the SHAPE of a response, never that a binding serves
+rows.
 
 ## Fixed screens for fixed queries (`set_fixed_screens`)
 
@@ -560,6 +580,29 @@ twentieth. The bindings still run live, so a price list is never stale.
 - **Coverage is a habit, not a memory.** After storing, call `list_fixed_screens` and
   read what is actually there before adding more and again before publishing. Never
   answer "is that one covered?" from what you remember writing.
+- `optional: true` on a binding marks a secondary block: when it errors or returns no
+  rows the screen still replays with an empty list there. The primary list of a fixed
+  screen stays required, always. A menu with no dishes is not a menu.
+
+**Verification.** `set_fixed_screens` answers with `verification`, the same report the
+home's write carries: every binding of every canned screen run through the REAL serve
+fetcher. A screen with `ok: false` is answered by the live agent until it is fixed, and
+the `summary` says in one sentence what failed. Read it after every write, and call
+`verify_canned_screens` again before `publish_site` so nothing published is a screen the
+owner will never see. `publish_site` repeats those sentences in its `notes`; it never
+refuses to publish over them. A report that says `unavailable` means the check could not
+run, not that the screens are fine.
+
+## When a store blocks our fetcher
+
+Some stores sit behind a bot filter (Cloudflare and friends) that answers every
+non-browser client with 403. Verification reports it verbatim: a binding whose error
+reads "Data source answered 403" is a store refusing us, not a wrong filter. Nothing on
+our side fixes it, so tell the owner in ONE plain sentence: their store needs to allow
+requests whose User-Agent contains `BranderUX-Connector/1.0` to reach their API path (on
+Cloudflare that is a WAF skip rule for that path). Until they do, every screen bound to
+that store is answered live and their own product data never appears. Verify again after
+they change it.
 
 ## The widget home (a default)
 

@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createApiClient } from "./api-client.js";
+import { createAppClient } from "./app-client.js";
 import { registerPlayground } from "./playground/playground.js";
 import { registerGenerateScreen } from "./playground/generate-screen.js";
 import { registerPreviewAppResource } from "./preview/app-resource.js";
@@ -56,6 +57,9 @@ export async function createServer(apiTokenProvider: () => Promise<string>): Pro
   );
 
   const api = createApiClient(apiTokenProvider);
+  // The web app runs the serve network: canned-screen verification only means
+  // something when the fetch is made the way serving makes it.
+  const app = createAppClient(apiTokenProvider);
 
   registerKnowledgeTools(server);
   registerKnowledgeResources(server);
@@ -65,7 +69,7 @@ export async function createServer(apiTokenProvider: () => Promise<string>): Pro
   registerScreenTools(server, api);
   registerElementTools(server, api);
   registerKeyTools(server, api);
-  registerAgentTools(server, api);
+  registerAgentTools(server, api, app);
   await registerPlayground(server);
   registerGenerateScreen(server, api);
 
