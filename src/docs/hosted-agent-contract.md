@@ -45,15 +45,18 @@ text is never softened, summarized, or de-jargoned.
    answers: the site's privacy notice shows both, so neither is ever scraped or guessed.
 4. Elements (submit elements MUST carry the full write payload — see MAKING A WRITE WORK)
    → screens → `customPages`.
-5. `set_home_screen` — the designed home is a REQUIRED step for hosted apps, not a nicety:
-   without it every landing costs a model call and loads slow. Then `set_fixed_screens`
-   for the questions this business answers over and over (the menu, the price list,
-   opening hours, what is new, a size guide): one designed screen each, replayed
-   instantly on any turn, and whatever fires the question must carry its query verbatim.
-   For a CHAT-WIDGET build with no home instructions from the owner, the home is the
-   welcome text plus a queries list, with fixed screens behind its answerable questions;
-   check the coverage with `list_fixed_screens` and `list_skills` before publishing. See
-   "Fixed screens for fixed queries" and "The widget home (a default)" below.
+5. `set_home_screen`: the designed home is a REQUIRED step for hosted apps, not a
+   nicety, because without it every landing costs a model call and loads slow. Then
+   `set_fixed_screens` for the questions this business answers over and over (the menu,
+   the price list, opening hours, what is new, a size guide): one designed screen each,
+   replayed instantly on any turn. A chip, a page or a link whose query equals one of
+   those match queries is answered by that screen before any AI runs, so the two wordings
+   must be identical. For a CHAT-WIDGET build with no home instructions from the owner,
+   the home is the welcome text plus a queries list, with fixed screens behind its
+   answerable questions. Read the `verification` each write answers with, and run
+   `verify_canned_screens` before you publish; both rules, and the coverage that report
+   names, are under "Fixed screens for fixed queries", "When a store blocks our fetcher"
+   and "The widget home (a default)" below.
 6. **`publish_site` IMMEDIATELY as the last build step — do NOT wait to be asked.** Derive
    the slug from the business name; it is renameable later (rename moves the key origin
    too), so naming is never a reason to hold. Announce the live URL. Writes, sign-in, and
@@ -449,6 +452,7 @@ The arc at the top of this doc is the build order: questions → brand ∥ entit
 (writePolicy!) → seed ∥ persona/config/skills → elements (submit payloads!) → screens →
 pages → `set_home_screen` (plus `set_fixed_screens` for the queries asked over and over,
 and the widget-home default when the build is a chat bubble on the owner's own site) →
+`verify_canned_screens` (rows proven, not assumed) →
 **`publish_site`, immediately, unprompted**. Screens
 referencing entity data should name real fields from the schema in their element
 structure. The arc ends at a LIVE URL, not at "verified with a test query" — then, ONLY
@@ -527,11 +531,31 @@ Works in flexible (the default) and deterministic modes.
   greetings, category labels); NEVER bake product rows into it.
 - `bindings` (≤3) — where the live rows go: `{path: "elementId.propName",
   entityName, filters? (≤4; numbers as JSON numbers — range ops need
-  numerics), sort?, limit? (≤50)}`.
+  numerics), sort?, limit? (≤50), optional?}`.
+- `optional: true` marks a SECONDARY block (a featured strip, a "new this
+  week" row). When an optional binding errors or returns no rows the screen
+  still replays with an empty list at that path, and elements hide an empty
+  block. Everything the page exists to show stays required.
 - `followUpText` — optional short greeting rendered ABOVE the home screen;
   write copy that introduces what is below it.
 - Refresh after changing the home screen's layout. Clear with
   `upsert_agent_config {"homeScreen": {}}`.
+
+**Verification (this screen and every fixed screen).** The write answers with
+`verification`: every binding of every canned screen run through the REAL serve
+fetcher, on the serve network. Each binding reports a row count or the error it
+hit, and each screen carries `ok`. A screen with `ok: false` is NOT replayed:
+the live agent answers that query instead, slowly and in words nobody designed.
+Read the report after every `set_home_screen` and every `set_fixed_screens`.
+Fix what it names (repoint the source, loosen the filter) or mark a secondary
+block `optional`, never the primary list, then write again and read the new
+report. Call `verify_canned_screens` again before `publish_site`, so nothing
+published is a screen the owner will never see; `publish_site` repeats the
+failing sentences in its `notes` and never refuses to publish over them.
+`verification: {unavailable, reason}` means the check could not run at all; the
+stored screen is untouched and nothing about it is proven. `probe_api` is not a
+substitute: a probe shows the SHAPE of a response, never that a binding serves
+rows.
 
 ## Fixed screens for fixed queries (`set_fixed_screens`)
 
@@ -544,22 +568,48 @@ twentieth. The bindings still run live, so a price list is never stale.
 - `screens` (max 12), each entry exactly as the home screen above: `matchQuery`,
   `screenId`, `data`, `bindings?` (max 3), `followUpText?`.
 - **The match is EXACT**, after trim, lowercase and collapsed whitespace. Nothing else
-  matches: not a substring, not a paraphrase, not "close enough". Whatever fires the
-  question (a chip on the home's queries list, a custom page, a link on the owner's site)
-  must carry that query VERBATIM, character for character, or the agent answers it live
+  matches: not a substring, not a paraphrase, not "close enough". A chip on the home's
+  queries list, a custom page or a link on the owner's site whose query equals a stored
+  `matchQuery` (or the home's) is answered by that screen BEFORE any AI runs: the
+  visitor's own words enter the conversation and the designed screen comes back under
+  them, exactly as a click on a custom page does. So a chip's query and its screen's
+  `matchQuery` must be identical, character for character, or the agent answers it live
   and the owner never sees the screen they designed.
 - **The home is separate.** `set_home_screen` keeps its own rules and its own entry; a
-  substring match on the FIRST turn is the home's alone. A fixed screen never matches on
-  a substring, and it works on every turn.
+  substring match on the FIRST turn is the home's alone. A fixed screen works on every
+  turn.
 - `data` is STATIC layout and copy only. Rows arrive through `bindings`, never baked in.
 - The call REPLACES the stored set: send every screen worth keeping. `screens: []` clears
   them all.
 - The server refuses the whole write (400, with the reason) when a screen id, an entity
   or a field does not exist, when two match queries collide after normalisation, when one
   collides with the home's, or when the set is over 128 KB.
-- **Coverage is a habit, not a memory.** After storing, call `list_fixed_screens` and
-  read what is actually there before adding more and again before publishing. Never
-  answer "is that one covered?" from what you remember writing.
+- **Coverage is read, not remembered.** Every `verification` reports, per screen,
+  `uncoveredQueries`: the queries carried by chips on that screen that neither the home
+  nor any fixed screen answers. Each of them is answered LIVE by the agent, so keep one
+  that way only where a skill covers it on purpose (`list_skills` says which) or where
+  the chip fires a write tool (an action chip that collects fields and books, orders or
+  sends), and give each of the others a fixed screen. `list_fixed_screens` reads back
+  what is actually stored, so check there instead of recalling what was written.
+- `optional: true` on a binding marks a secondary block: when it errors or returns no
+  rows the screen still replays with an empty list there. The primary list of a fixed
+  screen stays required, always. A menu with no dishes is not a menu.
+
+**Verification.** `set_fixed_screens` answers with `verification`, the same report the
+home's write carries and under the same rule: see "Verification (this screen and every
+fixed screen)" under "Home screen" above. A screen with `ok: false` is answered by the
+live agent until it is fixed, and the `summary` says in one sentence what failed.
+
+## When a store blocks our fetcher
+
+Some stores sit behind a bot filter (Cloudflare and friends) that answers every
+non-browser client with 403. Verification reports it verbatim: a binding whose error
+reads "Data source answered 403" is a store refusing us, not a wrong filter. Nothing on
+our side fixes it, so tell the owner in ONE plain sentence: their store needs to allow
+requests whose User-Agent contains `BranderUX-Connector/1.0` to reach their API path (on
+Cloudflare that is a WAF skip rule for that path). Until they do, every screen bound to
+that store is answered live and their own product data never appears. Verify again after
+they change it.
 
 ## The widget home (a default)
 
@@ -585,7 +635,8 @@ fixed layout.
   screen, a skill, or a tool. A question nothing answers is dropped, not guessed at.
 - **Behind the list.** Every question the data can answer gets a fixed screen
   (`set_fixed_screens`) whose `matchQuery` is that chip's query VERBATIM. The rest are
-  answered live from the skills and the persona.
+  answered live: a skill, the persona, or, for the action chip, the write tool it
+  fires.
 - **The owner's instructions win.** Anything the owner says about the home beats this
   default, in whole or in part. The default is what to do when they said nothing.
 - **Where it does NOT apply**: a hosted full site (the `<slug>.branderux.app` build), and
@@ -594,10 +645,12 @@ fixed layout.
 - **Unclear usage: ask ONCE** (the in-app Builder's `ask_user`; in any other client, ask
   in chat): "Where will this run: as a chat bubble on your site, as a page inside your
   site, or as the whole site?"
-- **Before publishing, walk the list.** One question at a time, check with
-  `list_fixed_screens` and `list_skills` that each one has a fixed screen or a skill
-  behind it, and build whatever is missing. A chip that lands on a shrug is worse than no
-  chip.
+- **Coverage comes from the verification.** Each report names this screen's
+  `uncoveredQueries`: the chips on the list that no canned screen answers (see "Fixed
+  screens for fixed queries"). Every one of them is answered live, so leave it live only
+  where a skill covers it on purpose or where the chip fires a write tool (the action
+  chip), and build a fixed screen for each of the rest. A chip that lands on a shrug is
+  worse than no chip.
 
 The element itself: `read_doc custom-elements-contract` → "Queries list (a widget's
 home)" is a complete reference element with its query templates, and the layout there is

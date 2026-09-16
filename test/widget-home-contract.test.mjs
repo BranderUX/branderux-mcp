@@ -5,8 +5,8 @@
 // by a model mid-build, so drift is invisible until a live site answers a chip
 // with a shrug: the phrases guarded below are the load-bearing ones (the
 // verbatim-query rule, the chat-bubble trigger, the welcome text, the queries
-// list, the owner's instructions winning, the list_fixed_screens +
-// list_skills coverage check). The reference element is compiled with the REAL
+// list, the owner's instructions winning, the coverage that now comes from the
+// report's uncoveredQueries). The reference element is compiled with the REAL
 // publish pre-flight, so a doc example can never ship code create_element
 // would reject. Dependency-free (node:test) like its siblings.
 import assert from "node:assert/strict";
@@ -60,11 +60,13 @@ test("fixed screens: what they are for, in the owner's own examples", () => {
   assert.match(text, /bindings still run live/);
 });
 
-test("fixed screens: the match is EXACT and whatever fires it carries the query VERBATIM", () => {
+test("fixed screens: the match is EXACT, and a matching chip is INTERCEPTED before any AI runs", () => {
   const text = flat(FIXED);
   assert.match(text, /The match is EXACT\*\*, after trim, lowercase and collapsed whitespace/);
   assert.match(text, /not a substring, not a paraphrase/);
-  assert.match(text, /must carry that query VERBATIM, character for character/);
+  assert.match(text, /is answered by that screen BEFORE any AI runs/);
+  assert.match(text, /the visitor's own words enter the conversation and the designed screen comes back under them/);
+  assert.match(text, /must be identical, character for character/);
 });
 
 test("fixed screens: the limits the server enforces", () => {
@@ -83,14 +85,23 @@ test("fixed screens: the home keeps its own rules, and substring-on-the-first-tu
   const text = flat(FIXED);
   assert.match(text, /The home is separate/);
   assert.match(text, /substring match on the FIRST turn is the home's alone/);
-  assert.match(text, /A fixed screen never matches on a substring, and it works on every turn/);
+  assert.match(text, /A fixed screen works on every turn/);
+  assert.equal(
+    (flat(FIXED).match(/never matches on a substring/g) || []).length,
+    0,
+    "the EXACT bullet already says a substring never matches"
+  );
 });
 
-test("fixed screens: coverage is checked with list_fixed_screens, never recalled", () => {
+test("fixed screens: coverage is the report's uncoveredQueries, never a remembered list", () => {
   const text = flat(FIXED);
-  assert.match(text, /Coverage is a habit, not a memory/);
-  assert.match(text, /call `list_fixed_screens` and read what is actually there/);
-  assert.match(text, /before publishing/);
+  assert.match(text, /Coverage is read, not remembered/);
+  assert.match(text, /`uncoveredQueries`/);
+  assert.match(
+    text,
+    /answered LIVE by the agent, so keep one that way only where a skill covers it on purpose \(`list_skills` says which\) or where the chip fires a write tool/
+  );
+  assert.match(text, /`list_fixed_screens` reads back what is actually stored/);
 });
 
 // --- the widget home -------------------------------------------------------
@@ -132,7 +143,7 @@ test("widget home: the askable test drops a question nothing answers", () => {
 test("widget home: every answerable question gets a fixed screen whose matchQuery is that chip's query", () => {
   const text = flat(WIDGET_HOME);
   assert.match(text, /gets a fixed screen \(`set_fixed_screens`\) whose `matchQuery` is that chip's query VERBATIM/);
-  assert.match(text, /The rest are answered live from the skills/);
+  assert.match(text, /The rest are answered live: a skill, the persona, or, for the action chip, the write tool it fires/);
 });
 
 test("widget home: the owner's instructions win, and the default is off for a site, a page and a panel", () => {
@@ -152,11 +163,15 @@ test("widget home: unclear usage asks ONCE, in those words", () => {
   assert.match(flat(WIDGET_HOME), /ask ONCE/);
 });
 
-test("widget home: before publishing, the list is walked against list_fixed_screens and list_skills", () => {
+test("widget home: coverage points at the verification's uncoveredQueries", () => {
   const text = flat(WIDGET_HOME);
-  assert.match(text, /Before publishing, walk the list/);
-  assert.match(text, /`list_fixed_screens` and `list_skills`/);
-  assert.match(text, /build whatever is missing/);
+  assert.match(text, /Coverage comes from the verification/);
+  assert.match(text, /Each report names this screen's `uncoveredQueries`: the chips on the list that no canned screen answers/);
+  assert.match(
+    text,
+    /leave it live only where a skill covers it on purpose or where the chip fires a write tool \(the action chip\), and build a fixed screen for each of the rest/
+  );
+  assert.match(text, /A chip that lands on a shrug is worse than no chip/);
 });
 
 test("widget home: it points at the reference element, and calls it a starting point", () => {
@@ -170,11 +185,13 @@ test("widget home: it points at the reference element, and calls it a starting p
 
 test("the hosted arc's home step carries both rules", () => {
   assert.match(ARC_STEP, /`set_fixed_screens`/);
-  assert.match(ARC_STEP, /carry its query verbatim/);
+  assert.match(ARC_STEP, /answered by that screen before any AI runs, so the two wordings must be identical/);
   assert.match(ARC_STEP, /CHAT-WIDGET build with no home instructions/);
   assert.match(ARC_STEP, /welcome text plus a queries list/);
   assert.match(ARC_STEP, /fixed screens behind its answerable questions/);
-  assert.match(ARC_STEP, /`list_fixed_screens` and `list_skills` before publishing/);
+  assert.match(ARC_STEP, /run `verify_canned_screens` before you publish/);
+  assert.match(ARC_STEP, /both rules, and the coverage that report names, are under "Fixed screens for fixed queries"/);
+  assert.doesNotMatch(ARC_STEP, /uncoveredQueries/, "the coverage rule is stated in the sections the arc points at");
 });
 
 test("the build order names both, and keeps publish_site as the last step", () => {
@@ -187,20 +204,35 @@ test("the build order names both, and keeps publish_site as the last step", () =
 test("the hosted prompt's step 7 says it in the owner's voice", () => {
   assert.match(PROMPT_STEP, /set_fixed_screens/);
   assert.match(PROMPT_STEP, /my menu, my price list, my opening hours/);
-  assert.match(PROMPT_STEP, /carry its wording verbatim/);
+  assert.match(PROMPT_STEP, /the wording on the chip and the wording of the screen have to be identical/);
   assert.match(PROMPT_STEP, /chat bubble on my own site/);
   assert.match(PROMPT_STEP, /welcome text exactly as it is/);
   assert.match(PROMPT_STEP, /queries list/);
   assert.match(PROMPT_STEP, /anything I have told you about my home wins over it/);
-  assert.match(PROMPT_STEP, /list_fixed_screens and list_skills/);
+  assert.match(
+    PROMPT_STEP,
+    /is answered by that screen before any AI runs: my visitor's own words go into the conversation and my designed screen comes back under them, so the wording on the chip and the wording of the screen have to be identical, character for character/
+  );
   assert.match(PROMPT_STEP, /as a chat bubble on my site, as a page inside my site, or as the whole site\?/);
+});
+
+test("the manual coverage walk is GONE from the prompt and the contract", () => {
+  // It was the old mechanism's workaround: chips could not reach a fixed screen,
+  // so the builder had to audit the list by hand. The interception replaced it.
+  for (const [name, text] of [["the hosted prompt", flat(prompts)], ["the contract", flat(hosted)]]) {
+    assert.doesNotMatch(text, /one question at a time/, `${name} still walks the list by hand`);
+    assert.doesNotMatch(text, /list_fixed_screens` and `list_skills/, `${name} still pairs the two reads as a coverage check`);
+    assert.doesNotMatch(text, /list_fixed_screens and list_skills/, `${name} still pairs the two reads as a coverage check`);
+    assert.doesNotMatch(text, /walk (that|the) list/, `${name} still says walk the list`);
+  }
 });
 
 test("the tools describe themselves the same way the contract does", () => {
   assert.match(agentTools, /"set_fixed_screens"/);
   assert.match(agentTools, /"list_fixed_screens"/);
   assert.match(flat(agentTools), /matches matchQuery EXACTLY \(after trim, lowercase and collapsed whitespace\)/);
-  assert.match(flat(agentTools), /must carry that query VERBATIM, character for character/);
+  assert.match(flat(agentTools), /is answered by that screen BEFORE any AI runs/);
+  assert.match(flat(agentTools), /a chip's query and its screen's matchQuery must be identical/);
   assert.match(flat(agentTools), /screens: \[\] CLEARS them all/);
   assert.match(flat(agentTools), /max 12 screens/);
   assert.match(flat(agentTools), /set_home_screen owns it/);

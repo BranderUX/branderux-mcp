@@ -1,11 +1,17 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
+import type { AppClient } from "../app-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
 import { contactFields, contactRecordsNotice } from "../lib/contact-fields.js";
 import { DPA_PUBLISH_NOTE, hasAcceptedDpa } from "../lib/dpa.js";
 import { isPlainObject, mergePolicyBag } from "../lib/policy-bag.js";
 import { ORDER_TAKING_NOTE, pricedRequestEntities } from "../lib/priced-orders.js";
+import {
+  verificationNotes,
+  verificationSchema,
+  verifyCannedScreens,
+} from "../lib/canned-screen-verification.js";
 
 const projectIdSchema = z.string().uuid();
 const entityNameSchema = z
@@ -42,6 +48,12 @@ const screenBindingSchema = z.object({
     .optional(),
   sort: z.object({ field: z.string(), dir: z.enum(["asc", "desc"]) }).optional(),
   limit: z.number().int().min(1).max(50).optional(),
+  optional: z
+    .boolean()
+    .optional()
+    .describe(
+      "A secondary block: when it errors or returns no rows the screen still replays with an empty list. Never mark the primary list of a fixed screen optional."
+    ),
 });
 
 const screenBindingsSchema = z.array(screenBindingSchema).max(3);
@@ -100,7 +112,7 @@ function cannedScreen(entry: CannedScreen): Record<string, unknown> {
  * the wire rules there (schema grammar, numbers-as-numbers, access policies)
  * fail silently when guessed.
  */
-export function registerAgentTools(server: McpServer, api: ApiClient): void {
+export function registerAgentTools(server: McpServer, api: ApiClient, app: AppClient | null = null): void {
   server.registerTool(
     "upsert_agent_config",
     {
@@ -384,7 +396,9 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       description:
         "Fetch an https endpoint (optionally with a vaulted credential) and return status + a " +
         "TRUNCATED body sample — LOOK at the real shape, then author define_entity's custom-rest " +
-        "fieldMap from it (rows path + per-field dot-paths; numeric fields as {path, type:'number'}).",
+        "fieldMap from it (rows path + per-field dot-paths; numeric fields as {path, type:'number'}). " +
+        "A probe shows the SHAPE of a response; it is never proof that a binding will serve (serving fetches through the same " +
+        "channel now, but rows are proven only by verification).",
       inputSchema: {
         projectId: projectIdSchema,
         endpoint: httpsUrlSchema,
@@ -415,8 +429,15 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "query verbatim. screenId = an existing custom screen. data = STATIC layout/copy props " +
         "only ({elementId: props} — headers, greetings, category labels); NEVER bake product " +
         "rows into it. bindings = where the live rows go: one per data-driven element " +
-        "({path: \"elementId.propName\", entityName, filters?, sort?, limit?} — e.g. on-sale " +
-        "items sorted by price). Refresh when the home screen's layout changes. Empty {} " +
+        "({path: \"elementId.propName\", entityName, filters?, sort?, limit?, optional?}, e.g. on-sale " +
+        "items sorted by price). Mark a SECONDARY block optional: true (a featured strip) so an empty or failing binding " +
+        "leaves an empty list instead of dropping the whole screen; the primary list stays required. " +
+        "The result's verification tells you whether each screen will actually replay: a screen with ok:false is answered by the " +
+        "live agent until you fix it (the summary says what failed), and each screen's uncoveredQueries lists the chip queries on it " +
+        "that no canned screen answers, every one of them answered live: keep one that way only where a skill covers it on purpose " +
+        "or where the chip fires a write tool (an action chip that collects fields and books, orders or sends), and give each of " +
+        "the others a fixed screen. " +
+        "Refresh when the home screen's layout changes. Empty {} " +
         "homeScreen via upsert_agent_config clears. Works in flexible (the default) and deterministic modes.",
       inputSchema: {
         projectId: projectIdSchema,
@@ -429,7 +450,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         followUpText: z.string().max(2000).optional()
           .describe("Optional short greeting shown ABOVE the home screen (write copy that introduces what is below it)"),
       },
-      outputSchema: { homeScreen: z.object({}).passthrough() },
+      outputSchema: { homeScreen: z.object({}).passthrough(), verification: verificationSchema },
       annotations: IDEMPOTENT_WRITE,
     },
     guarded(async ({ projectId, matchQuery, screenId, data, bindings, followUpText }) => {
@@ -437,7 +458,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         `/projects/${encodeURIComponent(projectId)}/agent-config`,
         { homeScreen: cannedScreen({ matchQuery, screenId, data, bindings, followUpText }) }
       );
-      return ok({ homeScreen: (config?.homeScreen as Record<string, unknown>) ?? {} });
+      const verification = await verifyCannedScreens(app, projectId);
+      return ok({ homeScreen: (config?.homeScreen as Record<string, unknown>) ?? {}, verification });
     })
   );
 
@@ -452,11 +474,18 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "binding's query still runs LIVE, so prices, stock and hours stay current. " +
         "WHAT IT IS FOR: the questions a business answers over and over, where the owner wants one designed answer every time: the menu, " +
         "the price list, opening hours, what is new this week, a size guide, the delivery areas. " +
-        "THE EXACT MATCH IS THE WHOLE CONTRACT: whatever fires the question (a chip on the home's queries list, a custom page, a link on the " +
-        "owner's site) must carry that query VERBATIM, character for character, or the agent answers it live and the owner never sees the " +
-        "screen they designed. " +
+        "THE EXACT MATCH IS THE WHOLE CONTRACT: a chip on the home's queries list, a custom page or a link on the owner's site whose " +
+        "query equals a stored matchQuery (or the home's) is answered by that screen BEFORE any AI runs, with the visitor's own words " +
+        "entering the conversation above the designed screen, so a chip's query and its screen's matchQuery must be identical, " +
+        "character for character, or the agent answers it live and the owner never sees the screen they designed. " +
         "data carries STATIC layout and copy only (headers, greetings, labels); ROWS come only from bindings (max 3 per screen), never baked " +
-        "into data. " +
+        "into data. Mark a SECONDARY block optional: true so an empty or failing binding leaves an empty list instead of dropping the screen; " +
+        "the primary list of a fixed screen stays required. " +
+        "The result's verification tells you whether each screen will actually replay: a screen with ok:false is answered by the live agent " +
+        "until you fix it (the summary says what failed), and each screen's uncoveredQueries lists the chip queries on it " +
+        "that no canned screen answers, every one of them answered live: keep one that way only where a skill covers it on purpose " +
+        "or where the chip fires a write tool (an action chip that collects fields and books, orders or sends), and give each of " +
+        "the others a fixed screen. " +
         "The call REPLACES the whole set, so send every screen worth keeping; max 12 screens, and screens: [] CLEARS them all. " +
         "The server refuses the write (400, with the reason) when a screen id, an entity or a field does not exist, when two match queries " +
         "collide after normalisation, when one collides with the home's, or when the set is over 128 KB. " +
@@ -470,7 +499,10 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
           .max(12)
           .describe("The whole set (max 12). [] clears every stored fixed screen."),
       },
-      outputSchema: { fixedScreens: z.array(z.object({}).passthrough()) },
+      outputSchema: {
+        fixedScreens: z.array(z.object({}).passthrough()),
+        verification: verificationSchema,
+      },
       annotations: IDEMPOTENT_WRITE,
     },
     guarded(async ({ projectId, screens }) => {
@@ -478,7 +510,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         `/projects/${encodeURIComponent(projectId)}/agent-config`,
         { fixedScreens: screens.map(cannedScreen) }
       );
-      return ok({ fixedScreens: storedFixedScreens(config) });
+      const verification = await verifyCannedScreens(app, projectId);
+      return ok({ fixedScreens: storedFixedScreens(config), verification });
     })
   );
 
@@ -488,9 +521,9 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
       title: "List fixed screens",
       description:
         "List the project's stored fixed screens (match query, screen id, data, bindings); empty when none. " +
-        "Read it before storing more and again before publishing: check what is COVERED instead of recalling it. " +
-        "With list_skills it is the coverage check for a widget home's queries list, where every question needs a fixed screen or a " +
-        "skill behind it.",
+        "It reads what is actually STORED, so check here instead of recalling what was written. " +
+        "Coverage is a different question: verify_canned_screens reports the chip queries nothing canned answers, and list_skills " +
+        "is how you confirm that a query left to the live agent is one a skill covers on purpose.",
       inputSchema: { projectId: projectIdSchema },
       outputSchema: { fixedScreens: z.array(z.object({}).passthrough()) },
       annotations: READ_ONLY,
@@ -500,6 +533,33 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         `/projects/${encodeURIComponent(projectId)}/agent-config`
       );
       return ok({ fixedScreens: storedFixedScreens(config) });
+    })
+  );
+
+  server.registerTool(
+    "verify_canned_screens",
+    {
+      title: "Verify the canned screens",
+      description:
+        "Run every binding of the home screen and of every fixed screen through the REAL serve fetcher and report how many rows each " +
+        "one actually returns. This is the only proof that a designed screen will replay: a screen whose required binding errors or " +
+        "comes back empty is answered by the LIVE agent instead, slowly and in words the owner never designed. " +
+        "The report carries one entry per screen (kind, matchQuery, screenId, ok) with a row count or an error per binding, plus a " +
+        "summary: one plain sentence per failing screen. Call it before publish_site and fix what it names: repoint the source, loosen " +
+        "the filter, or mark a secondary block optional. " +
+        "Each entry also carries uncoveredQueries: the chip queries on that screen that no canned screen answers, every one of them " +
+        "answered live by the agent, so keep one that way only where a skill covers it on purpose or where the chip fires a write " +
+        "tool (an action chip that collects fields and books, orders or sends), and give each of the others a fixed screen. " +
+        "When a store answers 403 the store is blocking our fetcher, so tell the owner " +
+        "in one sentence to allow requests whose User-Agent contains BranderUX-Connector/1.0 to their API path (on Cloudflare that is a " +
+        "WAF skip rule). A report that says unavailable means this check could not run at all; the stored screens are untouched.",
+      inputSchema: { projectId: projectIdSchema },
+      outputSchema: { verification: verificationSchema },
+      annotations: READ_ONLY,
+    },
+    guarded(async ({ projectId }) => {
+      const verification = await verifyCannedScreens(app, projectId);
+      return ok({ verification });
     })
   );
 
@@ -646,7 +706,8 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         "requests happen on the site itself; when sign-in is required say the /mcp address is not public and make neither claim. Then give two or three things " +
         "to try first ('ask it what is in stock today', 'ask it about delivery times' — and, only when writes are enabled, 'ask it to book a table for two'). " +
         "The result may also carry `notes`: plain sentences about this account or this site (a data-processing engagement nobody has accepted yet, " +
-        "a site that takes requests carrying a price). Relay each one to the owner in your own plain words as part of that wrap-up, and honour it in what you build. " +
+        "a site that takes requests carrying a price, a canned screen that will be answered by the live agent because its rows did not come back). " +
+        "Relay each one to the owner in your own plain words as part of that wrap-up, and honour it in what you build. " +
         "They are never a failure: a publish succeeds, and the site is live, whatever the notes say.",
       inputSchema: {
         projectId: projectIdSchema,
@@ -668,6 +729,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
         { slug }
       );
       const notes = await publishNotes(api, projectId);
+      notes.push(...verificationNotes(await verifyCannedScreens(app, projectId)));
       return ok({
         slug: site?.slug ?? slug,
         status: site?.status ?? "live",
@@ -703,7 +765,9 @@ export function registerAgentTools(server: McpServer, api: ApiClient): void {
 /**
  * The plain sentences a SUCCESSFUL publish carries for the owner: the
  * data-processing engagement nobody has accepted for this account yet, and the
- * distance-selling limit of a site that takes priced requests.
+ * distance-selling limit of a site that takes priced requests. The canned-screen
+ * verification adds its own lines to the same channel at the call site, on the
+ * same best-effort terms.
  *
  * BEST EFFORT by design: both reads follow a publish that already succeeded,
  * so a failing (or absent) lookup degrades to no note, never to a failed

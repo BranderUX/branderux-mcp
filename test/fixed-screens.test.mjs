@@ -5,6 +5,9 @@
 // agent-config endpoint `set_home_screen` uses), the whole-set replace (`[]`
 // clears), the 12-entry cap, and the fact that a fixed screen's bindings are
 // the HOME's binding schema, one object, so the two can never drift apart.
+// The verification that now rides beside the stored value has its own file
+// (canned-screen-verification.test.mjs); here it only has to never displace
+// what the write itself answers with.
 // Dependency-free (node:test) like the rest of this suite; zod is the server's
 // own dependency and is how the tools' input schemas are exercised.
 import assert from "node:assert/strict";
@@ -127,14 +130,16 @@ test("the stored set comes back from the RESPONSE, not from what was sent", asyn
     },
   };
   const result = await tool("set_fixed_screens", api).handler({ projectId: PROJECT, screens: [screen()] });
-  assert.deepEqual(result.structuredContent, { fixedScreens: stored });
-  assert.deepEqual(JSON.parse(result.content[0].text), { fixedScreens: stored });
+  assert.deepEqual(result.structuredContent.fixedScreens, stored);
+  assert.deepEqual(JSON.parse(result.content[0].text).fixedScreens, stored);
+  // With no app client the write still answers, and says verification could not run.
+  assert.equal(result.structuredContent.verification.unavailable, true);
 });
 
 test("a config response without fixedScreens answers an empty set, never undefined", async () => {
   const api = { get: async () => null, put: async () => ({ enabled: true }) };
   const result = await tool("set_fixed_screens", api).handler({ projectId: PROJECT, screens: [screen()] });
-  assert.deepEqual(result.structuredContent, { fixedScreens: [] });
+  assert.deepEqual(result.structuredContent.fixedScreens, []);
 });
 
 test("the server's 400 reaches the agent as a readable tool error, never a crash", async () => {
@@ -224,7 +229,11 @@ test("list_fixed_screens READS the config and returns the stored set", async () 
   const result = await tool("list_fixed_screens", api).handler({ projectId: PROJECT });
   assert.deepEqual(api.calls.get, [CONFIG_PATH]);
   assert.deepEqual(api.calls.put, [], "a read never writes");
-  assert.deepEqual(result.structuredContent, { fixedScreens: stored });
+  assert.deepEqual(
+    result.structuredContent,
+    { fixedScreens: stored },
+    "listing what is stored carries no verification: only verify_canned_screens proves rows"
+  );
 });
 
 test("list_fixed_screens answers an empty set for a project with no config and for one with none stored", async () => {
@@ -247,11 +256,50 @@ test("both tools are guarded like set_home_screen: uuid project, write vs read a
   assert.equal(lister.annotations.readOnlyHint, true);
   for (const config of [setter, lister]) {
     assert.equal(z.object(config.inputSchema).safeParse({ projectId: "nope", screens: [] }).success, false);
+    const verification = { unavailable: true, reason: "no app client" };
     assert.equal(
-      z.object(config.outputSchema).safeParse({ fixedScreens: [{ matchQuery: "show the menu" }] }).success,
+      z
+        .object(config.outputSchema)
+        .safeParse({ fixedScreens: [{ matchQuery: "show the menu" }], verification }).success,
       true
     );
-    assert.equal(z.object(config.outputSchema).safeParse({ fixedScreens: {} }).success, false);
+    assert.equal(
+      z.object(config.outputSchema).safeParse({ fixedScreens: {}, verification }).success,
+      false
+    );
+  }
+});
+
+test("a report whose screen carries uncoveredQueries rides through both tools' output schema", () => {
+  // The coverage half of the report: the chip queries on a screen that no canned
+  // screen answers. Optional on the wire, so an older app that sends none still
+  // parses, and a list of anything but strings is refused.
+  const screenReport = (extra) => ({
+    kind: "fixed",
+    matchQuery: "show the menu",
+    screenId: "menu-screen",
+    ok: true,
+    bindings: [],
+    ...extra,
+  });
+  const cases = [
+    [true, screenReport({ uncoveredQueries: ["do you deliver?", "where are you"] })],
+    [true, screenReport({ uncoveredQueries: [] })],
+    [true, screenReport({})],
+    [false, screenReport({ uncoveredQueries: "do you deliver?" })],
+    [false, screenReport({ uncoveredQueries: [7] })],
+  ];
+  for (const [expected, report] of cases) {
+    const verification = { ok: true, screens: [report], summary: [] };
+    for (const name of ["set_fixed_screens", "set_home_screen"]) {
+      assert.equal(
+        z
+          .object(tool(name).config.outputSchema)
+          .safeParse({ fixedScreens: [], homeScreen: {}, verification }).success,
+        expected,
+        `${name} disagrees on ${JSON.stringify(report.uncoveredQueries)}`
+      );
+    }
   }
 });
 
