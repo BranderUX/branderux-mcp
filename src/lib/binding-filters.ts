@@ -25,6 +25,7 @@ export interface ScreenBindingWire {
   filters?: BindingFilterWire[];
   sort?: { field: string; dir: "asc" | "desc" };
   limit?: number;
+  optional?: boolean;
 }
 
 /** "true"/"false" for a boolean; every other value passes through untouched. */
