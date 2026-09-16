@@ -270,6 +270,39 @@ test("both tools are guarded like set_home_screen: uuid project, write vs read a
   }
 });
 
+test("a report whose screen carries uncoveredQueries rides through both tools' output schema", () => {
+  // The coverage half of the report: the chip queries on a screen that no canned
+  // screen answers. Optional on the wire, so an older app that sends none still
+  // parses, and a list of anything but strings is refused.
+  const screenReport = (extra) => ({
+    kind: "fixed",
+    matchQuery: "show the menu",
+    screenId: "menu-screen",
+    ok: true,
+    bindings: [],
+    ...extra,
+  });
+  const cases = [
+    [true, screenReport({ uncoveredQueries: ["do you deliver?", "where are you"] })],
+    [true, screenReport({ uncoveredQueries: [] })],
+    [true, screenReport({})],
+    [false, screenReport({ uncoveredQueries: "do you deliver?" })],
+    [false, screenReport({ uncoveredQueries: [7] })],
+  ];
+  for (const [expected, report] of cases) {
+    const verification = { ok: true, screens: [report], summary: [] };
+    for (const name of ["set_fixed_screens", "set_home_screen"]) {
+      assert.equal(
+        z
+          .object(tool(name).config.outputSchema)
+          .safeParse({ fixedScreens: [], homeScreen: {}, verification }).success,
+        expected,
+        `${name} disagrees on ${JSON.stringify(report.uncoveredQueries)}`
+      );
+    }
+  }
+});
+
 test("set_home_screen still stores the home the same way (the shared schema changed nothing)", async () => {
   const api = fakeApi();
   await tool("set_home_screen", api).handler({

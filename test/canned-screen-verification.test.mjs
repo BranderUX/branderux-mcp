@@ -25,7 +25,7 @@ import { z } from "zod";
 
 import { ApiError } from "../dist/api-client.js";
 import { AppError } from "../dist/app-client.js";
-import { VERIFY_PATH, verifyCannedScreens } from "../dist/lib/canned-screen-verification.js";
+import { VERIFY_PATH, verificationSchema, verifyCannedScreens } from "../dist/lib/canned-screen-verification.js";
 import { registerAgentTools } from "../dist/tools/agent.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -62,6 +62,7 @@ const REPORT = {
         { path: "grid.items", entityName: "products", optional: false, rows: 24, error: null },
         { path: "strip.items", entityName: "deals", optional: true, rows: 0, error: null },
       ],
+      uncoveredQueries: ["do you deliver?"],
     },
     {
       kind: "fixed",
@@ -77,6 +78,7 @@ const REPORT = {
           error: "Data source answered 403",
         },
       ],
+      uncoveredQueries: [],
     },
   ],
   summary: [
@@ -351,6 +353,38 @@ test("the optional flag says what it means, and what may never carry it", () => 
   assert.match(described, /Never mark the primary list of a fixed screen optional/);
 });
 
+// --- uncovered chips (the coverage half of the report) ---------------------
+
+test("a screen carries uncoveredQueries or omits it, and the report rides through verbatim", async () => {
+  const withoutList = { ...REPORT.screens[1] };
+  delete withoutList.uncoveredQueries;
+  const report = { ...REPORT, screens: [REPORT.screens[0], withoutList] };
+  assert.equal(verificationSchema.safeParse(report).success, true, "present on one screen, absent on the other");
+  assert.equal(
+    verificationSchema.safeParse({ ...REPORT, screens: [{ ...withoutList, uncoveredQueries: [7] }] }).success,
+    false,
+    "uncoveredQueries is a list of query strings"
+  );
+  const verification = await verifyCannedScreens(fakeApp({ report }), PROJECT);
+  assert.deepEqual(verification, report, "the chips nothing canned answers reach the builder unchanged");
+  assert.deepEqual(verification.screens[0].uncoveredQueries, ["do you deliver?"]);
+  assert.equal("uncoveredQueries" in verification.screens[1], false, "an absent list stays absent");
+});
+
+test("uncovered chips are informational: they never become a publish note", async () => {
+  // Some chips are answered live ON PURPOSE (a skill covers them), so a screen
+  // that is ok with an uncovered chip publishes silently; only `summary` speaks.
+  const report = {
+    ok: true,
+    screens: [{ ...REPORT.screens[0], ok: true, uncoveredQueries: ["do you deliver?"] }],
+    summary: [],
+  };
+  const { entry } = publishTool(fakeApp({ report }));
+  const result = await entry.handler({ projectId: PROJECT, slug: "cook-bake" });
+  assert.notEqual(result.isError, true);
+  assert.equal(result.structuredContent.notes, undefined);
+});
+
 // --- the prose a model reads mid-build -------------------------------------
 
 const agentTools = prose(read("src/tools/agent.ts"));
@@ -367,14 +401,30 @@ function section(doc, heading) {
 }
 
 const HOME = section(hosted, "## Home screen — canned first paint (`set_home_screen`)");
+const ARC_STEP = step(hosted, "5. `set_home_screen`", "\n6. ");
 const FIXED = section(hosted, "## Fixed screens for fixed queries (`set_fixed_screens`)");
 const BLOCKED = section(hosted, "## When a store blocks our fetcher");
 const PROMPT_STEP = step(prompts, "7. put_screen the screens", "\n8. ");
 
 test("both write tools tell the agent to read verification, in the same words", () => {
   const sentence =
-    /The result's verification tells you whether each screen will actually replay: a screen with ok:false is answered by the live agent until you fix it \(the summary says what failed\)\./g;
+    /The result's verification tells you whether each screen will actually replay: a screen with ok:false is answered by the live agent until you fix it \(the summary says what failed\), and each screen's uncoveredQueries lists the chip queries on it that no canned screen answers, every one of them answered live: keep one that way only where a skill covers it on purpose or where the chip fires a write tool \(an action chip that collects fields and books, orders or sends\), and give each of the others a fixed screen\./g;
   assert.equal((agentTools.match(sentence) || []).length, 2, "set_home_screen and set_fixed_screens both say it");
+});
+
+test("the INTERCEPTION rule is stated once among the descriptions, in set_fixed_screens", () => {
+  const sentence =
+    /a chip on the home's queries list, a custom page or a link on the owner's site whose query equals a stored matchQuery \(or the home's\) is answered by that screen BEFORE any AI runs, with the visitor's own words entering the conversation above the designed screen, so a chip's query and its screen's matchQuery must be identical, character for character/g;
+  assert.equal((agentTools.match(sentence) || []).length, 1, "said once, where the verbatim rule lives");
+  assert.doesNotMatch(agentTools, /must carry that query VERBATIM/, "the old wording implied a chip could never reach the screen");
+});
+
+test("list_fixed_screens reads what is STORED; coverage comes from the verification", () => {
+  assert.match(agentTools, /It reads what is actually STORED, so check here instead of recalling what was written\./);
+  assert.match(
+    agentTools,
+    /verify_canned_screens reports the chip queries nothing canned answers, and list_skills is how you confirm that a query left to the live agent is one a skill covers on purpose/
+  );
 });
 
 test("probe_api says a probe is not proof", () => {
@@ -389,28 +439,81 @@ test("verify_canned_screens describes itself in plain words, including the 403 s
   assert.match(agentTools, /through the REAL serve fetcher and report how many rows each one actually returns/);
   assert.match(agentTools, /answered by the LIVE agent instead/);
   assert.match(agentTools, /Call it before publish_site/);
+  assert.match(
+    agentTools,
+    /Each entry also carries uncoveredQueries: the chip queries on that screen that no canned screen answers, every one of them answered live by the agent, so keep one that way only where a skill covers it on purpose or where the chip fires a write tool \(an action chip that collects fields and books, orders or sends\), and give each of the others a fixed screen\./
+  );
   assert.match(agentTools, /User-Agent contains BranderUX-Connector\/1\.0/);
   assert.match(agentTools, /WAF skip rule/);
 });
 
-test("the home-screen section explains verification and the optional flag", () => {
+test("the 403 sentence lives in ONE description, not in every one that mentions rows", () => {
+  assert.equal((agentTools.match(/BranderUX-Connector\/1\.0/g) || []).length, 1);
+});
+
+test("the home-screen section carries the ONE verification rule, and the optional flag", () => {
   const text = flat(HOME);
-  assert.match(text, /\*\*Verification\.\*\* The write answers with `verification`/);
+  assert.match(text, /\*\*Verification \(this screen and every fixed screen\)\.\*\* The write answers with `verification`/);
   assert.match(text, /REAL serve fetcher/);
   assert.match(text, /A screen with `ok: false` is NOT replayed/);
-  assert.match(text, /mark a secondary block `optional`/);
+  assert.match(text, /Read the report after every `set_home_screen` and every `set_fixed_screens`/);
+  assert.match(text, /mark a secondary block `optional`, never the primary list/);
+  assert.match(text, /Call `verify_canned_screens` again before `publish_site`/);
+  assert.match(text, /repeats the failing sentences in its `notes` and never refuses to publish/);
   assert.match(text, /`verification: \{unavailable, reason\}` means the check could not run/);
   assert.match(text, /a probe shows the SHAPE of a response, never that a binding serves rows/);
   assert.match(text, /`optional: true` marks a SECONDARY block/);
 });
 
-test("the fixed-screens section sends the agent to verify before publishing", () => {
+test("the fixed-screens section cross-references that rule instead of repeating it", () => {
   const text = flat(FIXED);
-  assert.match(text, /\*\*Verification\.\*\* `set_fixed_screens` answers with `verification`/);
+  assert.match(text, /\*\*Verification\.\*\* `set_fixed_screens` answers with `verification`, the same report the home's write carries and under the same rule: see "Verification \(this screen and every fixed screen\)" under "Home screen" above/);
   assert.match(text, /answered by the live agent until it is fixed/);
-  assert.match(text, /call `verify_canned_screens` again before `publish_site`/);
-  assert.match(text, /repeats those sentences in its `notes`; it never refuses to publish/);
   assert.match(text, /The primary list of a fixed screen stays required/);
+  assert.doesNotMatch(text, /call `verify_canned_screens` again before `publish_site`/, "the publish rule is stated once, in the home section");
+  assert.doesNotMatch(text, /means the check could not run/, "the unavailable rule too");
+});
+
+test("the uncovered list is the contract's coverage rule, stated in the fixed-screens section", () => {
+  const text = flat(FIXED);
+  assert.match(text, /\*\*Coverage is read, not remembered\.\*\*/);
+  assert.match(text, /Every `verification` reports, per screen, `uncoveredQueries`: the queries carried by chips on that screen that neither the home nor any fixed screen answers/);
+  assert.match(text, /Each of them is answered LIVE by the agent, so keep one that way only where a skill covers it on purpose \(`list_skills` says which\) or where the chip fires a write tool \(an action chip that collects fields and books, orders or sends\), and give each of the others a fixed screen/);
+  assert.match(text, /`list_fixed_screens` reads back what is actually stored/);
+});
+
+test("the contract states the INTERCEPTION once, where the verbatim rule lives", () => {
+  const sentences =
+    flat(hosted).match(/is answered by that screen BEFORE any AI runs/g) || [];
+  assert.equal(sentences.length, 1, "one statement, in the fixed-screens section");
+  assert.match(
+    flat(FIXED),
+    /whose query equals a stored `matchQuery` \(or the home's\) is answered by that screen BEFORE any AI runs: the visitor's own words enter the conversation and the designed screen comes back under them, exactly as a click on a custom page does\. So a chip's query and its screen's `matchQuery` must be identical, character for character/
+  );
+});
+
+test("an action chip answers itself: a write tool is a live answerer on every surface", () => {
+  // uncoveredQueries collects EVERY chip query, the one action chip of a widget
+  // home included (kind "action" fires a write with fields). A rule that let only
+  // a SKILL justify a live answer told the builder to design a fixed screen for a
+  // booking, which no canned screen can serve. All four surfaces name the write
+  // tool, the same way the askable test already names it.
+  const clause =
+    /keep one that way only where a skill covers it on purpose or where the chip fires a write tool \(an action chip that collects fields and books, orders or sends\)/g;
+  assert.equal(
+    (agentTools.match(clause) || []).length,
+    3,
+    "set_home_screen, set_fixed_screens and verify_canned_screens all say it"
+  );
+  assert.doesNotMatch(agentTools, /only where a skill covers it on purpose,? and give/, "the skill-only clause is gone");
+  assert.match(
+    flat(FIXED),
+    /where the chip fires a write tool \(an action chip that collects fields and books, orders or sends\), and give each of the others a fixed screen/
+  );
+  assert.match(
+    flat(PROMPT_STEP),
+    /leave it live only where one of my skills covers it on purpose or where the chip itself collects the details and places the booking or the order/
+  );
 });
 
 test("the blocked-store section says exactly what the owner must allow", () => {
@@ -427,11 +530,23 @@ test("the build arc and the build order both route through verification", () => 
   assert.match(flat(section(hosted, "## Build order (hosted)")), /`verify_canned_screens` \(rows proven, not assumed\)/);
 });
 
+test("the arc POINTS at the verification rules; it does not restate them", () => {
+  // The arc and the build order are indexes. The rule itself (what ok:false
+  // means, what uncoveredQueries means) is stated once, in the sections below.
+  assert.match(flat(ARC_STEP), /both rules, and the coverage that report names, are under "Fixed screens for fixed queries"/);
+  assert.doesNotMatch(ARC_STEP, /answered by the live agent/, "the consequence belongs to the Home screen section");
+  assert.doesNotMatch(ARC_STEP, /uncoveredQueries/, "the coverage rule belongs to the two sections it points at");
+});
+
 test("the hosted prompt's step 7 says it in the owner's voice", () => {
   const text = flat(PROMPT_STEP);
   assert.match(text, /read the verification that comes back with it/);
   assert.match(text, /answered by the live agent instead of the page you designed/);
   assert.match(text, /mark a side block optional, never the main list of the screen/);
+  assert.match(
+    text,
+    /The same report names, per screen, the questions on it that nothing canned answers: every one of those is answered live, so leave it live only where one of my skills covers it on purpose or where the chip itself collects the details and places the booking or the order, and give each of the others a fixed screen\./
+  );
   assert.match(text, /A probe of an API is never proof/);
   assert.match(text, /Run verify_canned_screens before you publish/);
   assert.match(text, /User-Agent contains BranderUX-Connector\/1\.0/);
@@ -460,12 +575,23 @@ test("the bindings grammar the model copies from carries no em dash", () => {
   assert.equal(grammar.includes("\u2014"), false, "the bindings grammar carries an em dash");
 });
 
-test("everything added here is em-dash free (owners and models read it)", () => {
+test("everything rewritten here is em-dash free (owners and models read it)", () => {
+  const description = (tool) => {
+    const start = agentTools.indexOf(`"${tool}", { title:`);
+    assert.notEqual(start, -1, `${tool} is not registered`);
+    return agentTools.slice(start, agentTools.indexOf("inputSchema:", start));
+  };
   const added = [
-    ["the home-screen verification paragraph", HOME.slice(HOME.indexOf("**Verification.**"))],
+    ["the home-screen verification paragraph", HOME.slice(HOME.indexOf("**Verification ("))],
     ["the fixed-screens verification paragraph", FIXED.slice(FIXED.indexOf("**Verification.**"))],
+    ["the fixed-screens coverage bullet", FIXED.slice(FIXED.indexOf("**Coverage is read"))],
+    ["the interception bullet", FIXED.slice(FIXED.indexOf("**The match is EXACT**"))],
     ["When a store blocks our fetcher", BLOCKED],
-    ["the prompt's verification sentences", step(PROMPT_STEP, "Every time you store my home", "\n8. ")],
+    ["the arc's home step", ARC_STEP],
+    ["the hosted prompt's step 7", PROMPT_STEP],
+    ["set_fixed_screens' description", description("set_fixed_screens")],
+    ["verify_canned_screens' description", description("verify_canned_screens")],
+    ["list_fixed_screens' description", description("list_fixed_screens")],
   ];
   for (const [name, text] of added) {
     assert.ok(text.length > 0, `${name} is missing`);

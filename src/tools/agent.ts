@@ -433,7 +433,10 @@ export function registerAgentTools(server: McpServer, api: ApiClient, app: AppCl
         "items sorted by price). Mark a SECONDARY block optional: true (a featured strip) so an empty or failing binding " +
         "leaves an empty list instead of dropping the whole screen; the primary list stays required. " +
         "The result's verification tells you whether each screen will actually replay: a screen with ok:false is answered by the " +
-        "live agent until you fix it (the summary says what failed). " +
+        "live agent until you fix it (the summary says what failed), and each screen's uncoveredQueries lists the chip queries on it " +
+        "that no canned screen answers, every one of them answered live: keep one that way only where a skill covers it on purpose " +
+        "or where the chip fires a write tool (an action chip that collects fields and books, orders or sends), and give each of " +
+        "the others a fixed screen. " +
         "Refresh when the home screen's layout changes. Empty {} " +
         "homeScreen via upsert_agent_config clears. Works in flexible (the default) and deterministic modes.",
       inputSchema: {
@@ -471,14 +474,18 @@ export function registerAgentTools(server: McpServer, api: ApiClient, app: AppCl
         "binding's query still runs LIVE, so prices, stock and hours stay current. " +
         "WHAT IT IS FOR: the questions a business answers over and over, where the owner wants one designed answer every time: the menu, " +
         "the price list, opening hours, what is new this week, a size guide, the delivery areas. " +
-        "THE EXACT MATCH IS THE WHOLE CONTRACT: whatever fires the question (a chip on the home's queries list, a custom page, a link on the " +
-        "owner's site) must carry that query VERBATIM, character for character, or the agent answers it live and the owner never sees the " +
-        "screen they designed. " +
+        "THE EXACT MATCH IS THE WHOLE CONTRACT: a chip on the home's queries list, a custom page or a link on the owner's site whose " +
+        "query equals a stored matchQuery (or the home's) is answered by that screen BEFORE any AI runs, with the visitor's own words " +
+        "entering the conversation above the designed screen, so a chip's query and its screen's matchQuery must be identical, " +
+        "character for character, or the agent answers it live and the owner never sees the screen they designed. " +
         "data carries STATIC layout and copy only (headers, greetings, labels); ROWS come only from bindings (max 3 per screen), never baked " +
         "into data. Mark a SECONDARY block optional: true so an empty or failing binding leaves an empty list instead of dropping the screen; " +
         "the primary list of a fixed screen stays required. " +
         "The result's verification tells you whether each screen will actually replay: a screen with ok:false is answered by the live agent " +
-        "until you fix it (the summary says what failed). " +
+        "until you fix it (the summary says what failed), and each screen's uncoveredQueries lists the chip queries on it " +
+        "that no canned screen answers, every one of them answered live: keep one that way only where a skill covers it on purpose " +
+        "or where the chip fires a write tool (an action chip that collects fields and books, orders or sends), and give each of " +
+        "the others a fixed screen. " +
         "The call REPLACES the whole set, so send every screen worth keeping; max 12 screens, and screens: [] CLEARS them all. " +
         "The server refuses the write (400, with the reason) when a screen id, an entity or a field does not exist, when two match queries " +
         "collide after normalisation, when one collides with the home's, or when the set is over 128 KB. " +
@@ -514,9 +521,9 @@ export function registerAgentTools(server: McpServer, api: ApiClient, app: AppCl
       title: "List fixed screens",
       description:
         "List the project's stored fixed screens (match query, screen id, data, bindings); empty when none. " +
-        "Read it before storing more and again before publishing: check what is COVERED instead of recalling it. " +
-        "With list_skills it is the coverage check for a widget home's queries list, where every question needs a fixed screen or a " +
-        "skill behind it.",
+        "It reads what is actually STORED, so check here instead of recalling what was written. " +
+        "Coverage is a different question: verify_canned_screens reports the chip queries nothing canned answers, and list_skills " +
+        "is how you confirm that a query left to the live agent is one a skill covers on purpose.",
       inputSchema: { projectId: projectIdSchema },
       outputSchema: { fixedScreens: z.array(z.object({}).passthrough()) },
       annotations: READ_ONLY,
@@ -539,7 +546,11 @@ export function registerAgentTools(server: McpServer, api: ApiClient, app: AppCl
         "comes back empty is answered by the LIVE agent instead, slowly and in words the owner never designed. " +
         "The report carries one entry per screen (kind, matchQuery, screenId, ok) with a row count or an error per binding, plus a " +
         "summary: one plain sentence per failing screen. Call it before publish_site and fix what it names: repoint the source, loosen " +
-        "the filter, or mark a secondary block optional. When a store answers 403 the store is blocking our fetcher, so tell the owner " +
+        "the filter, or mark a secondary block optional. " +
+        "Each entry also carries uncoveredQueries: the chip queries on that screen that no canned screen answers, every one of them " +
+        "answered live by the agent, so keep one that way only where a skill covers it on purpose or where the chip fires a write " +
+        "tool (an action chip that collects fields and books, orders or sends), and give each of the others a fixed screen. " +
+        "When a store answers 403 the store is blocking our fetcher, so tell the owner " +
         "in one sentence to allow requests whose User-Agent contains BranderUX-Connector/1.0 to their API path (on Cloudflare that is a " +
         "WAF skip rule). A report that says unavailable means this check could not run at all; the stored screens are untouched.",
       inputSchema: { projectId: projectIdSchema },

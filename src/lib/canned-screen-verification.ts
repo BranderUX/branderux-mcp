@@ -17,13 +17,21 @@ export type BindingReport = {
   error: string | null;
 };
 
-/** One canned screen's result (the home, or one fixed screen). */
+/**
+ * One canned screen's result (the home, or one fixed screen).
+ *
+ * `uncoveredQueries` is the coverage half: the chip queries carried by this
+ * screen's own static data that no canned screen answers. It is informational
+ * (it never flips `ok` and never becomes a publish note), because a query
+ * answered live can be exactly what the owner wanted.
+ */
 export type ScreenReport = {
   kind: "home" | "fixed";
   matchQuery: string;
   screenId: string;
   ok: boolean;
   bindings: BindingReport[];
+  uncoveredQueries?: string[];
 };
 
 /** The whole report, plus one plain sentence per failing screen. */
@@ -55,6 +63,7 @@ const screenReportSchema = z
     screenId: z.string(),
     ok: z.boolean(),
     bindings: z.array(bindingReportSchema),
+    uncoveredQueries: z.array(z.string()).optional(),
   })
   .passthrough();
 
