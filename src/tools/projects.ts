@@ -170,12 +170,14 @@ const ALWAYS_ENABLED_ELEMENTS: readonly string[] = ["chat-bubble"];
     {
       title: "Update project settings",
       description:
-        "Merge changes into project.settings — uiGenerationMode ('flexible' | 'deterministic'), elementVisibility, customPages, flexibleModeRules, elementStyleVariant. " +
+        "Merge changes into project.settings — uiGenerationMode ('flexible' | 'deterministic'), elementVisibility, customPages, flexibleModeRules, elementStyleVariant — and, when given, rename the project (name) or rewrite its description: the project's display name in the app is NOT the brand name (update_brand_settings owns brandName). " +
         "Every finished build MUST set customPages (2-5 nav entries matching the screens) — without them the playground opens to a setup dialog instead of the product. " +
         "Each customPages entry is EXACTLY {id, name, query} (all non-empty strings; name is the nav label, query is what clicking the page asks) — other keys are rejected, and the server nulls anything misshapen. " +
         "elementVisibility merges key-wise: fixed-element keys are the kebab type names (header, stats-grid, data-table, line-chart, pie-chart, bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert, video), custom elements are custom:<key>; false disables, absent = enabled. chat-bubble is ALWAYS on — every text answer renders through it — so a false for it is ignored.",
       inputSchema: {
         projectId: z.string().uuid(),
+        name: z.string().min(1).max(120).optional(),
+        description: z.string().max(2000).optional(),
         // customPages is pinned STRICTLY: agents kept inventing key names
         // (label/title/prompt), the server's typed mapper nulled the real
         // fields, and every null query crashed the playground on open. A
@@ -195,12 +197,17 @@ const ALWAYS_ENABLED_ELEMENTS: readonly string[] = ["chat-bubble"];
               .min(1)
               .optional(),
           })
-          .passthrough(),
+          .passthrough()
+          .optional(),
       },
       outputSchema: { project: z.object({}).passthrough() },
       annotations: IDEMPOTENT_WRITE,
     },
-    guarded(async ({ projectId, settings }) => {
+    guarded(async ({ projectId, name, description, settings: settingsInput }) => {
+      const settings = settingsInput ?? {};
+      if (name === undefined && description === undefined && Object.keys(settings).length === 0) {
+        return fail("Nothing to update: pass settings, a name, or a description.");
+      }
       const project = await api.get<{ settings?: Record<string, unknown> }>(`/projects/${projectId}`);
       if (!project) return fail(`Project ${projectId} not found.`);
       const current = project.settings ?? {};
@@ -219,8 +226,12 @@ const ALWAYS_ENABLED_ELEMENTS: readonly string[] = ["chat-bubble"];
         }
         merged.elementVisibility = visibility;
       }
+      // The server's PATCH applies only the fields present, so the rename rides
+      // beside the merged settings and an absent name leaves the current one.
       const updated = await api.patch<Record<string, unknown>>(`/projects/${projectId}`, {
         settings: merged,
+        ...(name !== undefined ? { name } : {}),
+        ...(description !== undefined ? { description } : {}),
       });
       return ok({ project: updated ?? {} });
     })
