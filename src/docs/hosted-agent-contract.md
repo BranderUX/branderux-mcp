@@ -132,7 +132,11 @@ text is never softened, summarized, or de-jargoned.
    `policies.writePolicies["update_<entity>"]` as "confirm" or "auto" — store it only
    after the owner approved editing with the warning above (no delete tool is ever
    derived for entities). Add-only needs nothing beyond the entity. Never mount a write
-   tool the owner hasn't explicitly approved.
+   tool the owner hasn't explicitly approved. Frame the question for the business: a shop
+   with a catalogue usually needs NO visitor write at all, because orders and payment
+   happen on the store, so offer nothing or one specific thing (a back-in-stock request,
+   a quote), never a generic "leave your details" form; a booking or ordering business
+   needs its booking or order write.
 
 **Also ask — marketing consent** (CONDITIONAL, which is why it is not one of the five:
 only when an entity collects a phone number or an email address — bookings, orders,
@@ -621,10 +625,13 @@ Squarespace or plain HTML) AND the owner has said nothing about what the home sh
 the home is:
 
 1. the welcome text exactly as it is today (`followUpText`), then
-2. ONE "queries list" element carrying the questions this business's visitors ask. Most
-   are static chips. At most ONE of them collects a field or fields before it fires (a
-   booking, an order number, a size). A catalogue may add ONE featured block bound to
-   live rows.
+2. ONE "queries list" element carrying the questions this business's visitors ask, as
+   static chips. A catalogue may add ONE featured block bound to live rows. ONE chip that
+   collects a field or fields before it fires belongs on the list only when that action
+   is the business's main thing: a table for a restaurant, an appointment for a barber, a
+   quote for a service. A shop with a catalogue gets no such chip, because buying happens
+   on the site, and leaving details for a callback stays the escalation fallback inside
+   the conversation, never a first-screen item.
 
 Number, wording, order and layout come from THIS customer, never from a template: the
 entities and the fields they can be filtered by, the skills, the write tools that
