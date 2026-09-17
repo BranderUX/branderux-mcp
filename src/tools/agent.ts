@@ -695,7 +695,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient, app: AppCl
         "slug: 2-40 chars, lowercase letters/digits, inner hyphens. First publish mints the site key " +
         "automatically. Requires a configured hosted agent to be useful — configure it first. " +
         "PUBLISH IMMEDIATELY as the last build step of every hosted build — never wait to be asked: derive the slug from the " +
-        "business name (rename later moves the key origin too), announce the live URL. Writes, sign-in and owner emails only run on the published site. " +
+        "business name (rename later moves the key origin too), announce the live URL. Writes and owner emails run on the published site and in the widget on the owner's site; sign-in only on the published site. " +
         "Publishing yields BOTH the interactive site and a SEPARATE identity-free MCP endpoint at https://<slug>.branderux.app/mcp for visiting agents: " +
         "get_business_info + query_* + generate_screen + connected-app READS (hub_*), PLUS the add-only writes the owner enabled — create_<entity> for every " +
         "writePolicy open entity unless policies.writePolicies sets it off (update_<entity> only on its explicit opt-in) and escalate_to_owner when a handoff " +

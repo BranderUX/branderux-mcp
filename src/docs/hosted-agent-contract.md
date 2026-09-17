@@ -300,8 +300,9 @@ key are billed by that provider to the owner.
   Writes always run through the visitor-confirmation plane unless the owner
   sets a tool to auto.
   **Where writes execute**: visitor write tools (entity, connected-app, and
-  custom-REST writes) run ONLY on the published site, where the visitor's
-  Confirm card can complete them. The owner test chat is read-only by design
+  custom-REST writes) run on the published site and inside the chat widget or SDK
+  embed on the owner's own site alike; the visitor's Confirm card completes them the
+  same way on both (the click carries the embed's key and the proposal's session key). The owner test chat is read-only by design
   (write tools are not mounted there); previews and the playground cannot
   write either. Publishing also mints a SEPARATE identity-free MCP endpoint at
   `https://<slug>.branderux.app/mcp` for VISITING agents (ChatGPT, Claude,
@@ -386,9 +387,10 @@ Per-tool modes ride `policies.writePolicies`, keyed by the LITERAL tool name:
 `{"create_orders": "auto" | "confirm" | "off", "update_orders": "confirm" | "auto"}` —
 `create_*` defaults to confirm; `update_*` stays unmounted unless you store its key (only
 after the owner approved editing with the verbatim warning; if you told the owner the write
-is add-only, store nothing for `update_*`). Where confirm-mode writes complete: the published `{slug}.branderux.app`
-site (an SDK embed on the customer's own domain completes only `auto`-mode writes — the
-confirm card cannot land there). The owner sees incoming rows in the app's Agent tab →
+is add-only, store nothing for `update_*`). Where confirm-mode writes complete: the published `{slug}.branderux.app` site and the
+widget or SDK embed on the customer's own domain alike, since 2026-09-17 (the confirm
+card posts with the embed's key and the proposal's session key, so no write needs `auto`
+to work in a widget). The owner sees incoming rows in the app's Agent tab →
 **Data** pane (a live records browser), via `list_entity_records` here, and in their inbox
 when escalation is configured — never tell an owner their orders are invisible.
 
@@ -433,7 +435,7 @@ write is confirmed by the visitor unless the owner sets that tool to auto.
 | Tool | Mounts when | Surface | Trace label on the site |
 | --- | --- | --- | --- |
 | `query_<entity>` | every servable entity: `public-read` always; `end-user-scoped` ONLY with a verified visitor identity; `owner-only` never | published site, SDK embed, owner test chat, site-MCP | "Queried <entity>" (e.g. "Queried bouquets") |
-| `create_<entity>` | `writePolicy` end-user-owned/open and `writePolicies["create_<entity>"]` not "off"; confirm mode needs the Confirm card (the `{slug}.branderux.app` site), auto also completes on SDK embeds | published/key surfaces only — never the owner test chat, previews, playground, or site-MCP | "Created <entity>" |
+| `create_<entity>` | `writePolicy` end-user-owned/open and `writePolicies["create_<entity>"]` not "off"; confirm and auto both complete on the published site and in the widget or SDK embed on the owner's site | published/key surfaces only — never the owner test chat, previews, playground, or site-MCP | "Created <entity>" |
 | `update_<entity>` | as `create_` PLUS an explicit `writePolicies["update_<entity>"]` of "confirm"/"auto" | same as `create_` | "Updated <entity>" |
 | `escalate_to_owner` | `policies.handoff.email` stored | published/key surfaces only | "Escalated to owner" |
 | `remember_preference` | a SIGNED-IN visitor (verified site session cookie) | published site only — never owner surfaces, never anonymous visitors | "Remembered preference" |
