@@ -118,8 +118,10 @@ test("widget home: the welcome text unchanged, then ONE queries list", () => {
   const text = flat(WIDGET_HOME);
   assert.match(text, /the welcome text exactly as it is today \(`followUpText`\)/);
   assert.match(text, /ONE "queries list" element/);
-  assert.match(text, /Most are static chips/);
-  assert.match(text, /At most ONE of them collects a field or fields/);
+  assert.match(text, /visitors ask, as static chips/);
+  assert.match(text, /ONE chip that\s+collects a field or fields before it fires belongs on the list only when that action\s+is the business's main thing/);
+  assert.match(text, /A shop with a catalogue gets no such chip/);
+  assert.doesNotMatch(text, /At most ONE of them collects/);
   assert.match(text, /ONE featured block bound to live rows/);
 });
 
@@ -339,4 +341,13 @@ test("the added doc sections carry no em dash (people read these docs)", () => {
   ]) {
     assert.equal(text.includes("—"), false, `${name} carries an em dash`);
   }
+});
+
+test("the action chip is earned, not default: the prompt and the write question say the same", () => {
+  assert.match(PROMPT_STEP, /belongs on that list only when that action is the thing my business exists to do/);
+  assert.match(PROMPT_STEP, /a shop with a catalogue gets no such chip/);
+  assert.doesNotMatch(PROMPT_STEP, /at most one that collects a detail/);
+  const contract = flat(hosted);
+  assert.match(contract, /a shop with a catalogue usually needs NO visitor write at all/);
+  assert.match(contract, /never a generic "leave your details" form/);
 });
