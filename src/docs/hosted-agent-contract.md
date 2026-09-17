@@ -208,9 +208,9 @@ plainly either way, because the owner is the one who may not market to that list
   an order), not only when a visitor asks for a human. Tell owners this
   accurately: booking/contact requests on the published site DO reach their
   inbox. Never claim the hosted agent "has no email channel" — it does,
-  whenever a handoff email is stored. It never mounts on owner test/preview
-  surfaces (published site only). The wa.me link gets a `?text=` prefill with
-  the visitor's request context.**
+  whenever a handoff email is stored. It mounts on the published site and in
+  the widget on the owner's site, never on owner test/preview surfaces. The
+  wa.me link gets a `?text=` prefill with the visitor's request context.**
   Two more facts are the owner's alone and REACTIVE: `accessibilityCoordinator`
   (`{name, contact}`, ONLY when the owner says the business employs 25 people or
   more, which is when the law requires an appointed accessibility coordinator) and
