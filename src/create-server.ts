@@ -5,6 +5,7 @@ import { registerPlayground } from "./playground/playground.js";
 import { registerGenerateScreen } from "./playground/generate-screen.js";
 import { registerPreviewAppResource } from "./preview/app-resource.js";
 import { registerKnowledgeResources, registerKnowledgeTools } from "./tools/knowledge.js";
+import { registerReferenceTools } from "./tools/references.js";
 import { registerPrompts } from "./prompts.js";
 import { registerProjectTools } from "./tools/projects.js";
 import { registerScreenTools } from "./tools/screens.js";
@@ -15,7 +16,7 @@ import { registerAgentTools } from "./tools/agent.js";
 const INSTRUCTIONS = `BranderUX turns an AI agent's answers into branded, interactive UI.
 
 Two families of tools:
-• KNOWLEDGE (no scopes needed) — get_started, read_doc, search_docs, get_integration_snippet.
+• KNOWLEDGE (no scopes needed) — get_started, read_doc, search_docs, get_integration_snippet, list_templates, get_template (the five reference builds as worked examples: read the closest MOMENT, adapt for the customer, never copy).
   Start with get_started. Read the relevant doc BEFORE writing element code or screens;
   both have exact wire formats that fail silently when guessed.
 • CONTROL — projects, brand settings, custom elements, screens and API keys for the
@@ -63,6 +64,7 @@ export async function createServer(apiTokenProvider: () => Promise<string>): Pro
 
   registerKnowledgeTools(server);
   registerKnowledgeResources(server);
+  registerReferenceTools(server);
   registerPreviewAppResource(server);
   registerPrompts(server);
   registerProjectTools(server, api);

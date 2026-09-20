@@ -26,13 +26,13 @@
     "oauth"
   ],
   "scripts": {
-    "build": "npm run build:app && tsc && rm -rf dist/docs && cp -R src/docs dist/docs",
+    "build": "npm run build:app && tsc && rm -rf dist/docs && cp -R src/docs dist/docs && rm -rf dist/references && cp -R src/references dist/references",
     "build:app": "vite build",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "pretest": "npm run build",
-    "test": "node --test test/widget-writes-contract.test.mjs test/binding-filters.test.mjs test/canned-screen-verification.test.mjs test/contact-fields.test.mjs test/dpa-acceptance.test.mjs test/entity-access-policy.test.mjs test/fixed-screens.test.mjs test/level-field-contract.test.mjs test/notice-identity-policies.test.mjs test/order-taking-warning.test.mjs test/policy-bag.test.mjs test/retention-policy.test.mjs test/widget-home-contract.test.mjs test/widget-snippet-contract.test.mjs"
+    "test": "node --test test/design-references.test.mjs test/widget-writes-contract.test.mjs test/binding-filters.test.mjs test/canned-screen-verification.test.mjs test/contact-fields.test.mjs test/dpa-acceptance.test.mjs test/entity-access-policy.test.mjs test/fixed-screens.test.mjs test/level-field-contract.test.mjs test/notice-identity-policies.test.mjs test/order-taking-warning.test.mjs test/policy-bag.test.mjs test/retention-policy.test.mjs test/widget-home-contract.test.mjs test/widget-snippet-contract.test.mjs"
   },
   "engines": {
     "node": ">=20"

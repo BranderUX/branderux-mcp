@@ -19,6 +19,11 @@ The agent never invents prices/stock; if data is missing it says so.
 
 ## THE HOSTED BUILD ARC (follow in order — every step, no step is optional)
 
+Design guidance (recommended, not enforced): before the first element, read
+`hosted-design-bar` and the closest reference build via `list_templates` / `get_template`. The
+references are worked examples of a home designed for the visitor's moment, one screen per
+job, verified fixed screens and the business's own art direction; read and adapt, never copy.
+
 ### HOW TO TALK TO THE OWNER (applies to every message in this arc)
 
 Assume the owner is NOT technical: no jargon, no tool, field, config or version names, no
@@ -266,7 +271,12 @@ key are billed by that provider to the owner.
   tool). Max 20 entities/project.
 - `jsonSchema`: JSON Schema object with non-empty `properties`. Field names
   matching `[a-zA-Z][a-zA-Z0-9_]*` become filterable/sortable. Give every
-  field a `description` — it rides into the agent's tool docs. Mark image
+  field a `description` — it rides into the agent's tool docs. On an INTAKE
+  entity give every property a `title` too, in the site's language (`"title":
+  "שם מלא"`): it is the field name the visitor reads on the Confirm card before
+  their details are sent, while `description` may stay English for the model; a
+  property without a title shows its key humanized in English ("Full name"),
+  the one English line on a Hebrew card. Mark image
   fields with `"format": "image-url"`. Numbers you want range-filterable
   (price, stock) must be `"type": "number"` and stored as JSON numbers.
 - `accessPolicy`:

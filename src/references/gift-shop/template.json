@@ -1,0 +1,15 @@
+{
+  "id": "gift-shop",
+  "name": "Brandazaar",
+  "role": "Agentic Shop Assistant",
+  "business": "A small gift and home-goods shop on a market square: twenty products, free gift wrapping, an offer or two, reservations held at the shop for three days, payment at the counter or by phone.",
+  "moment": "Someone buying a gift for someone else, in a hurry, not sure what. Two questions decide everything: who is it for, and roughly how much. Two or three things beat twenty.",
+  "homePattern": "A finder: the question \"Who is it for?\", tinted person cards with a photo sticker (her, him, kids, a host, a colleague, just browsing), budget pills under them, and this week's offers as a live strip at the bottom.",
+  "liveUrl": "https://brandazaar.branderux.app",
+  "tags": ["shop", "retail", "gifts", "store", "ecommerce", "products", "basket", "reservation", "shopify"],
+  "elements": [
+    { "key": "gift-finder", "file": "gift-finder.tsx", "role": "home", "notes": "The finder: rotating pastel tints, the photo as a white-ringed circular sticker, budget pills with a 2px ink border, the offers strip bound live from products with compareAtPrice above price (a percent sticker, the old price struck through). Every card, pill and offer sends an exact fixed-screen query." },
+    { "key": "product-grid", "file": "product-grid.tsx", "role": "answer", "notes": "The shelf: who and budget pill rows filter client-side (ALL rows are bound; activeWho / activeBudget set the starting chip so no screen can go empty), product tiles tinted by category, a rotated Offer sticker, a gift icon disc, Sold out over a faded photo." },
+    { "key": "basket-review", "file": "basket-review.tsx", "role": "answer", "notes": "The basket held in the conversation as a paper receipt with zigzag edges and monospace lines, SUBTOTAL / SHIPPING / TOTAL, remove links, then two pill buttons: reserve at the shop, keep looking. There is no cart store; the agent re-renders it from its list every time it changes." }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "florist",
+  "name": "Brandelia",
+  "role": "Agentic Florist",
+  "business": "A small flower studio: hand-tied bouquets in three sizes, a handwritten card with every order, delivery windows with a cutoff, payment by phone after the order.",
+  "moment": "Someone sending flowers to someone else, usually with a feeling attached and a date in mind. The order needs an occasion, a bouquet and size, a card message, a delivery window and the recipient.",
+  "homePattern": "An occasion deck: the question \"Who are the flowers for?\", then tall photo cards to swipe through (love, a birthday, thank you, a new baby...), then the delivery windows still open today as one ruled line.",
+  "liveUrl": "https://brandelia.branderux.app",
+  "tags": ["florist", "flowers", "gifts", "delivery", "occasions", "bakery", "cake", "same-day"],
+  "elements": [
+    { "key": "occasion-picker", "file": "occasion-picker.tsx", "role": "home", "notes": "The deck: a horizontal snap scroller of tall 4:5 photo cards with the word over a gradient and a numbered corner; the open delivery windows line is bound live from delivery_slots (available rows from today on, two at most) and taps through to the delivery screen." },
+    { "key": "bouquet-detail", "file": "bouquet-detail.tsx", "role": "answer", "notes": "Exactly one bouquet: a full-bleed photo with the name and live price over it, the description large, hairline In the bouquet / Palette and life columns, size tiles that change the price, a lined paper card for the message, one button that carries size, price and message into the delivery step." },
+    { "key": "delivery-windows", "file": "delivery-windows.tsx", "role": "answer", "notes": "Windows grouped by day with a rule and \"N open\", large tabular times, zone and fee in small caps, \"3 left, order by 14:00\" in italic; a sold-out window stays visible, struck through and disabled. A tap carries the slot id into the order." }
+  ]
+}
