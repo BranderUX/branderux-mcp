@@ -256,6 +256,7 @@ export function registerAgentTools(server: McpServer, api: ApiClient, app: AppCl
         "CONTACT DETAILS: an entity collecting a phone or an email (bookings, orders, enquiries, waitlists) either carries a boolean marketingConsent field whose " +
         "description is the exact wording the visitor is shown at collection, or its list is SERVICE-ONLY — answering that person's own request is always fine, " +
         "marketing to them without recorded consent is not. " +
+        "FIELD TITLES: every property of an intake entity carries a `title` in the SITE'S LANGUAGE (\"שם מלא\", \"טלפון\") — the field name the visitor reads on the Confirm card before their details are sent; a property without one shows its key humanized in English. `description` stays for the model. " +
         "Read brander://docs/hosted-agent-contract first.",
       inputSchema: {
         projectId: projectIdSchema,

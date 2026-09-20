@@ -1,0 +1,15 @@
+{
+  "id": "bed-and-breakfast",
+  "name": "Brand & Breakfast",
+  "role": "Agentic Concierge",
+  "business": "Six rooms in an old stone house above a harbour, run by a host named Mara; breakfast included, a local guide, requests the host confirms by phone or email, payment at the house.",
+  "moment": "Two moments in one: a guest before arrival (a room, dates, a request) and a guest already staying (breakfast hours, what's around here, a rainy day). Both want the host, not a website.",
+  "homePattern": "A concierge desk: a time-of-day greeting with the host's name, the question \"What can I do for you?\", the things a guest wants as paper tiles with a round photo, then a pinned \"Today at the house\" notice and a guest perk (a coffee on us at the café down the hill).",
+  "liveUrl": "https://brand-and-breakfast.branderux.app",
+  "tags": ["hotel", "bnb", "guesthouse", "hospitality", "rooms", "concierge", "booking", "local guide"],
+  "elements": [
+    { "key": "arrival-cards", "file": "arrival-cards.tsx", "role": "home", "notes": "The desk. The greeting is computed from the hour; the tiles' queries equal fixed screens' match queries; the today notice and the perk are static props the host edits, which is what makes the home relevant instead of decorative." },
+    { "key": "room-detail", "file": "room-detail.tsx", "role": "answer", "notes": "Exactly one room: a mounted photo, the name with the nightly rate stacked opposite, an italic description, a dotted-leader ledger (sleeps, bed, looks at, floor, size), then a reservation slip with date pickers, a guest count within the room's limit, an indicative total and one button that carries dates, nights and rate into the request." },
+    { "key": "stay-request-form", "file": "stay-request-form.tsx", "role": "form", "notes": "One form for every request to the host: kind chips (book a room, early check-in, late check-out, a dinner table, pickup, something else); dates and guests only when it is a booking; name, phone, email, a note, the consent checkbox, \"Send to Mara\". The click query carries every field." }
+  ]
+}
