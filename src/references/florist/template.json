@@ -8,8 +8,8 @@
   "liveUrl": "https://brandelia.branderux.app",
   "tags": ["florist", "flowers", "gifts", "delivery", "occasions", "bakery", "cake", "same-day"],
   "elements": [
-    { "key": "occasion-picker", "file": "occasion-picker.tsx", "role": "home", "notes": "The deck: a horizontal snap scroller of tall 4:5 photo cards with the word over a gradient and a numbered corner; the open delivery windows line is bound live from delivery_slots (available rows from today on, two at most) and taps through to the delivery screen." },
-    { "key": "bouquet-detail", "file": "bouquet-detail.tsx", "role": "answer", "notes": "Exactly one bouquet: a full-bleed photo with the name and live price over it, the description large, hairline In the bouquet / Palette and life columns, size tiles that change the price, a lined paper card for the message, one button that carries size, price and message into the delivery step." },
-    { "key": "delivery-windows", "file": "delivery-windows.tsx", "role": "answer", "notes": "Windows grouped by day with a rule and \"N open\", large tabular times, zone and fee in small caps, \"3 left, order by 14:00\" in italic; a sold-out window stays visible, struck through and disabled. A tap carries the slot id into the order." }
+    { "key": "occasion-picker", "file": "occasion-picker.tsx.txt", "role": "home", "notes": "The deck: a horizontal snap scroller of tall 4:5 photo cards with the word over a gradient and a numbered corner; the open delivery windows line is bound live from delivery_slots (available rows from today on, two at most) and taps through to the delivery screen." },
+    { "key": "bouquet-detail", "file": "bouquet-detail.tsx.txt", "role": "answer", "notes": "Exactly one bouquet: a full-bleed photo with the name and live price over it, the description large, hairline In the bouquet / Palette and life columns, size tiles that change the price, a lined paper card for the message, one button that carries size, price and message into the delivery step." },
+    { "key": "delivery-windows", "file": "delivery-windows.tsx.txt", "role": "answer", "notes": "Windows grouped by day with a rule and \"N open\", large tabular times, zone and fee in small caps, \"3 left, order by 14:00\" in italic; a sold-out window stays visible, struck through and disabled. A tap carries the slot id into the order." }
   ]
 }

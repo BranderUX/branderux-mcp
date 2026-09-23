@@ -8,8 +8,8 @@
   "liveUrl": "https://brandoria.branderux.app",
   "tags": ["restaurant", "cafe", "bar", "food", "qr", "table ordering", "menu"],
   "elements": [
-    { "key": "mood-picker", "file": "mood-picker.tsx", "role": "home", "notes": "The question and photo tiles. Each tile's query is sent verbatim and equals a fixed screen's match query character for character." },
-    { "key": "meal-suggestion", "file": "meal-suggestion.tsx", "role": "answer", "notes": "The waiter's composed meal: a note that says why, three courses as ruled rows from live menu rows, + steppers, a sticky order bar that appears once something is added. Rows come from bindings, so they carry _id; key on id || _id." },
-    { "key": "order-form", "file": "order-form.tsx", "role": "form", "notes": "A paper kitchen ticket: table number first and large (it is on the sign), a guests stepper, the lines with steppers and a total, notes, one Send button carrying every field in its click query." }
+    { "key": "mood-picker", "file": "mood-picker.tsx.txt", "role": "home", "notes": "The question and photo tiles. Each tile's query is sent verbatim and equals a fixed screen's match query character for character." },
+    { "key": "meal-suggestion", "file": "meal-suggestion.tsx.txt", "role": "answer", "notes": "The waiter's composed meal: a note that says why, three courses as ruled rows from live menu rows, + steppers, a sticky order bar that appears once something is added. Rows come from bindings, so they carry _id; key on id || _id." },
+    { "key": "order-form", "file": "order-form.tsx.txt", "role": "form", "notes": "A paper kitchen ticket: table number first and large (it is on the sign), a guests stepper, the lines with steppers and a total, notes, one Send button carrying every field in its click query." }
   ]
 }
