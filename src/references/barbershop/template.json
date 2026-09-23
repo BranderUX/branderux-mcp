@@ -8,8 +8,8 @@
   "liveUrl": "https://barbrander.branderux.app",
   "tags": ["barber", "salon", "hair", "beauty", "appointments", "walk-in", "booking"],
   "elements": [
-    { "key": "need-picker", "file": "need-picker.tsx", "role": "home", "notes": "The walk-in-or-book decision. Today's status is computed client-side from bound opening_hours rows; the barbers in today from bound barbers rows (daysAvailable). Every tile and chip query equals a fixed screen's match query; a barber tap sends a live booking request naming that barber." },
-    { "key": "booking-request-form", "file": "booking-request-form.tsx", "role": "form", "notes": "A four-step ticket: Service chips (time and price), Barber chips with days plus Any barber, When (day and time), You. A summary bar with price and minutes, a consent checkbox, one Send button whose click query carries every field. Step circles fill as the visitor completes them." },
-    { "key": "booking-confirmation", "file": "booking-confirmation.tsx", "role": "confirmation", "notes": "The whole answer after create_bookings succeeded: a rotated REQUEST IN stamp, \"Noted, Sam.\", a dotted-leader ledger of what was saved, the honest line that the shop calls to confirm, two next steps." }
+    { "key": "need-picker", "file": "need-picker.tsx.txt", "role": "home", "notes": "The walk-in-or-book decision. Today's status is computed client-side from bound opening_hours rows; the barbers in today from bound barbers rows (daysAvailable). Every tile and chip query equals a fixed screen's match query; a barber tap sends a live booking request naming that barber." },
+    { "key": "booking-request-form", "file": "booking-request-form.tsx.txt", "role": "form", "notes": "A four-step ticket: Service chips (time and price), Barber chips with days plus Any barber, When (day and time), You. A summary bar with price and minutes, a consent checkbox, one Send button whose click query carries every field. Step circles fill as the visitor completes them." },
+    { "key": "booking-confirmation", "file": "booking-confirmation.tsx.txt", "role": "confirmation", "notes": "The whole answer after create_bookings succeeded: a rotated REQUEST IN stamp, \"Noted, Sam.\", a dotted-leader ledger of what was saved, the honest line that the shop calls to confirm, two next steps." }
   ]
 }

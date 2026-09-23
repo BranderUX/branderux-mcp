@@ -10,7 +10,10 @@ import { READ_ONLY, fail, ok } from "./helpers.js";
  * before designing for a customer. Nothing here is copied into a project — the story says
  * what a build designed for its moment looks like, the element code shows how it was done.
  * Each reference is a folder under src/references/<id>/ with template.json (metadata),
- * story.md (the narrative) and one .tsx per signature element.
+ * story.md (the narrative) and one .tsx.txt per signature element. The element code is
+ * stored as text on purpose: the Vercel function bundles src/ and drops .tsx files it
+ * does not import, so a plain .tsx never reached production (get_template answered
+ * "No element" for keys it listed).
  */
 
 const REFERENCES_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "references");
@@ -150,10 +153,14 @@ export function registerReferenceTools(server: McpServer): void {
         "A reference to read, not a kit to copy: the customer's home comes from the customer's moment, their rows, their voice and their palette. Defaults and recommendations only.";
       if (element) {
         const found = readReferenceElement(reference, element);
-        if (!found)
+        if (!found) {
+          const listed = reference.elements.some((candidate) => candidate.key === element);
           return fail(
-            `No element '${element}' in '${template}'. Available: ${reference.elements.map((e) => e.key).join(", ")}.`
+            listed
+              ? `The code for '${element}' in '${template}' is missing from this server. Read the story instead; the element notes describe it.`
+              : `No element '${element}' in '${template}'. Available: ${reference.elements.map((e) => e.key).join(", ")}.`
           );
+        }
         return ok({
           template: reference.id,
           name: reference.name,

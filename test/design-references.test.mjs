@@ -33,6 +33,8 @@ test("the five reference builds exist with metadata, a story and their elements"
       assert.ok(story.includes(heading), `${id} story has ${heading}`);
     }
     for (const element of meta.elements) {
+      // Text, not .tsx: the Vercel function drops .tsx files it does not import.
+      assert.ok(element.file.endsWith(".tsx.txt"), `${id}/${element.file} is stored as .tsx.txt`);
       const path = join(ROOT, id, element.file);
       assert.ok(existsSync(path), `${id}/${element.file}`);
       const code = readFileSync(path, "utf8");
