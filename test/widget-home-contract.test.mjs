@@ -176,6 +176,19 @@ test("widget home: coverage points at the verification's uncoveredQueries", () =
   assert.match(text, /A chip that lands on a shrug is worse than no chip/);
 });
 
+test("widget home: the form an action chip opens is never a fixed screen", () => {
+  const text = flat(WIDGET_HOME);
+  assert.match(
+    text,
+    /the write tool it fires or the form it opens \(the agent prefills that form from the conversation; it is never a fixed screen\)/
+  );
+  assert.match(text, /The action chip that opens a form stays in that list on purpose: a fixed screen cannot prefill it/);
+  assert.match(
+    flat(QUERIES_LIST),
+    /A chip whose answer is a form \(a booking, an order, a quote\) has no fixed screen behind it/
+  );
+});
+
 test("widget home: it points at the reference element, and calls it a starting point", () => {
   const text = flat(WIDGET_HOME);
   assert.match(text, /custom-elements-contract/);

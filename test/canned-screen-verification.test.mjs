@@ -516,6 +516,29 @@ test("an action chip answers itself: a write tool is a live answerer on every su
   );
 });
 
+test("a form is never a fixed screen: every surface that names the write chip says so", () => {
+  // 2026-09-24: builds stored the booking / order / quote form as a fixed screen,
+  // and a visitor who had already given their name and the dish got a blank form:
+  // the replay carries stored copy plus bound rows and never sees the conversation
+  // or the signed-in visitor. The chip that opens a form stays live so the agent
+  // prefills it; its query in uncoveredQueries is expected, not a gap.
+  const clause =
+    /A form is never a fixed screen: a screen that collects the visitor's details for a write \(a booking, an order, a quote, an enquiry\) stays live even when a chip opens it/g;
+  assert.equal(
+    (agentTools.match(clause) || []).length,
+    3,
+    "set_home_screen, set_fixed_screens and verify_canned_screens all say it"
+  );
+  assert.match(flat(FIXED), /\*\*A form is never a fixed screen\.\*\*/);
+  assert.match(flat(FIXED), /never sees the conversation or the signed-in visitor/);
+  assert.match(flat(FIXED), /stays live and appears in `uncoveredQueries`; that is expected/);
+  assert.match(flat(FIXED), /it stays live by rule \(see "A form is never a fixed screen" above\)/);
+  assert.match(
+    flat(PROMPT_STEP),
+    /My booking, order or quote form itself is never one of those fixed screens, even when a chip opens it/
+  );
+});
+
 test("the blocked-store section says exactly what the owner must allow", () => {
   const text = flat(BLOCKED);
   assert.match(text, /answers every non-browser client with 403/);

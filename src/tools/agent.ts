@@ -442,6 +442,10 @@ export function registerAgentTools(server: McpServer, api: ApiClient, app: AppCl
         "that no canned screen answers, every one of them answered live: keep one that way only where a skill covers it on purpose " +
         "or where the chip fires a write tool (an action chip that collects fields and books, orders or sends), and give each of " +
         "the others a fixed screen. " +
+        "A form is never a fixed screen: a screen that collects the visitor's details for a write (a booking, an order, a quote, " +
+        "an enquiry) stays live even when a chip opens it, because a fixed screen replays stored copy and bound rows only and would " +
+        "open blank, while the live agent opens it prefilled with what the visitor already said and, when signed in, who they are; " +
+        "expect that chip in uncoveredQueries. " +
         "Refresh when the home screen's layout changes. Empty {} " +
         "homeScreen via upsert_agent_config clears. Works in flexible (the default) and deterministic modes.",
       inputSchema: {
@@ -491,6 +495,10 @@ export function registerAgentTools(server: McpServer, api: ApiClient, app: AppCl
         "that no canned screen answers, every one of them answered live: keep one that way only where a skill covers it on purpose " +
         "or where the chip fires a write tool (an action chip that collects fields and books, orders or sends), and give each of " +
         "the others a fixed screen. " +
+        "A form is never a fixed screen: a screen that collects the visitor's details for a write (a booking, an order, a quote, " +
+        "an enquiry) stays live even when a chip opens it, because a fixed screen replays stored copy and bound rows only and would " +
+        "open blank, while the live agent opens it prefilled with what the visitor already said and, when signed in, who they are; " +
+        "expect that chip in uncoveredQueries. " +
         "The call REPLACES the whole set, so send every screen worth keeping; max 12 screens, and screens: [] CLEARS them all. " +
         "The server refuses the write (400, with the reason) when a screen id, an entity or a field does not exist, when two match queries " +
         "collide after normalisation, when one collides with the home's, or when the set is over 128 KB. " +
@@ -555,6 +563,10 @@ export function registerAgentTools(server: McpServer, api: ApiClient, app: AppCl
         "Each entry also carries uncoveredQueries: the chip queries on that screen that no canned screen answers, every one of them " +
         "answered live by the agent, so keep one that way only where a skill covers it on purpose or where the chip fires a write " +
         "tool (an action chip that collects fields and books, orders or sends), and give each of the others a fixed screen. " +
+        "A form is never a fixed screen: a screen that collects the visitor's details for a write (a booking, an order, a quote, " +
+        "an enquiry) stays live even when a chip opens it, because a fixed screen replays stored copy and bound rows only and would " +
+        "open blank, while the live agent opens it prefilled with what the visitor already said and, when signed in, who they are; " +
+        "expect that chip in uncoveredQueries. " +
         "When a store answers 403 the store is blocking our fetcher, so tell the owner " +
         "in one sentence to allow requests whose User-Agent contains BranderUX-Connector/1.0 to their API path (on Cloudflare that is a " +
         "WAF skip rule). A report that says unavailable means this check could not run at all; the stored screens are untouched.",

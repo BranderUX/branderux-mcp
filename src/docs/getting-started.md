@@ -41,8 +41,8 @@ answers.
 
 Before designing anything for a business, read `hosted-design-bar` (defaults and
 recommendations: start from the visitor's moment, the home is a question and its answers, one
-screen one job, every chip a verified fixed screen, real data, the business's own art
-direction) and call `list_templates` / `get_template` to read the reference build whose MOMENT
+screen one job, every chip but the form a verified fixed screen, real data, the business's own
+art direction) and call `list_templates` / `get_template` to read the reference build whose MOMENT
 is closest. References are worked examples to adapt for the customer, never kits to copy; the
 owner's instructions always win.
 

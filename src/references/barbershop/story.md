@@ -34,9 +34,11 @@ book a chair and the shop calls you to confirm."
 ## Fixed screens (exact match queries)
 "I need a haircut", "I need beard work", "I want a hot towel shave", "Cut and beard", "A cut
 for my kid" → recommend-and-book (services bound by category, barbers bound); "How long is the
-wait right now" → wait; "I want to book an appointment" → book-appointment (services + barbers
-bound); "Show me the price list", "Who are the barbers?", "What products do you sell?". Home
-bound to opening_hours and barbers.
+wait right now" → wait; "Show me the price list", "Who are the barbers?", "What products do you
+sell?". Home bound to opening_hours and barbers. NOT a fixed screen: "I want to book an
+appointment" → book-appointment stays live, so the agent opens the ticket with the service, the
+barber and the visitor's name already filled in from the conversation; a fixed screen would
+open it blank.
 
 ## Data
 services (11: name, category, price number, durationMinutes, popular, description, sortOrder,
@@ -62,3 +64,4 @@ local stacks), mono tabular numbers, a double-ruled board. A barber-pole mark as
   a shop actually keeps and say what the desk knows.
 - The decision the visitor is making is the home; the catalogue comes after it.
 - Set generic header/image/button off so a tapped service opens the ticket, not a header.
+- The booking ticket is never a fixed screen: a fixed screen cannot prefill it, the agent can.
