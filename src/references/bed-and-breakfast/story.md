@@ -39,8 +39,10 @@ house looks like; a notice and a perk are useful, a photo is decoration.
 "Show me the rooms" → rooms; "What's around here?" plus "Where should we eat?", "A walk from the
 house", "Something with the kids", "A rainy day" → around (all rows bound, activeCategory set);
 "What's for breakfast?", "What are the house rules?", "What can the host arrange?" → house
-(house_info filtered by kind); "I have a request for the host" → request. Custom pages Home /
-Rooms / Around here / The house.
+(house_info filtered by kind). Custom pages Home / Rooms / Around here / The house. NOT a fixed
+screen: "I have a request for the host" → request stays live, so the agent opens the form with
+the room, the dates and the guest's name already filled in from the conversation; a fixed
+screen would open it blank.
 
 ## Data
 rooms (6: name, sleeps, bedType, view, floor, sizeSqm, amenities[], pricePerNight number,
@@ -66,3 +68,4 @@ A roof mark as the logo.
 - Make the home carry something a guest uses today (a notice, a perk), not a hero photo.
 - A greeting computed from the clock is cheap and makes the desk feel staffed.
 - One generic board element plus a `kind` filter binding beats three near-identical elements.
+- The request form is never a fixed screen: a fixed screen cannot prefill it, the agent can.

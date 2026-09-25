@@ -180,7 +180,9 @@ The home of a CHAT WIDGET is the welcome text plus ONE element: the questions th
 business's visitors actually ask, as things they can tap. Every tap sends that item's
 query VERBATIM, which is what lets a stored fixed screen answer it instantly
 (`read_doc hosted-agent-contract` → "The widget home (a default)" and "Fixed screens for
-fixed queries").
+fixed queries"). A chip whose answer is a form (a booking, an order, a quote) has no fixed
+screen behind it: the live agent opens the form prefilled with what the visitor already said
+("A form is never a fixed screen" in the same doc).
 
 This is a complete reference element. It is a STARTING POINT, not a house style: adapt
 the layout to the scraped design and to the business (plain chips, cards, two columns

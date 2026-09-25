@@ -54,9 +54,12 @@ text is never softened, summarized, or de-jargoned.
    nicety, because without it every landing costs a model call and loads slow. Then
    `set_fixed_screens` for the questions this business answers over and over (the menu,
    the price list, opening hours, what is new, a size guide): one designed screen each,
-   replayed instantly on any turn. A chip, a page or a link whose query equals one of
-   those match queries is answered by that screen before any AI runs, so the two wordings
-   must be identical. For a CHAT-WIDGET build with no home instructions from the owner,
+   replayed instantly on any turn, and never the form that collects a visitor's details
+   for a booking, an order or a quote: that screen stays with the live agent, which opens
+   it prefilled (the rule is under "Fixed screens for fixed queries"). A chip, a page or a
+   link whose query equals one of those match queries is answered by that screen before
+   any AI runs, so the two wordings must be identical. For a CHAT-WIDGET build with no
+   home instructions from the owner,
    the home is the welcome text plus a queries list, with fixed screens behind its
    answerable questions. Read the `verification` each write answers with, and run
    `verify_canned_screens` before you publish; both rules, and the coverage that report
@@ -597,6 +600,18 @@ twentieth. The bindings still run live, so a price list is never stale.
   substring match on the FIRST turn is the home's alone. A fixed screen works on every
   turn.
 - `data` is STATIC layout and copy only. Rows arrive through `bindings`, never baked in.
+- **A form is never a fixed screen.** A screen whose job is to collect the visitor's details
+  for a write (a booking, an order, a quote, an enquiry, a demo or consultation request, a
+  request to the host, an eligibility check) stays with the live agent, even when a chip
+  opens it. A fixed screen replays its stored `data` plus its bound rows and never sees the
+  conversation or the signed-in visitor, so it would open blank for someone who already gave
+  their name, the dish or the date. The live agent opens the same form prefilled through its
+  initial-value props (`initialValues`) with everything already known: what the conversation
+  holds and, on a site with sign-in, the visitor's profile. So the chip that opens it ("Book
+  a table", "I want to order", "Get a quote") stays live and appears in `uncoveredQueries`;
+  that is expected. An item-driven variant ("Book the Skin Fade") is a different query and
+  live already. Menus, price lists, product pages, hours, FAQs and calculators stay fixed
+  screens.
 - The call REPLACES the stored set: send every screen worth keeping. `screens: []` clears
   them all.
 - The server refuses the whole write (400, with the reason) when a screen id, an entity
@@ -607,7 +622,9 @@ twentieth. The bindings still run live, so a price list is never stale.
   nor any fixed screen answers. Each of them is answered LIVE by the agent, so keep one
   that way only where a skill covers it on purpose (`list_skills` says which) or where
   the chip fires a write tool (an action chip that collects fields and books, orders or
-  sends), and give each of the others a fixed screen. `list_fixed_screens` reads back
+  sends), and give each of the others a fixed screen. The chip that opens an intake form is
+  one of those write chips: it stays live by rule (see "A form is never a fixed screen"
+  above), so expect it in the list. `list_fixed_screens` reads back
   what is actually stored, so check there instead of recalling what was written.
 - `optional: true` on a binding marks a secondary block: when it errors or returns no
   rows the screen still replays with an empty list there. The primary list of a fixed
@@ -657,7 +674,8 @@ fixed layout.
 - **Behind the list.** Every question the data can answer gets a fixed screen
   (`set_fixed_screens`) whose `matchQuery` is that chip's query VERBATIM. The rest are
   answered live: a skill, the persona, or, for the action chip, the write tool it
-  fires.
+  fires or the form it opens (the agent prefills that form from the conversation; it is
+  never a fixed screen).
 - **The owner's instructions win.** Anything the owner says about the home beats this
   default, in whole or in part. The default is what to do when they said nothing.
 - **Where it does NOT apply**: a hosted full site (the `<slug>.branderux.app` build), and
@@ -671,7 +689,8 @@ fixed layout.
   screens for fixed queries"). Every one of them is answered live, so leave it live only
   where a skill covers it on purpose or where the chip fires a write tool (the action
   chip), and build a fixed screen for each of the rest. A chip that lands on a shrug is
-  worse than no chip.
+  worse than no chip. The action chip that opens a form stays in that list on purpose: a
+  fixed screen cannot prefill it.
 
 The element itself: `read_doc custom-elements-contract` → "Queries list (a widget's
 home)" is a complete reference element with its query templates, and the layout there is

@@ -54,7 +54,8 @@ confirmation. The set that covers most businesses:
 - the answer to the home question (a composed meal, a category of the price list, the rooms,
   the bouquets for an occasion, the shelf for one person),
 - one item (a dish, a room, a bouquet, a product) with its facts and ONE primary action,
-- one intake form carrying every field in its click query,
+- one intake form carrying every field in its click query, opened by the live agent and
+  prefilled with what the visitor already said (never a fixed screen, see 4),
 - one confirmation, rendered ONLY after the write succeeded, showing what was saved and the
   honest next step ("the shop calls to confirm"),
 - the utility screens the data supports (hours, delivery windows, the local guide, a basket).
@@ -63,7 +64,7 @@ Switch the generic header / image / button / table elements off (`update_project
 elementVisibility) so the live agent answers a tapped item with the designed element, never
 with a header and a photo.
 
-## 4. Every chip is a verified fixed screen
+## 4. Every chip but the form is a verified fixed screen
 
 A tile, a chip, a pill or a custom page is a designed screen that replays with no model call
 when its query equals a fixed screen's match query character for character. Store the query
@@ -74,6 +75,16 @@ ALL rows and set the element's active chip instead of filtering when a filter co
 nothing. After publishing, probe: `POST /api/agent/serve {"query": "<the chip's query>",
 "homeDecision": true}` on the site returns 200 when the designed screen replays and 204 when
 the live agent answers.
+
+The one chip that is NOT a fixed screen is the one that opens the intake form ("Book a
+chair", "I want to order", "Get a quote", "Book a demo", "I have a request for the host"). A
+fixed screen replays its stored copy and its bound rows only; it never sees the conversation
+or the signed-in visitor, so it would open blank for someone who already gave their name, the
+dish or the date. Keep that chip live: the agent opens the same form prefilled (its
+initial-value props) with everything already known, from the conversation and, on a site with
+sign-in, from the visitor's profile. The verification lists that chip under
+`uncoveredQueries`, which is expected. Menus, price lists, product pages, hours and
+calculators stay fixed screens.
 
 ## 5. Real data, honest numbers
 

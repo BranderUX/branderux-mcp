@@ -40,9 +40,11 @@ Generic header / image / button / table elements are switched off (elementVisibi
 live agent never describes a dish with a header and a photo.
 
 ## Fixed screens (exact match queries)
-Six moods → meal, "Show me the full menu" → menu, "I want to order" → order. Custom pages:
-Tonight / Menu / Order. Home "Show me the home page". Every binding returns rows in the
-verification; a binding with zero rows would make its screen fall through to the live agent.
+Six moods → meal, "Show me the full menu" → menu. NOT a fixed screen: "I want to order" → order
+stays live, so the kitchen ticket opens prefilled with the dishes and the table from the
+conversation; a fixed screen would open it blank. Custom pages: Tonight / Menu / Order. Home
+"Show me the home page". Every binding returns rows in the verification; a binding with zero
+rows would make its screen fall through to the live agent.
 
 ## Data
 menu_items (40 rows, public-read: name, categoryKey, price as a number, tags, allergens,
@@ -69,3 +71,4 @@ zigzag edge for the order. A "B" roundel as the logo mark (inline SVG data URL a
 - Probe each fixed query on the published site: POST /api/agent/serve {query, homeDecision:
   true}; 200 = the designed screen replays, 204 = the live agent answers.
 - The confirmation is the whole answer after a successful write, never a speculative next step.
+- The order ticket is never a fixed screen: a fixed screen cannot prefill it, the agent can.
