@@ -1,14 +1,16 @@
 // Guards the plain-website widget's prose surfaces — the `widget` entry of
 // SNIPPETS (the one script line an owner pastes into Wix, WordPress, Shopify,
 // Squarespace or static HTML), get_integration_snippet's description and the
-// hosted-agent-contract doc's closing step — against drift. The line is
+// hosted-agent-contract doc's widget step (step 7) — against drift. The line is
 // `<script src="https://branderux.com/widget/v1.js" data-key="…" data-preload="eager" async>`; the
 // key's origin allow-list must carry the site's EXACT origin (the loader
 // exchanges the key from the owner's page and any other origin is refused),
 // the two brand attributes ride as commented options, own buttons open it via
 // data-brander-open, and a React/Next app mounts the SDK instead. The arc's
-// closing step sends plain sites to target `widget` with the key allow-listed
+// widget step sends plain sites to target `widget` with the key allow-listed
 // through set_key_origins, and says nothing when there is no existing site.
+// Step 8 (the WhatsApp offer) follows it and has its own guard
+// (whatsapp-contract.test.mjs), so the slice here stops where step 8 starts.
 // Dependency-free (node:test), like its sibling.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -51,14 +53,14 @@ function describeText() {
   return flat([...knowledge.slice(start, end).matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join(""));
 }
 
-/** Step 7 of THE HOSTED BUILD ARC — the closing step after publish_site + WRAP-UP. */
-function docClosingStep() {
+/** Step 7 of THE HOSTED BUILD ARC: the widget step after publish_site + WRAP-UP, up to step 8. */
+function docWidgetStep() {
   const wrapUp = doc.indexOf("**WRAP-UP");
   assert.notEqual(wrapUp, -1, "the doc has the WRAP-UP");
   const start = doc.indexOf("\n7. **", wrapUp);
   assert.notEqual(start, -1, "the arc has a step 7 after the WRAP-UP");
   const rest = doc.slice(start + 1);
-  const end = rest.search(/\n\n/);
+  const end = rest.search(/\n\n|\n8\. /);
   return flat(rest.slice(0, end === -1 ? undefined : end));
 }
 
@@ -127,8 +129,9 @@ test("get_integration_snippet describe(): names the widget as the plain-website 
   assert.match(text, /a React\/Next app mounts the SDK instead/);
 });
 
-test("contract doc closing step: plain sites → target widget with the key allow-listed through set_key_origins; React/Next → the SDK; no site → say nothing", () => {
-  const text = docClosingStep();
+test("contract doc widget step (7): plain sites → target widget with the key allow-listed through set_key_origins; React/Next → the SDK; no site → say nothing", () => {
+  const text = docWidgetStep();
+  assert.doesNotMatch(text, /get_whatsapp_status/, "the slice ends where step 8 begins");
   assert.match(text, /`get_integration_snippet` target `widget`/);
   assert.match(text, /`set_key_origins`/);
   assert.match(text, /Wix, WordPress, Shopify, Squarespace, static HTML/);

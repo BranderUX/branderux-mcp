@@ -1,4 +1,5 @@
 import { ApiError } from "../api-client.js";
+import { AppError } from "../app-client.js";
 
 type ToolResult = {
   content: { type: "text"; text: string }[];
@@ -28,7 +29,11 @@ export function fail(message: string): ToolResult {
   return { content: [{ type: "text", text: message }], isError: true };
 }
 
-/** Wrap a tool handler: API errors become readable tool errors, never crashes. */
+/**
+ * Wrap a tool handler: API errors (Spring's, and the web app's, which both
+ * clients word the same way: "METHOD path → status: detail") become readable
+ * tool errors, never crashes.
+ */
 export function guarded<A extends unknown[]>(
   handler: (...args: A) => Promise<ToolResult>
 ): (...args: A) => Promise<ToolResult> {
@@ -36,7 +41,7 @@ export function guarded<A extends unknown[]>(
     try {
       return await handler(...args);
     } catch (error) {
-      if (error instanceof ApiError) {
+      if (error instanceof ApiError || error instanceof AppError) {
         return fail(error.message);
       }
       return fail(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);

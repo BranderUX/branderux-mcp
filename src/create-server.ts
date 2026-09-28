@@ -12,34 +12,44 @@ import { registerScreenTools } from "./tools/screens.js";
 import { registerElementTools } from "./tools/elements.js";
 import { registerKeyTools } from "./tools/keys.js";
 import { registerAgentTools } from "./tools/agent.js";
+import { registerWhatsAppTools } from "./tools/whatsapp.js";
 
-const INSTRUCTIONS = `BranderUX turns an AI agent's answers into branded, interactive UI.
+/**
+ * The server's instructions. Claude Code shows a server's instructions up to
+ * INSTRUCTIONS_WINDOW characters and cuts the rest, so everything here must fit
+ * in it (test/server-instructions.test.mjs): a rule past the window never
+ * reaches the model. Details belong in the docs and the tool descriptions.
+ */
+export const INSTRUCTIONS_WINDOW = 2048;
 
-Two families of tools:
-• KNOWLEDGE (no scopes needed) — get_started, read_doc, search_docs, get_integration_snippet, list_templates, get_template (the five reference builds as worked examples: read the closest MOMENT, adapt for the customer, never copy).
-  Start with get_started. Read the relevant doc BEFORE writing element code or screens;
-  both have exact wire formats that fail silently when guessed.
-• CONTROL — projects, brand settings, custom elements, screens and API keys for the
-  signed-in user. Destructive tools require confirm: true; ask the user first.
-• generate_screen — renders a branded, interactive screen in the panel. Pass
-  projectId to use a real project's brand + custom elements; omit it for the
-  playground (demo brand) when nothing exists yet. SHOW, don't describe.
+export const INSTRUCTIONS = `BranderUX turns an AI agent's answers into branded, interactive UI.
+
+• KNOWLEDGE (no scopes needed) — get_started, read_doc, search_docs, get_integration_snippet,
+list_templates, get_template (reference builds: adapt the closest MOMENT, never copy).
+Start with get_started; read the relevant doc BEFORE writing element code or screens
+(guessed wire formats fail silently).
+• CONTROL — the signed-in user's projects, brand settings, custom elements, screens and API
+keys. Destructive tools need confirm: true; ask the user first.
+• generate_screen — renders a branded screen in the panel (with projectId: a real project's
+brand + custom elements; without: the playground, only when nothing exists yet). SHOW,
+don't describe.
 
 Two audiences, don't confuse them: these tools let YOU build BranderUX projects; the
-customer's own agent renders branded screens via @brander/sdk (see the agent-frameworks
-doc) or @brander/mcp-tools if their product is itself an MCP server.
+customer's own agent renders branded screens via @brander/sdk (agent-frameworks doc) or
+@brander/mcp-tools if their product is an MCP server.
 
-Building for a business with NO AI of its own = a BranderUX-HOSTED agent: read
+For a business with NO AI of its own, build a BranderUX-HOSTED agent: read
 hosted-agent-contract FIRST and follow THE HOSTED BUILD ARC — mandatory owner questions
-(login, access follow-up, handoff email, escalation timing, write consent; never ask about answer
-quality or which AI model to use — the balanced default is right; change the stop only when
-the owner asks, never naming a model, a vendor or a price), write wiring,
-set_home_screen, then publish_site immediately as the last build step (don't wait to be
-asked). Publishing yields the site AND an identity-free MCP endpoint at <slug>.branderux.app/mcp
-(reads plus the owner's enabled add-only writes; not public when sign-in is required).
-An owner's own AI-provider key is never handled in chat: never ask for, read or echo one — it goes
-in ONLY through the "Your API key" card under Advanced in the Agent tab's Answer quality panel (or the in-app Builder's request_credential
-tool named model-<provider>).`;
+(login, access follow-up, handoff email, escalation timing, write consent; never ask about
+answer quality or the AI model — the balanced default is right; change it only when the
+owner asks, naming no model, vendor or price), write wiring, set_home_screen, then
+publish_site immediately as the last build step (don't wait to be asked). Publishing also
+yields an identity-free MCP endpoint at <slug>.branderux.app/mcp (reads + the owner's
+enabled add-only writes; not public if sign-in is required).
+An owner's AI-provider key stays out of chat: never ask for, read or echo one; it goes in
+ONLY through the "Your API key" card under Advanced in the Agent tab's Answer quality panel
+(or the in-app Builder's request_credential tool named model-<provider>).
+Last, if get_whatsapp_status allows and the business's customers use WhatsApp, offer it once (read_doc whatsapp-channel); to connect it, never ask for a phone number or a token.`;
 
 /**
  * One stateless MCP server per request, bound to the caller's agent bearer.
@@ -59,7 +69,8 @@ export async function createServer(apiTokenProvider: () => Promise<string>): Pro
 
   const api = createApiClient(apiTokenProvider);
   // The web app runs the serve network: canned-screen verification only means
-  // something when the fetch is made the way serving makes it.
+  // something when the fetch is made the way serving makes it. It alone also
+  // knows whether it has WhatsApp for owners (get_whatsapp_status).
   const app = createAppClient(apiTokenProvider);
 
   registerKnowledgeTools(server);
@@ -72,6 +83,7 @@ export async function createServer(apiTokenProvider: () => Promise<string>): Pro
   registerElementTools(server, api);
   registerKeyTools(server, api);
   registerAgentTools(server, api, app);
+  registerWhatsAppTools(server, api, app);
   await registerPlayground(server);
   registerGenerateScreen(server, api);
 

@@ -63,6 +63,14 @@ zero model cost per visit.
 **Publish**: `publish_site` · `get_site`, one call and the full application is live:
 a website for people, an MCP app for AI agents.
 
+**WhatsApp**: `get_whatsapp_status` · `publish_whatsapp_forms` · `set_whatsapp_titles`,
+the same hosted agent answering on the business's own WhatsApp number (the owner connects
+it from the Agent tab): read the channel's status, republish its forms after a writable
+entity is added or changes (never out of habit: a republished form retires the version
+customers already received), and give the home's chips short WhatsApp titles. The status
+reports WhatsApp available only where both the API and the web app have it on, so this
+server offers it exactly where the in-app Builder does.
+
 **Playground** (no project needed): `generate_screen`, renders a real branded,
 interactive screen in the panel with demo data, powered by the same published
 `@brander/mcp-tools` package customers install. Ask for a storefront, analytics
@@ -80,6 +88,7 @@ BRANDER_API_BASE=http://localhost:8080/api/v1 npm run dev   # http://localhost:3
 | Env | Default | Purpose |
 |---|---|---|
 | `BRANDER_API_BASE` | `http://localhost:8080/api/v1` | BranderUX API base |
+| `BRANDER_APP_BASE` | from `BRANDER_API_BASE`: `https://dev.branderux.com` for `api-dev`, `https://branderux.com` for `api`, else `http://localhost:3000` | The BranderUX web app: playground links, canned-screen verification, and its own WhatsApp switch (`GET /api/whatsapp/availability`). Use the host that serves the app itself: the switch is read without following redirects, and a redirect, like an app without the route, reads as WhatsApp off |
 | `MCP_RESOURCE_URL` | `http://localhost:3010` | Public URL of this server (OAuth resource id) |
 | `OAUTH_ISSUER_URL` | = `BRANDER_API_BASE` | Authorization server issuer |
 
