@@ -10,7 +10,10 @@ here explain behaviors you will observe).
 - Global rate limit: **100 requests/min** per user. 429 responses carry Retry-After —
   pace bulk seeding (a 40-write seed fits comfortably; add small delays if batching more).
 - **204 = not found** on reads (the API's convention), surfaced by tools as "not found".
-- Ownership is strict: only the project OWNER can manage API keys; collaborators get 403.
+- Access: the owner and the managers the owner added can do everything below, API keys
+  included; deleting the project, handing it over and managing members are owner-only (403
+  otherwise). Invitations and handovers are sent from the app's project settings, not from
+  the MCP.
 
 ## Resource model
 

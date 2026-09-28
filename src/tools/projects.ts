@@ -51,21 +51,58 @@ const projectSummary = {
   name: z.string(),
 };
 
+/** whoami's row: the summary plus the caller's role, and the owner on a manager's row. */
+const projectRoleSummary = {
+  ...projectSummary,
+  role: z.string().describe("owner or manager"),
+  owner: z.string().optional().describe("The owner's name (else email); only on a manager's row."),
+};
+
+/**
+ * A `/projects` row as the server lists it: the projects the caller owns OR
+ * manages, each with the caller's role beside the owner's identity.
+ */
+type ProjectRow = {
+  id: string;
+  name: string;
+  myRole?: string | null;
+  ownerDisplayName?: string | null;
+  ownerEmail?: string | null;
+};
+
+/**
+ * A row from before roles shipped names no role and is the caller's own. A
+ * manager's row names the owner (display name, else email; a blank name falls
+ * through to the email) so the agent can say whose project it is building in.
+ */
+function projectRole(row: ProjectRow): z.infer<z.ZodObject<typeof projectRoleSummary>> {
+  const role = typeof row.myRole === "string" && row.myRole ? row.myRole : "owner";
+  const owner = nonBlank(row.ownerDisplayName) ?? nonBlank(row.ownerEmail);
+  return { id: row.id, name: row.name, role, ...(role === "manager" && owner ? { owner } : {}) };
+}
+
+function nonBlank(value: unknown): string | undefined {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return trimmed || undefined;
+}
+
 export function registerProjectTools(server: McpServer, api: ApiClient): void {
   server.registerTool(
     "whoami",
     {
       title: "Who am I",
       description:
-        "Who is authenticated, and their projects. Call this first to orient yourself. " +
+        "Who is authenticated, and the projects they own or manage: each row carries `role` (owner or manager), and a manager's row names the `owner`. " +
+        "Call this first to orient yourself. " +
         "It also reports `dpaAccepted`: whether this account has accepted the data-processing engagement, " +
-        "which is what lets us handle their visitors' data on their behalf. When it is false, ask the owner " +
+        "which is what lets us handle their visitors' data on their behalf (for a project the account only manages, " +
+        "the owner's acceptance is what counts, and publish_site reports it). When it is false, ask the owner " +
         `to open ${DPA_ACCEPT_URL} (dpaAcceptUrl) and accept it, one click, at a natural moment in the build. ` +
         "It never blocks anything: no build step and no publish waits on it.",
       inputSchema: {},
       outputSchema: {
         user: z.object({}).passthrough(),
-        projects: z.array(z.object(projectSummary).passthrough()),
+        projects: z.array(z.object(projectRoleSummary).passthrough()),
         dpaAccepted: z.boolean(),
         dpaAcceptUrl: z.string(),
       },
@@ -73,10 +110,10 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
     },
     guarded(async () => {
       const me = await api.get<Record<string, unknown>>("/auth/me");
-      const projects = await api.get<{ id: string; name: string }[]>("/projects");
+      const projects = await api.get<ProjectRow[]>("/projects");
       const payload = {
         user: me ?? {},
-        projects: (projects ?? []).map((p) => ({ id: p.id, name: p.name })),
+        projects: (projects ?? []).map(projectRole),
         // Accounts from before the engagement existed count as accepted: they
         // signed up under the previous terms and are never asked here.
         dpaAccepted: hasAcceptedDpa(me),
@@ -90,7 +127,10 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
     "list_projects",
     {
       title: "List projects",
-      description: "List the user's BranderUX projects.",
+      description:
+        "List the projects the user owns or manages. Each row carries `myRole` (owner or manager) and the owner's name and email; " +
+        "managers can build, publish and manage API keys, but only the owner can delete the project, hand it over or add members " +
+        "(done in the app's project settings).",
       inputSchema: {},
       outputSchema: { projects: z.array(z.object(projectSummary).passthrough()) },
       annotations: READ_ONLY,

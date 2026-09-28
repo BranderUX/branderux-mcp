@@ -26,8 +26,9 @@ your access opens. While you wait: try a live BranderUX-built app at
 **Knowledge** (no scopes needed, signing in is still required to reach the server):
 `get_started` · `read_doc` · `search_docs` · `get_integration_snippet`
 
-**Projects** (`projects:*`): `whoami` · `list_projects` · `get_project` ·
-`create_project` · `update_brand_settings` · `update_project_settings` · `delete_project`
+**Projects** (`projects:*`), for the signed-in user (projects they own or manage): `whoami` ·
+`list_projects` · `get_project` · `create_project` · `update_brand_settings` ·
+`update_project_settings` · `delete_project`
 
 **Screens** (`projects:write`): `list_screens` · `get_screen` · `put_screen` ·
 `delete_screen`, reads fetch the project aggregate; writes are atomic per-screen
