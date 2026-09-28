@@ -33,14 +33,35 @@ const REQUIRED_FROM = Date.UTC(2026, 8, 11);
  */
 export function hasAcceptedDpa(me: unknown): boolean {
   if (!isPlainObject(me)) return false;
-  const accepted = me.dpaAccepted;
-  // The wire shape is {version, at}; a flattened boolean (this server's own
-  // whoami output, read back) counts too.
-  if (accepted === true || isPlainObject(accepted)) return true;
-  const createdAt = me.createdAt;
+  return acceptedOrGrandfathered(me.dpaAccepted, me.createdAt);
+}
+
+/**
+ * The ONE rule, for whichever account the question is about: accepted, or
+ * created before the engagement existed. The caller's own account pairs
+ * `dpaAccepted` with `createdAt` (both on `/auth/me`); the OWNER of a project
+ * the caller manages pairs `ownerDpaAccepted` with `ownerCreatedAt` (both on
+ * `GET /projects/{id}`), serialized the same way, so the same UTC reading
+ * applies. A missing or unreadable creation time judges the acceptance alone:
+ * not accepted, so the one sentence asking for it, never a blocked build.
+ */
+export function acceptedOrGrandfathered(acceptance: unknown, createdAt: unknown): boolean {
+  if (isDpaAccepted(acceptance)) return true;
   if (typeof createdAt !== "string") return false;
   const created = Date.parse(asUtc(createdAt));
   return Number.isFinite(created) && created < REQUIRED_FROM;
+}
+
+/**
+ * The acceptance value itself, as the API reports it: `{version, at}` (the
+ * account's own, on `/auth/me`) or `{version, acceptedAt}` (the OWNER's, as
+ * `ownerDpaAccepted` on a project the caller manages) once accepted, `null`
+ * until then. Any accepted version counts; a flattened `true` (this server's
+ * own whoami output, read back) counts too. This is the click alone; the
+ * account-age half of the rule lives in `acceptedOrGrandfathered`.
+ */
+export function isDpaAccepted(acceptance: unknown): boolean {
+  return acceptance === true || isPlainObject(acceptance);
 }
 
 /**

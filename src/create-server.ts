@@ -20,7 +20,8 @@ Two families of tools:
   Start with get_started. Read the relevant doc BEFORE writing element code or screens;
   both have exact wire formats that fail silently when guessed.
 • CONTROL — projects, brand settings, custom elements, screens and API keys for the
-  signed-in user. Destructive tools require confirm: true; ask the user first.
+  signed-in user (projects they own or manage). Destructive tools require confirm: true;
+  ask the user first.
 • generate_screen — renders a branded, interactive screen in the panel. Pass
   projectId to use a real project's brand + custom elements; omit it for the
   playground (demo brand) when nothing exists yet. SHOW, don't describe.

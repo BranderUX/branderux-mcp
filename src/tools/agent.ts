@@ -4,7 +4,7 @@ import type { ApiClient } from "../api-client.js";
 import type { AppClient } from "../app-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
 import { contactFields, contactRecordsNotice } from "../lib/contact-fields.js";
-import { DPA_PUBLISH_NOTE, hasAcceptedDpa } from "../lib/dpa.js";
+import { DPA_PUBLISH_NOTE, acceptedOrGrandfathered, hasAcceptedDpa } from "../lib/dpa.js";
 import { normalizeBindingFilters } from "../lib/binding-filters.js";
 import { isPlainObject, mergePolicyBag } from "../lib/policy-bag.js";
 import { ORDER_TAKING_NOTE, pricedRequestEntities } from "../lib/priced-orders.js";
@@ -786,21 +786,43 @@ export function registerAgentTools(server: McpServer, api: ApiClient, app: AppCl
  * verification adds its own lines to the same channel at the call site, on the
  * same best-effort terms.
  *
- * BEST EFFORT by design: both reads follow a publish that already succeeded,
+ * BEST EFFORT by design: every read follows a publish that already succeeded,
  * so a failing (or absent) lookup degrades to no note, never to a failed
- * publish, and the site never waits on either. An account we could not read at
- * all earns no engagement note: we ask only where we positively know it is
- * unaccepted.
+ * publish, and the site never waits on any of them. An account we could not
+ * read at all earns no engagement note: we ask only where we positively know
+ * it is unaccepted.
  */
 async function publishNotes(api: ApiClient, projectId: string): Promise<string[]> {
   const notes: string[] = [];
-  const me = await api.get<Record<string, unknown>>("/auth/me").catch(() => null);
-  if (me && !hasAcceptedDpa(me)) notes.push(DPA_PUBLISH_NOTE);
+  if (!(await dpaAcceptedFor(api, projectId))) notes.push(DPA_PUBLISH_NOTE);
   const entities = await api
     .get<Record<string, unknown>[]>(`/projects/${encodeURIComponent(projectId)}/entities`)
     .catch(() => null);
   if (pricedRequestEntities(entities).length > 0) notes.push(ORDER_TAKING_NOTE);
   return notes;
+}
+
+/**
+ * Whose acceptance the engagement note judges. A project the caller only
+ * MANAGES is the owner's: the owner's acceptance is what makes our handling of
+ * its visitors' data lawful, and the server reports it as `ownerDpaAccepted`
+ * (with the owner's account age as `ownerCreatedAt`, so an owner from before
+ * the engagement is grandfathered exactly like a caller is) beside `myRole` on
+ * the project, so the note follows the owner even when the manager's own
+ * account never accepted (the note's "ask the owner" is literal there). Every
+ * other case, the caller's own project or a project we could not read, keeps
+ * judging the caller's account exactly as before roles existed. An unreadable
+ * account reads as accepted here (no note), per the rule above.
+ */
+async function dpaAcceptedFor(api: ApiClient, projectId: string): Promise<boolean> {
+  const project = await api
+    .get<Record<string, unknown>>(`/projects/${encodeURIComponent(projectId)}`)
+    .catch(() => null);
+  if (isPlainObject(project) && project.myRole === "manager") {
+    return acceptedOrGrandfathered(project.ownerDpaAccepted, project.ownerCreatedAt);
+  }
+  const me = await api.get<Record<string, unknown>>("/auth/me").catch(() => null);
+  return !me || hasAcceptedDpa(me);
 }
 
 /**
