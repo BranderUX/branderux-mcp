@@ -129,8 +129,8 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
       title: "List projects",
       description:
         "List the projects the user owns or manages. Each row carries `myRole` (owner or manager) and the owner's name and email; " +
-        "managers can build, publish and manage API keys, but only the owner can delete the project, hand it over or add members " +
-        "(done in the app's project settings).",
+        "managers can build, publish, manage API keys and hand the project over to a new owner, but only the owner can delete the project " +
+        "or add and remove managers (done in the app's project settings).",
       inputSchema: {},
       outputSchema: { projects: z.array(z.object(projectSummary).passthrough()) },
       annotations: READ_ONLY,

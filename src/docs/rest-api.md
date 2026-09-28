@@ -11,9 +11,9 @@ here explain behaviors you will observe).
   pace bulk seeding (a 40-write seed fits comfortably; add small delays if batching more).
 - **204 = not found** on reads (the API's convention), surfaced by tools as "not found".
 - Access: the owner and the managers the owner added can do everything below, API keys
-  included; deleting the project, handing it over and managing members are owner-only (403
-  otherwise). Invitations and handovers are sent from the app's project settings, not from
-  the MCP.
+  included, and any of them can hand the project over to a new owner from the app's project
+  settings; deleting the project and adding or removing managers are owner-only (403
+  otherwise). Invitations are never sent from the MCP.
 
 ## Resource model
 

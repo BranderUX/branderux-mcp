@@ -146,8 +146,8 @@ test("list_projects' description names managers, what they may do, and what stay
   assert.match(description, /^List the projects the user owns or manages\./);
   assert.match(description, /`myRole` \(owner or manager\)/);
   assert.match(description, /owner's name and email/);
-  assert.match(description, /managers can build, publish and manage API keys/);
-  assert.match(description, /only the owner can delete the project, hand it over or add members/);
+  assert.match(description, /managers can build, publish, manage API keys and hand the project over to a new owner/);
+  assert.match(description, /only the owner can delete the project or add and remove managers/);
   assert.match(description, /app's project settings/);
 });
 
