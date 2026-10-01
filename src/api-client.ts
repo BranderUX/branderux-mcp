@@ -40,7 +40,14 @@ export function createApiClient(tokenProvider: () => Promise<string>) {
       let detail = body.slice(0, 500);
       try {
         const parsed = JSON.parse(body);
-        detail = parsed.error_description || parsed.error || parsed.message || detail;
+        // Spring's global error body is {timestamp, status, error: "Bad Request", message}:
+        // its `error` is only the status phrase and the real reason is `message`.
+        // The owner-data endpoints answer {error: "<sentence>"}, which `error` carries.
+        const springMessage =
+          typeof parsed.status === "number" && typeof parsed.message === "string" && parsed.message
+            ? parsed.message
+            : null;
+        detail = parsed.error_description || springMessage || parsed.error || parsed.message || detail;
       } catch {
         /* keep raw text */
       }

@@ -24,7 +24,12 @@ your access opens. While you wait: try a live BranderUX-built app at
 ## Tools
 
 **Knowledge** (no scopes needed, signing in is still required to reach the server):
-`get_started` · `read_doc` · `search_docs` · `get_integration_snippet`
+`get_started` · `read_doc` · `search_docs` · `get_integration_snippet` · `list_templates` ·
+`get_template`. The `widget` snippet of `get_integration_snippet` is the one-line script tag for a
+plain website (Wix, WordPress, Shopify, static HTML), carrying `data-preload="eager"` and
+`data-conversions="on"` (new leads, bookings, orders and requests are reported to the tags already
+on the site). `list_templates` and `get_template` read the five reference builds as worked
+examples to adapt, never to copy.
 
 **Projects** (`projects:*`), for the signed-in user (projects they own or manage): `whoami` ·
 `list_projects` · `get_project` · `create_project` · `update_brand_settings` ·
@@ -52,14 +57,29 @@ answer quality and budgets.
 `update_record` · `list_entity_records`, managed records or live store/API feeds; every entity
 becomes a query tool for the agent (add-only writes by default).
 
+**Owner data** (`projects:read` to read, `projects:write` to change): `query_records` ·
+`aggregate_records` · `get_record` · `list_conversations` · `aggregate_conversations` ·
+`get_conversation` · `list_visitors` · `get_stats` · `update_record_workflow` · `correct_record` ·
+`add_record` · `record_opt_out` · `delete_record` · `reply_links` · `get_crm_status` ·
+`send_record_to_crm`, the owner's own AI reads the leads, bookings, orders and requests the hosted
+agent collects, with its conversations, signed-in visitors and numbers, and works them one record
+at a time: every change is logged on the record (a delete erases the record with its log), visitor
+text comes back marked as data, nothing is sent to a customer (`reply_links` prepares a draft the
+owner sends), and where customer data goes stays the owner's or a manager's choice in the app.
+The `review-my-week` prompt goes through the owner's week or month with these tools. The docs:
+`read_doc owner-data`.
+
 **Connectors**: `set_connector_credential` · `probe_api`, vaulted credentials and a
 probe so tools are wired against the real API shape.
 
 **Skills**: `upsert_skill` · `list_skills` · `delete_skill`, SKILL.md behavior packs
 that ride every conversation.
 
-**Home screen**: `set_home_screen`, a designed first paint with live data bindings,
-zero model cost per visit.
+**Home and fixed screens**: `set_home_screen` · `set_fixed_screens` · `list_fixed_screens` ·
+`verify_canned_screens`, a designed first paint and designed answers to the business's recurring
+questions, each replayed with live data bindings at zero model cost per visit;
+`verify_canned_screens` runs every binding the way serving does, so a screen is proven to replay
+before `publish_site`.
 
 **Publish**: `publish_site` · `get_site`, one call and the full application is live:
 a website for people, an MCP app for AI agents.
@@ -81,6 +101,7 @@ BRANDER_API_BASE=http://localhost:8080/api/v1 npm run dev   # http://localhost:3
 | Env | Default | Purpose |
 |---|---|---|
 | `BRANDER_API_BASE` | `http://localhost:8080/api/v1` | BranderUX API base |
+| `BRANDER_APP_BASE` | from `BRANDER_API_BASE`: `https://dev.branderux.com` for `api-dev`, `https://branderux.com` for `api`, else `http://localhost:3000` | The BranderUX web app: playground links, canned-screen verification and `query_records` on a live catalog |
 | `MCP_RESOURCE_URL` | `http://localhost:3010` | Public URL of this server (OAuth resource id) |
 | `OAUTH_ISSUER_URL` | = `BRANDER_API_BASE` | Authorization server issuer |
 

@@ -43,8 +43,9 @@ text is never softened, summarized, or de-jargoned.
    ∥ `define_entity` (with the right `writePolicy`!) → `seed_records` (or live sources).
 3. `upsert_agent_config` — persona + policies encoding the answers, ALWAYS including
    `policies.language` (the site's language) and `policies.timezone` (IANA zone) — both in
-   EVERY hosted build, see Agent config; `upsert_skill` for real domain knowledge. Do NOT
-   ask about the model: the default is silent — set `model` only if the owner raises it.
+   EVERY hosted build, see Agent config; `upsert_skill` for real domain knowledge. Never
+   ask about answer quality or which AI model to use: the balanced default is right; change
+   the stop (`level`) only when the owner asks, never naming a model, a vendor or a price.
    ASK the owner here for `policies.legalName` (the registered business name) and
    `policies.noticeContact` (one email or phone for privacy requests) and store their
    answers: the site's privacy notice shows both, so neither is ever scraped or guessed.
@@ -86,8 +87,8 @@ text is never softened, summarized, or de-jargoned.
    "optional", what the address can do: look-up always; and, when this build enabled
    writes (an `open` entity whose `create_` tool is not set `off`, or a stored handoff
    email), placing requests, orders and bookings too — the assistant asks the person for
-   approval, then the record lands in the owner's Data pane as an anonymous row or the
-   request reaches their inbox; with no writes enabled, say it is look-up only and orders,
+   approval, then the record lands in the owner's Inbox as an anonymous record or the
+   request reaches the owner by email; with no writes enabled, say it is look-up only and orders,
    bookings and requests happen on the site itself; (d) two or three concrete things to try
    first ("ask it what's in stock today", "ask it about delivery times", "ask it when
    you're open" — and, only when writes are enabled, "ask it to book a table for two").
@@ -104,7 +105,8 @@ text is never softened, summarized, or de-jargoned.
    does not merge — keep every origin that must stay), fill `data-color` from the brand's
    primary color and `data-icon` with `https://<slug>.branderux.app/brand-icon`, keep
    `data-preload="eager"` (the designed home replays with no model call, so the background
-   load costs nothing and the chat opens instantly), and tell
+   load costs nothing and the chat opens instantly) and `data-conversions="on"` (each new
+   lead, booking, order or request is reported to the tags already on the site), and tell
    the owner where to paste the one line (Wix: Settings → Custom Code, Premium plan with
    a connected domain; WordPress: the theme's custom code, a headers-and-footers plugin
    or a Custom HTML block; Shopify: theme.liquid before `</body>`; anything else: before
@@ -302,7 +304,7 @@ key are billed by that provider to the owner.
     are readable by EVERY visitor — keep personal data off them). Writes:
     open writes stamp the signed visitor's identity when one is present, so
     that visitor reads their own rows back; ANONYMOUS open rows have no owner
-    and are visible to the owner only (`list_entity_records` / Data pane).
+    and are visible to the owner only (`list_entity_records` / the Agent tab's Inbox).
   - `owner-only` — internal; NEVER served, invisible to the runtime.
 - `writePolicy`:
   - `none` (default) — read-only entity, no write tools.
@@ -329,7 +331,7 @@ key are billed by that provider to the owner.
   `policies.writePolicies` sets it `off` (`update_<entity>` only on its
   explicit opt-in; `confirm` and `auto` both mount there because the MCP
   client's own approval prompt IS the confirmation: no Confirm card, the write
-  executes directly and lands as an ANONYMOUS row in the Data pane) — and
+  executes directly and lands as an ANONYMOUS record in the owner's Inbox) — and
   `escalate_to_owner` when a handoff email is stored. Never `rest_*` or
   connected-app writes; `end-user-owned` entities never mount there (that
   transport has no sign-in), and under `loginRequirement` "required" /
@@ -338,8 +340,16 @@ key are billed by that provider to the owner.
   connecting an MCP client to that URL tells you nothing about whether
   `create_<entity>` is mounted on the site's own agent. Verify a SITE write by
   submitting the form on the site itself and checking `list_entity_records` /
-  the Agent tab's Data pane. Set that expectation before the owner tests a
+  the Agent tab's Inbox. Set that expectation before the owner tests a
   write flow.
+- `kind` (optional): what a collected (visitor-writable) entity holds; it sets the statuses
+  the owner works it with in the Inbox (a lead is won or lost, a booking done or a no-show).
+  Set kind on every visitor-writable entity: booking for appointments, reservations and
+  slots; order for purchases; request for quotes, service or support requests; lead for
+  contact and enquiry forms. Without it the platform infers one from the schema.
+- **The owner's CRM**: For HubSpot, monday CRM, Fireberry or Google Sheets, never mount CRM
+  write tools or store a CRM customWrites entry: the owner connects the CRM in the Agent tab
+  (Inbox → Your CRM). A second path would send every lead there twice.
 - **Collecting contact details (phone, email)** — two rules every intake entity
   (bookings, orders, enquiries, waitlists, newsletter signups) follows:
   - **Say where it goes BEFORE collecting.** The live agent tells the visitor, in the
@@ -405,11 +415,12 @@ Per-tool modes ride `policies.writePolicies`, keyed by the LITERAL tool name:
 `create_*` defaults to confirm; `update_*` stays unmounted unless you store its key (only
 after the owner approved editing with the verbatim warning; if you told the owner the write
 is add-only, store nothing for `update_*`). Where confirm-mode writes complete: the published `{slug}.branderux.app` site and the
-widget or SDK embed on the customer's own domain alike, since 2026-09-17 (the confirm
+widget or SDK embed on the customer's own domain alike (the confirm
 card posts with the embed's key and the proposal's session key, so no write needs `auto`
-to work in a widget). The owner sees incoming rows in the app's Agent tab →
-**Data** pane (a live records browser), via `list_entity_records` here, and in their inbox
-when escalation is configured — never tell an owner their orders are invisible.
+to work in a widget). The owner sees incoming records in the app's Agent tab → **Inbox**,
+via `list_entity_records` here, and by email: an alert for each new record (on by default,
+set in Inbox settings), plus the escalation email when one is configured. Never tell an
+owner their orders are invisible.
 
 ## Records (`seed_records`)
 
@@ -695,3 +706,10 @@ fixed layout.
 The element itself: `read_doc custom-elements-contract` → "Queries list (a widget's
 home)" is a complete reference element with its query templates, and the layout there is
 a starting point, not a house style to copy.
+
+## After launch: the owner's data
+
+Records a hosted agent collects land in the owner's Inbox in the Agent tab, with a status, the
+agent's one-line summary and where the visitor came from. The owner's own AI client reads and
+works them with the owner-data tools, which the in-app Builder does not have. Read read_doc
+"owner-data" for the tools, the query model and what an AI client may and may not change.
