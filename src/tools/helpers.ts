@@ -28,6 +28,12 @@ export function fail(message: string): ToolResult {
   return { content: [{ type: "text", text: message }], isError: true };
 }
 
+/** A failed call in words: the API's own sentence, or the unexpected error's message. */
+export function errorText(error: unknown): string {
+  if (error instanceof ApiError) return error.message;
+  return `Unexpected error: ${error instanceof Error ? error.message : String(error)}`;
+}
+
 /** Wrap a tool handler: API errors become readable tool errors, never crashes. */
 export function guarded<A extends unknown[]>(
   handler: (...args: A) => Promise<ToolResult>
@@ -36,10 +42,7 @@ export function guarded<A extends unknown[]>(
     try {
       return await handler(...args);
     } catch (error) {
-      if (error instanceof ApiError) {
-        return fail(error.message);
-      }
-      return fail(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      return fail(errorText(error));
     }
   };
 }
@@ -74,4 +77,20 @@ export const DESTRUCTIVE = {
   destructiveHint: true,
   idempotentHint: true,
   openWorldHint: false,
+} as const;
+
+/** A read that reaches past BranderUX: probe_api fetches any https URL it is given. */
+export const OPEN_WORLD_READ = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+} as const;
+
+/** A repeatable write whose effect lands outside BranderUX (send_record_to_crm reaches the owner's CRM). */
+export const OPEN_WORLD_IDEMPOTENT_WRITE = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
 } as const;
