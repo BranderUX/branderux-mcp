@@ -13,6 +13,7 @@ import {
   guarded,
   ok,
 } from "./helpers.js";
+import { agentTabLink } from "../lib/app-links.js";
 import { consentKeyRefusal } from "../lib/consent-keys.js";
 import { contactFields, contactRecordsNotice } from "../lib/contact-fields.js";
 import { isPlainObject } from "../lib/policy-bag.js";
@@ -366,6 +367,7 @@ function registerOwnerDataReads(server: McpServer, api: ApiClient, app: AppClien
         crm: z.object({}).passthrough().nullable(),
         site: z.object({}).passthrough(),
         timezone: z.string(),
+        openInApp: z.string(),
         untrusted: z.string(),
         notice: z.string().optional(),
       },
@@ -374,8 +376,12 @@ function registerOwnerDataReads(server: McpServer, api: ApiClient, app: AppClien
     guarded(async ({ projectId, recordId }) => {
       const detail = await readRecordDetail(api, projectId, recordId);
       if (!detail) return fail(NO_RECORD);
+      const openInApp = agentTabLink(projectId, "inbox", { record: recordId });
       return ok(
-        withNotice({ ...detail, untrusted: UNTRUSTED_NOTE }, contactFieldsOfKeys(detailFieldKeys(detail)))
+        withNotice(
+          { ...detail, openInApp, untrusted: UNTRUSTED_NOTE },
+          contactFieldsOfKeys(detailFieldKeys(detail))
+        )
       );
     })
   );
@@ -461,6 +467,7 @@ function registerOwnerDataReads(server: McpServer, api: ApiClient, app: AppClien
         writes: z.array(z.object({}).passthrough()),
         records: z.array(z.object({}).passthrough()),
         channel: z.string(),
+        openInApp: z.string(),
         untrusted: z.string(),
       },
       annotations: READ_ONLY,
@@ -470,7 +477,11 @@ function registerOwnerDataReads(server: McpServer, api: ApiClient, app: AppClien
         `${projectPath(projectId)}/conversations/${encodeURIComponent(session)}`
       );
       if (!isPlainObject(detail)) return fail(NO_CONVERSATION);
-      return ok({ ...mapConversationDetail(detail, session), untrusted: UNTRUSTED_NOTE });
+      return ok({
+        ...mapConversationDetail(detail, session),
+        openInApp: agentTabLink(projectId, "conversations", { session }),
+        untrusted: UNTRUSTED_NOTE,
+      });
     })
   );
 

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ApiClient } from "../api-client.js";
-import { OPEN_WORLD_IDEMPOTENT_WRITE, READ_ONLY, fail, guarded, ok } from "./helpers.js";
+import { ApiError, type ApiClient } from "../api-client.js";
+import { OPEN_WORLD_IDEMPOTENT_WRITE, READ_ONLY, errorText, fail, guarded, ok } from "./helpers.js";
+import { crmManageLink } from "../lib/app-links.js";
 import { mapCrmStatus } from "../lib/owner-data-map.js";
 import { isPlainObject } from "../lib/policy-bag.js";
 
@@ -9,6 +10,19 @@ const projectIdSchema = z.string().uuid();
 const recordIdSchema = z.string().uuid();
 
 const projectPath = (projectId: string) => `/projects/${encodeURIComponent(projectId)}`;
+
+/** Spring's refusals the owner fixes in Inbox settings: nothing connected, a reconnect, Start sending. */
+const OWNER_FIXES = /No CRM is connected\.|needs to be reconnected first\.|is waiting for you to press Start sending/;
+
+/** Where the owner manages the CRM (best effort: Inbox settings when the status can't be read). */
+async function manageUrl(api: ApiClient, projectId: string): Promise<string> {
+  try {
+    const status = mapCrmStatus(await api.get<unknown>(`${projectPath(projectId)}/crm`));
+    return crmManageLink(projectId, typeof status.provider === "string" ? status.provider : null);
+  } catch {
+    return crmManageLink(projectId, null);
+  }
+}
 
 /**
  * The owner's CRM sync as an AI client sees it (plan 4.13 "MCP"): the status,
@@ -45,12 +59,14 @@ export function registerOwnerCrmTools(server: McpServer, api: ApiClient): void {
         whatGoes: z
           .object({ excludedEntities: z.array(z.string()), includeConversation: z.boolean() })
           .nullable(),
+        manageUrl: z.string(),
       },
       annotations: READ_ONLY,
     },
     guarded(async ({ projectId }) => {
-      const status = await api.get<unknown>(`${projectPath(projectId)}/crm`);
-      return ok(mapCrmStatus(status));
+      const status = mapCrmStatus(await api.get<unknown>(`${projectPath(projectId)}/crm`));
+      const provider = typeof status.provider === "string" ? status.provider : null;
+      return ok({ ...status, manageUrl: crmManageLink(projectId, provider) });
     })
   );
 
@@ -68,10 +84,16 @@ export function registerOwnerCrmTools(server: McpServer, api: ApiClient): void {
       annotations: OPEN_WORLD_IDEMPOTENT_WRITE,
     },
     guarded(async ({ projectId, recordId }) => {
-      const answer = await api.post<unknown>(
-        `${projectPath(projectId)}/records/${encodeURIComponent(recordId)}/send-to-crm`,
-        undefined
-      );
+      let answer: unknown;
+      try {
+        answer = await api.post<unknown>(
+          `${projectPath(projectId)}/records/${encodeURIComponent(recordId)}/send-to-crm`,
+          undefined
+        );
+      } catch (error) {
+        if (!(error instanceof ApiError && error.status === 409 && OWNER_FIXES.test(error.message))) throw error;
+        return fail(`${errorText(error)} The owner does this in the app: ${await manageUrl(api, projectId)}`);
+      }
       if (!isPlainObject(answer) || typeof answer.state !== "string") {
         return fail("The CRM send answered without a state. Check the record in the owner's Inbox before sending again.");
       }

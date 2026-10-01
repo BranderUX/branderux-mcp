@@ -4,11 +4,13 @@
 // in a lead can never point records at another CRM); strict output schemas;
 // a deep scan proving no token, secret or setting beyond "what goes" leaves
 // the status; and Spring's own 409 and 429 sentences reaching the AI through
-// the real API client. Dependency-free (node:test) like its siblings.
+// the real API client, with the owner's one-click link to Inbox settings on the
+// refusals the owner fixes there. Dependency-free (node:test) like its siblings.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { createApiClient } from "../dist/api-client.js";
+import { APP_BASE } from "../dist/config.js";
 import { READ_ONLY } from "../dist/tools/helpers.js";
 import { registerOwnerCrmTools } from "../dist/tools/owner-crm.js";
 import {
@@ -16,12 +18,15 @@ import {
   CRM_STATUS,
   PROJECT,
   RECORD,
+  SESSION,
   assertOutputStrict,
   callTool,
   fakeApi,
   registerAll,
   springAnswer,
 } from "./owner-data-fixtures.mjs";
+
+const INBOX = `${APP_BASE}/projects?tab=agent&project=${PROJECT}&section=inbox`;
 
 const DESCRIPTIONS = {
   get_crm_status:
@@ -98,6 +103,7 @@ test("the status keeps the listed keys only: a problem loses its record ids and 
     held: 1,
     problems: [{ cause: "validation", count: 3, message: "HubSpot refused 3 records." }],
     whatGoes: { excludedEntities: ["enquiries"], includeConversation: true },
+    manageUrl: `${INBOX}&crm=hubspot`,
   });
 });
 
@@ -118,6 +124,7 @@ test("with no CRM connected the status says so plainly", async () => {
     held: 0,
     problems: [],
     whatGoes: null,
+    manageUrl: `${INBOX}&settings=1`,
   });
 });
 
@@ -179,11 +186,17 @@ test("a deep scan finds no token, secret or setting beyond what goes in either r
   }
 });
 
-/** Call a CRM tool through the REAL API client against a stubbed fetch. */
-async function throughApiClient(name, args, status, body, headers = {}) {
+/**
+ * Call a CRM tool through the REAL API client against a stubbed fetch: every
+ * call answers `status` and `body`, except a GET of the CRM status when
+ * `crmStatus` is given.
+ */
+async function throughApiClient(name, args, status, body, headers = {}, crmStatus = null) {
   const original = globalThis.fetch;
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
+  globalThis.fetch = async (url, init = {}) =>
+    crmStatus && (init.method ?? "GET") === "GET" && String(url).endsWith(`${BASE}/crm`)
+      ? new Response(JSON.stringify(crmStatus), { status: 200, headers: { "Content-Type": "application/json" } })
+      : new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
   try {
     return await callTool(crmTools(createApiClient(async () => "token")), name, args);
   } finally {
@@ -194,9 +207,6 @@ async function throughApiClient(name, args, status, body, headers = {}) {
 test("Spring's 409 and 429 sentences reach the AI as the tool's error text", async () => {
   const send = { projectId: PROJECT, recordId: RECORD };
   for (const sentence of [
-    "No CRM is connected. Connect one in Inbox settings.",
-    "HubSpot needs to be reconnected first.",
-    "HubSpot is waiting for you to press Start sending in Inbox settings.",
     "Enquiries is not sent to HubSpot. Tick it in Inbox settings first.",
     "This record is held with other unusual new records. Release them in Inbox settings.",
   ]) {
@@ -216,4 +226,57 @@ test("Spring's 409 and 429 sentences reach the AI as the tool's error text", asy
 
   const catalog = await throughApiClient("send_record_to_crm", send, 400, { error: "Only collected records go to a CRM." });
   assert.match(catalog.content[0].text, /400: Only collected records go to a CRM\.$/);
+});
+
+test("a refusal the owner fixes in Inbox settings ends with the one-click link there", async () => {
+  const send = { projectId: PROJECT, recordId: RECORD };
+  const link = (url) => ` The owner does this in the app: ${url}`;
+  const nothing = await throughApiClient("send_record_to_crm", send, 409, {
+    error: "No CRM is connected. Connect one in Inbox settings.",
+  });
+  assert.equal(nothing.isError, true);
+  assert.ok(
+    nothing.content[0].text.endsWith(`409: No CRM is connected. Connect one in Inbox settings.${link(`${INBOX}&settings=1`)}`),
+    nothing.content[0].text
+  );
+
+  // A connection that needs the owner: the link opens that CRM's screen (its reconnect screen).
+  for (const [crmState, sentence] of [
+    ["needs_reconnect", "HubSpot needs to be reconnected first."],
+    ["pending_owner", "HubSpot is waiting for you to press Start sending in Inbox settings."],
+  ]) {
+    const crmStatus = { ...structuredClone(CRM_STATUS), connection: { ...CRM_STATUS.connection, status: crmState } };
+    const result = await throughApiClient("send_record_to_crm", send, 409, { error: sentence }, {}, crmStatus);
+    assert.equal(result.isError, true);
+    assert.ok(result.content[0].text.endsWith(`409: ${sentence}${link(`${INBOX}&crm=hubspot`)}`), result.content[0].text);
+  }
+
+  // The status unreadable: Inbox settings, still one click away.
+  const unread = await throughApiClient("send_record_to_crm", send, 409, { error: "HubSpot needs to be reconnected first." });
+  assert.ok(unread.content[0].text.endsWith(link(`${INBOX}&settings=1`)), unread.content[0].text);
+
+  // A refusal the AI relays as is (a type left out, held records, the daily cap) carries no link.
+  const held = await throughApiClient("send_record_to_crm", send, 409, {
+    error: "This record is held with other unusual new records. Release them in Inbox settings.",
+  });
+  assert.doesNotMatch(held.content[0].text, /https?:\/\//);
+});
+
+test("get_record, get_conversation and get_crm_status declare and carry their links", async () => {
+  const tools = registerAll(fakeApi());
+  for (const [name, args, key, url] of [
+    ["get_record", { projectId: PROJECT, recordId: RECORD }, "openInApp", `${INBOX}&record=${RECORD}`],
+    [
+      "get_conversation",
+      { projectId: PROJECT, session: SESSION },
+      "openInApp",
+      `${APP_BASE}/projects?tab=agent&project=${PROJECT}&section=conversations&session=${SESSION}`,
+    ],
+    ["get_crm_status", { projectId: PROJECT }, "manageUrl", `${INBOX}&crm=hubspot`],
+  ]) {
+    assert.ok(tools.get(name).config.outputSchema[key], `${name} declares ${key}`);
+    const result = await callTool(tools, name, args);
+    assertOutputStrict(tools, name, result);
+    assert.equal(result.structuredContent[key], url, `${name}.${key}`);
+  }
 });

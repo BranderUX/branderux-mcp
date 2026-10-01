@@ -14,6 +14,7 @@ import { z } from "zod";
 
 import { ApiError } from "../dist/api-client.js";
 import { AppError } from "../dist/app-client.js";
+import { APP_BASE } from "../dist/config.js";
 import {
   CONFIRM_HINT,
   DESTRUCTIVE,
@@ -314,6 +315,11 @@ test("the mappers keep the documented shapes: InboxRow, the record page, the sta
   assert.deepEqual(detail.activity[1].meta, { channel: "site", via: "confirm" });
   assert.deepEqual(detail.site, { name: "Cook & Bake", language: "he" });
   assert.equal(detail.entity.statuses.length, 5);
+  assert.equal(
+    detail.openInApp,
+    `${APP_BASE}/projects?tab=agent&project=${PROJECT}&section=inbox&record=${RECORD}`,
+    "a one-click link to the record in the owner's Inbox"
+  );
 
   const stats = (await callTool(tools, "get_stats", READ_CALLS.get_stats)).structuredContent;
   assert.deepEqual(stats.period, { from: STATS.from, to: STATS.to, timezone: "Asia/Jerusalem", days: 7 });
@@ -332,8 +338,15 @@ test("the mappers keep the documented shapes: conversations, one conversation, v
   const conversations = without((await callTool(tools, "list_conversations", READ_CALLS.list_conversations)).structuredContent);
   assert.deepEqual(conversations, CONVERSATION_PAGE, "every row key, the paging and the clock");
 
-  const conversation = without((await callTool(tools, "get_conversation", READ_CALLS.get_conversation)).structuredContent);
+  const { openInApp, ...conversation } = without(
+    (await callTool(tools, "get_conversation", READ_CALLS.get_conversation)).structuredContent
+  );
   assert.deepEqual(conversation, CONVERSATION_DETAIL, "the turns, the insight, the writes, the records and the channel");
+  assert.equal(
+    openInApp,
+    `${APP_BASE}/projects?tab=agent&project=${PROJECT}&section=conversations&session=${SESSION}`,
+    "a one-click link to the conversation in the Agent tab"
+  );
   const onWhatsapp = fakeApi((method, path) => {
     const answer = springAnswer(method, path);
     if (path === `${BASE}/conversations/${SESSION}`) answer.channel = "whatsapp";

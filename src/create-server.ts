@@ -50,7 +50,7 @@ Agent tab's Answer quality panel.
 • OWNER DATA, after launch: query_records, aggregate_records, get_record, list_conversations,
   aggregate_conversations, get_conversation, list_visitors and get_stats read the leads,
   bookings, orders, requests and conversations a hosted agent collects. read_doc owner-data
-  first: the query model and the one-record changes you may make.`;
+  first: what the owner does in the app, the query model and the one-record changes you may make.`;
 
 /**
  * One stateless MCP server per request, bound to the caller's agent bearer.

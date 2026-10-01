@@ -101,6 +101,31 @@ test("owner-data.md states the query model, the write line, the CRM and the untr
   assert.match(doc, /The in-app Builder does not have these tools/);
 });
 
+test("owner-data.md tells the AI what the owner does in the app, and which results carry the links", () => {
+  const doc = read(OWNER_DOC);
+  const start = doc.indexOf("## What the owner does in the app\n");
+  assert.notEqual(start, -1, "the section is there");
+  const section = flat(doc.slice(start, doc.indexOf("\n## ", start + 1)));
+  assert.match(section, /`get_record` and `get_conversation` carry `openInApp`/);
+  assert.match(section, /`get_crm_status` carries `manageUrl`/);
+  for (const row of [
+    /\| Connect, reconnect or disconnect a CRM, or start sending \| Open `manageUrl`, then press Connect/,
+    /\| Change the alert email \| Inbox, Settings; a confirmation email arrives/,
+    /\| Add a webhook \| Inbox, Settings, the webhook section; then Send test \|/,
+    /\| Add analytics tags \| Overview, Served on, the site \|/,
+    /\| Change many records, or export a CSV \| Inbox: tick the records, then Set status; Export CSV/,
+    /\| Release records held as unusual \| The banner at the top of the Inbox, Send them \|/,
+    /\| Marketing consent \| Only the customer can agree, through the consent box on the site's form; the owner can record an opt-out/,
+    /\| Send a message to a customer \| `reply_links`: the owner sends it from their own WhatsApp or email \|/,
+  ]) {
+    assert.match(section, row);
+  }
+  assert.ok(
+    INSTRUCTIONS.includes("read_doc owner-data\n  first: what the owner does in the app, the query model"),
+    "the instructions point at the section"
+  );
+});
+
 /** Every owner-data tool's description (registration only: no API call is made). */
 function ownerDataDescriptions() {
   const descriptions = [];
