@@ -393,8 +393,9 @@ function registerOwnerDataReads(server: McpServer, api: ApiClient, app: AppClien
       description:
         "The hosted agent's conversations with their topic, satisfaction, outcome, channel and the writes proposed in them. " +
         "unfinished is true when a visitor started a booking or an order and then declined it or let it expire. " +
-        "Conversations the owner archived (mostly their own tests) are left out, and so are visits that only opened designed pages " +
-        "(the app lists those as Pages only; no number counts them). Same where, sort and paging as query_records.",
+        "A conversation counts from the visitor's first action, a question or a designed page opened; pagesOnly marks one with " +
+        "no question, which the plan's usage never counts. Conversations the owner archived (mostly their own tests) are left " +
+        "out. Same where, sort and paging as query_records.",
       inputSchema: {
         projectId: projectIdSchema,
         where: whereSchema.optional(),

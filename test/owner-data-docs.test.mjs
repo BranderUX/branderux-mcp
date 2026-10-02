@@ -123,9 +123,9 @@ test("owner-data.md tells the AI what the owner does in the app, and which resul
   }
   const counts = flat(doc);
   for (const fact of [
-    /these tools list and count the conversations with a question, the number Analytics and the plan's conversations show/,
-    /visits that only opened designed pages, marked "Pages only", which no number counts/,
-    /fires at a visitor's first action, a designed page opened or a question asked/,
+    /all count a conversation from the visitor's first action, a designed page opened or a question asked/,
+    /Only the plan's usage counts just the conversations where the agent answered a question/,
+    /those page-only conversations carry `pagesOnly` here and a "Pages only" mark in the app/,
   ]) {
     assert.match(counts, fact);
   }

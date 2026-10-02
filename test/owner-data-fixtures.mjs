@@ -213,6 +213,7 @@ export const CONVERSATION_PAGE = {
       writes: { proposed: 1, confirmed: 1, declined: 0, expired: 0, failed: 0 },
       unfinished: false,
       classified: true,
+      pagesOnly: false,
       firstQuestion: "Do you have a table for four on Friday?",
       recordIds: [RECORD],
     },

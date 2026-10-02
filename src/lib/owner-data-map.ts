@@ -343,6 +343,7 @@ function mapConversationRow(value: Json): Json {
     },
     unfinished: bool(value.unfinished),
     classified: bool(value.classified),
+    pagesOnly: bool(value.pagesOnly),
     firstQuestion: str(value.firstQuestion),
     recordIds: strings(value.recordIds),
   };
