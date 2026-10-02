@@ -1052,7 +1052,7 @@ test("list_entity_records reads newest first; probe_api is open-world; the widge
   assert.match(SNIPPETS.widget, /data-preload="eager" data-conversions="on" async><\/script>/);
   assert.match(
     SNIPPETS.widget.replace(/\s+/g, " "),
-    /data-conversions="on" reports each new lead, booking, order or request to the tags already on the site \(Google Analytics, Google Ads, Meta Pixel\); remove it to keep them out\./
+    /data-conversions="on" reports each new lead, booking, order or request, and the start of each conversation, to the tags already on the site \(Google Analytics, Google Ads, Meta Pixel, ChatGPT Ads\); remove it to keep them out\./
   );
   const upsert = tools.get("upsert_agent_config").config.description;
   assert.match(
