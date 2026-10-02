@@ -106,7 +106,8 @@ text is never softened, summarized, or de-jargoned.
    primary color and `data-icon` with `https://<slug>.branderux.app/brand-icon`, keep
    `data-preload="eager"` (the designed home replays with no model call, so the background
    load costs nothing and the chat opens instantly) and `data-conversions="on"` (each new
-   lead, booking, order or request is reported to the tags already on the site), and tell
+   lead, booking, order or request, and the start of each conversation, is reported to the
+   tags already on the site), and tell
    the owner where to paste the one line (Wix: Settings → Custom Code, Premium plan with
    a connected domain; WordPress: the theme's custom code, a headers-and-footers plugin
    or a Custom HTML block; Shopify: theme.liquid before `</body>`; anything else: before

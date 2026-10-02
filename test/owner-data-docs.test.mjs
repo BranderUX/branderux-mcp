@@ -117,8 +117,17 @@ test("owner-data.md tells the AI what the owner does in the app, and which resul
     /\| Release records held as unusual \| The banner at the top of the Inbox, Send them \|/,
     /\| Marketing consent \| Only the customer can agree, through the consent box on the site's form; the owner can record an opt-out/,
     /\| Send a message to a customer \| `reply_links`: the owner sends it from their own WhatsApp or email \|/,
+    /\| Archive a conversation \(a test chat, say\) so it leaves the numbers \| Conversations: open it, then Archive;/,
   ]) {
     assert.match(section, row);
+  }
+  const counts = flat(doc);
+  for (const fact of [
+    /these tools list and count the conversations with a question, the number Analytics and the plan's conversations show/,
+    /visits that only opened designed pages, marked "Pages only", which no number counts/,
+    /fires at a visitor's first action, a designed page opened or a question asked/,
+  ]) {
+    assert.match(counts, fact);
   }
   assert.ok(
     INSTRUCTIONS.includes("read_doc owner-data\n  first: what the owner does in the app, the query model"),

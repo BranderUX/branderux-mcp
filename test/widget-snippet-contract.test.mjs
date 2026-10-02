@@ -80,7 +80,7 @@ test("widget snippet: the one script line — the v1 loader, data-key, async", (
   // Every handed-out line preloads: a hosted build's designed home replays with no model call.
   assert.match(widgetSnippet(), /data-preload="eager" — keep it/);
   // Every handed-out line reports conversions (opt-in on the loader, owner-data build decision 40).
-  assert.match(flat(widgetSnippet()), /data-conversions="on" reports each new lead, booking, order or request to the tags already on the site/);
+  assert.match(flat(widgetSnippet()), /data-conversions="on" reports each new lead, booking, order or request, and the start of each conversation, to the tags already on the site/);
 });
 
 test("widget snippet: the two brand attributes ride as commented options, never on the line", () => {
