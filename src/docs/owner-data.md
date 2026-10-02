@@ -228,7 +228,7 @@ disconnecting and choosing what goes there happen only in the app.
 
 When the owner asks for something these tools cannot do, say exactly where it is in the Agent tab
 and give the link when you have one: `get_record` and `get_conversation` carry `openInApp` (that
-record or conversation, open), and `get_crm_status` carries `manageUrl` (Inbox settings, on the
+record or conversation, open), and `get_crm_status` carries `manageUrl` (Your CRM, on the
 CRM's screen when one is connected). A `send_record_to_crm` refusal the owner fixes ends with that
 link.
 

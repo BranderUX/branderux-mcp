@@ -11,10 +11,10 @@ const recordIdSchema = z.string().uuid();
 
 const projectPath = (projectId: string) => `/projects/${encodeURIComponent(projectId)}`;
 
-/** Spring's refusals the owner fixes in Inbox settings: nothing connected, a reconnect, Start sending. */
+/** Spring's refusals the owner fixes in Your CRM: nothing connected, a reconnect, Start sending. */
 const OWNER_FIXES = /No CRM is connected\.|needs to be reconnected first\.|is waiting for you to press Start sending/;
 
-/** Where the owner manages the CRM (best effort: Inbox settings when the status can't be read). */
+/** Where the owner manages the CRM (best effort: Your CRM's choices when the status can't be read). */
 async function manageUrl(api: ApiClient, projectId: string): Promise<string> {
   try {
     const status = mapCrmStatus(await api.get<unknown>(`${projectPath(projectId)}/crm`));

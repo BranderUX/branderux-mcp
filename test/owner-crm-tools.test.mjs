@@ -4,7 +4,7 @@
 // in a lead can never point records at another CRM); strict output schemas;
 // a deep scan proving no token, secret or setting beyond "what goes" leaves
 // the status; and Spring's own 409 and 429 sentences reaching the AI through
-// the real API client, with the owner's one-click link to Inbox settings on the
+// the real API client, with the owner's one-click link to Your CRM on the
 // refusals the owner fixes there. Dependency-free (node:test) like its siblings.
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -124,7 +124,7 @@ test("with no CRM connected the status says so plainly", async () => {
     held: 0,
     problems: [],
     whatGoes: null,
-    manageUrl: `${INBOX}&settings=1`,
+    manageUrl: `${INBOX}&crm=connect`,
   });
 });
 
@@ -207,8 +207,8 @@ async function throughApiClient(name, args, status, body, headers = {}, crmStatu
 test("Spring's 409 and 429 sentences reach the AI as the tool's error text", async () => {
   const send = { projectId: PROJECT, recordId: RECORD };
   for (const sentence of [
-    "Enquiries is not sent to HubSpot. Tick it in Inbox settings first.",
-    "This record is held with other unusual new records. Release them in Inbox settings.",
+    "Enquiries is not sent to HubSpot. Tick it in Your CRM first.",
+    "This record is held with other unusual new records. Release them in Your CRM.",
   ]) {
     const result = await throughApiClient("send_record_to_crm", send, 409, { error: sentence });
     assert.equal(result.isError, true);
@@ -228,22 +228,22 @@ test("Spring's 409 and 429 sentences reach the AI as the tool's error text", asy
   assert.match(catalog.content[0].text, /400: Only collected records go to a CRM\.$/);
 });
 
-test("a refusal the owner fixes in Inbox settings ends with the one-click link there", async () => {
+test("a refusal the owner fixes in Your CRM ends with the one-click link there", async () => {
   const send = { projectId: PROJECT, recordId: RECORD };
   const link = (url) => ` The owner does this in the app: ${url}`;
   const nothing = await throughApiClient("send_record_to_crm", send, 409, {
-    error: "No CRM is connected. Connect one in Inbox settings.",
+    error: "No CRM is connected. Connect one in Your CRM.",
   });
   assert.equal(nothing.isError, true);
   assert.ok(
-    nothing.content[0].text.endsWith(`409: No CRM is connected. Connect one in Inbox settings.${link(`${INBOX}&settings=1`)}`),
+    nothing.content[0].text.endsWith(`409: No CRM is connected. Connect one in Your CRM.${link(`${INBOX}&crm=connect`)}`),
     nothing.content[0].text
   );
 
   // A connection that needs the owner: the link opens that CRM's screen (its reconnect screen).
   for (const [crmState, sentence] of [
     ["needs_reconnect", "HubSpot needs to be reconnected first."],
-    ["pending_owner", "HubSpot is waiting for you to press Start sending in Inbox settings."],
+    ["pending_owner", "HubSpot is waiting for you to press Start sending in Your CRM."],
   ]) {
     const crmStatus = { ...structuredClone(CRM_STATUS), connection: { ...CRM_STATUS.connection, status: crmState } };
     const result = await throughApiClient("send_record_to_crm", send, 409, { error: sentence }, {}, crmStatus);
@@ -251,13 +251,13 @@ test("a refusal the owner fixes in Inbox settings ends with the one-click link t
     assert.ok(result.content[0].text.endsWith(`409: ${sentence}${link(`${INBOX}&crm=hubspot`)}`), result.content[0].text);
   }
 
-  // The status unreadable: Inbox settings, still one click away.
+  // The status unreadable: Your CRM's choices, still one click away.
   const unread = await throughApiClient("send_record_to_crm", send, 409, { error: "HubSpot needs to be reconnected first." });
-  assert.ok(unread.content[0].text.endsWith(link(`${INBOX}&settings=1`)), unread.content[0].text);
+  assert.ok(unread.content[0].text.endsWith(link(`${INBOX}&crm=connect`)), unread.content[0].text);
 
   // A refusal the AI relays as is (a type left out, held records, the daily cap) carries no link.
   const held = await throughApiClient("send_record_to_crm", send, 409, {
-    error: "This record is held with other unusual new records. Release them in Inbox settings.",
+    error: "This record is held with other unusual new records. Release them in Your CRM.",
   });
   assert.doesNotMatch(held.content[0].text, /https?:\/\//);
 });
