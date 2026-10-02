@@ -45,9 +45,9 @@ test("every value is URL-encoded, so no value can add a param of its own", () =>
   assert.equal(params.get("crm"), "monday crm/é");
 });
 
-test("the CRM's manage link opens that CRM's screen when one is connected, else Inbox settings", () => {
+test("the CRM's manage link opens that CRM's screen when one is connected, else Your CRM's choices", () => {
   assert.equal(crmManageLink(PROJECT, "hubspot"), `${AGENT}&section=inbox&crm=hubspot`);
-  assert.equal(crmManageLink(PROJECT, null), `${AGENT}&section=inbox&settings=1`);
+  assert.equal(crmManageLink(PROJECT, null), `${AGENT}&section=inbox&crm=connect`);
 });
 
 test("the links point at the configured web app", () => {

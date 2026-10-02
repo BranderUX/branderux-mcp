@@ -10,7 +10,7 @@ export interface AgentLinkOptions {
   session?: string;
   /** Open Inbox settings. */
   settings?: boolean;
-  /** Open Inbox settings on this CRM's screen (its connect or reconnect screen). */
+  /** Open Your CRM, the Inbox's CRM dialog; a known provider opens that CRM's screen. */
   crm?: string;
 }
 
@@ -18,7 +18,7 @@ export interface AgentLinkOptions {
  * A one-click link into a project's Agent tab in the web app, so the owner's
  * AI can say exactly where to do what it cannot do itself. The params are the
  * web app's own (its agent-url.ts): `project` switches to the project, and a
- * `crm` opens Inbox settings on that CRM's screen.
+ * `crm` opens Your CRM (that CRM's screen for a known provider).
  */
 export function agentTabLink(projectId: string, section: AgentSection, options: AgentLinkOptions = {}): string {
   const params: [string, string][] = [
@@ -34,7 +34,7 @@ export function agentTabLink(projectId: string, section: AgentSection, options: 
   return `${APP_BASE}/projects?${query}`;
 }
 
-/** Where the owner manages the CRM: that CRM's screen when one is connected, else Inbox settings. */
+/** Your CRM, the Inbox's CRM dialog: that CRM's screen when one is connected, else its choices. */
 export function crmManageLink(projectId: string, provider: string | null): string {
-  return agentTabLink(projectId, "inbox", provider ? { crm: provider } : { settings: true });
+  return agentTabLink(projectId, "inbox", { crm: provider ?? "connect" });
 }
