@@ -142,16 +142,19 @@ Aggregates count stored records only: naming a live catalog in `entity` is refus
 
 `list_conversations` fields: `startedAt`, `lastAt`, `turns`, `signedIn`, `visitor`, `topic`,
 `satisfaction`, `outcome`, `channel`, `unfinished`, `hasWrites`, `writesConfirmed`,
-`writesDeclined`, `writesExpired` and `classified`; `text` searches what was said. `unfinished` is
-true when the visitor declined a write the agent proposed in that conversation (a booking, an
-order, a request) or let it expire, and confirmed none.
+`writesDeclined`, `writesExpired`, `classified` and `pagesOnly`; `text` searches what was said.
+`unfinished` is true when the visitor declined a write the agent proposed in that conversation (a
+booking, an order, a request) or let it expire, and confirmed none. `pagesOnly` is true when the
+visitor only opened designed pages and asked nothing.
 `aggregate_conversations` groups by `topic`, `outcome`, `satisfaction`, `channel`, `signedIn`,
-`unfinished`, `classified`, or `startedAt` with a bucket, and its totals carry `unclassified`.
+`unfinished`, `classified`, `pagesOnly`, or `startedAt` with a bucket, and its totals carry
+`unclassified` (conversations with a question still waiting for their topic).
 
 Topic, satisfaction and outcome are filled in a few minutes after a conversation ends. When
 `unclassified` is above 0, say the numbers are partial.
 
-Only the visitor's questions count as `turns`. In `get_conversation`, a turn whose `kind` is
+A conversation's `turns` are the visitor's actions: questions and designed pages opened, never the
+home it started on. In `get_conversation`, a turn whose `kind` is
 `designed` is a page the visitor opened (the home again, or a fixed screen from a chip), answered by
 the owner's designed screen with no AI: it shows the path the visitor took, never a question the
 agent answered. A turn whose `kind` is `home` is the home page the conversation started on, as it
@@ -159,12 +162,14 @@ looked when the visitor first acted; it comes first and is never a question eith
 of `list_conversations`, `aggregate_conversations`, the visitors' `turns30d` and `get_stats`;
 `get_conversation` still reads it by its key.
 
-Why two conversation numbers differ, for when the owner asks: these tools list and count the
-conversations with a question, the number Analytics and the plan's conversations show. The app's
-Conversations tab also lists visits that only opened designed pages, marked "Pages only", which no
-number counts. The "conversation started" event the site can send to the owner's ad platforms fires
-at a visitor's first action, a designed page opened or a question asked, so the ad platforms' count
-runs higher than both.
+Why two conversation numbers differ, for when the owner asks: these tools, the app's Analytics and
+Conversations tab, and the "conversation started" event the site can send to the owner's ad
+platforms all count a conversation from the visitor's first action, a designed page opened or a
+question asked. Only the plan's usage counts just the conversations where the agent answered a
+question (designed pages never use the plan, as the pricing page says), so that number runs lower;
+those page-only conversations carry `pagesOnly` here and a "Pages only" mark in the app. An archived
+conversation (mostly the owner's own tests) leaves these numbers, but the plan's usage still counts it
+and the ad platforms already heard it start.
 
 `list_visitors` fields: `email`, `name`, `status`, `google`, `joined`, `lastSeen`,
 `lastRecordAt`, `records` and `turns30d`; `text` searches emails and names. A visitor's records
