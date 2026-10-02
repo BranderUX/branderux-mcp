@@ -121,6 +121,14 @@ test("owner-data.md tells the AI what the owner does in the app, and which resul
   ]) {
     assert.match(section, row);
   }
+  const counts = flat(doc);
+  for (const fact of [
+    /these tools list and count the conversations with a question, the number Analytics and the plan's conversations show/,
+    /visits that only opened designed pages, marked "Pages only", which no number counts/,
+    /fires at a visitor's first action, a designed page opened or a question asked/,
+  ]) {
+    assert.match(counts, fact);
+  }
   assert.ok(
     INSTRUCTIONS.includes("read_doc owner-data\n  first: what the owner does in the app, the query model"),
     "the instructions point at the section"

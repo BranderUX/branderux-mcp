@@ -158,6 +158,13 @@ agent answered. A conversation the owner archived in the app (mostly their own t
 of `list_conversations`, `aggregate_conversations`, the visitors' `turns30d` and `get_stats`;
 `get_conversation` still reads it by its key.
 
+Why two conversation numbers differ, for when the owner asks: these tools list and count the
+conversations with a question, the number Analytics and the plan's conversations show. The app's
+Conversations tab also lists visits that only opened designed pages, marked "Pages only", which no
+number counts. The "conversation started" event the site can send to the owner's ad platforms fires
+at a visitor's first action, a designed page opened or a question asked, so the ad platforms' count
+runs higher than both.
+
 `list_visitors` fields: `email`, `name`, `status`, `google`, `joined`, `lastSeen`,
 `lastRecordAt`, `records` and `turns30d`; `text` searches emails and names. A visitor's records
 are `query_records` with `where: [{field: "visitorId", op: "eq", value: <the visitor's id>}]`.
