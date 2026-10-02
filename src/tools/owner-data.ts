@@ -393,7 +393,7 @@ function registerOwnerDataReads(server: McpServer, api: ApiClient, app: AppClien
       description:
         "The hosted agent's conversations with their topic, satisfaction, outcome, channel and the writes proposed in them. " +
         "unfinished is true when a visitor started a booking or an order and then declined it or let it expire. " +
-        "Same where, sort and paging as query_records.",
+        "Conversations the owner archived (mostly their own tests) are left out. Same where, sort and paging as query_records.",
       inputSchema: {
         projectId: projectIdSchema,
         where: whereSchema.optional(),
@@ -420,7 +420,7 @@ function registerOwnerDataReads(server: McpServer, api: ApiClient, app: AppClien
       title: "Count conversations",
       description:
         "Count conversations, or sum or average their turns, grouped by topic, outcome, satisfaction, channel, signedIn, " +
-        "unfinished, classified or startedAt by day, week or month. Topic, satisfaction and outcome fill in a few minutes " +
+        "unfinished, classified or startedAt by day, week or month; archived conversations are left out. Topic, satisfaction and outcome fill in a few minutes " +
         "after a conversation ends; when unclassified is above 0, say the numbers are partial.",
       inputSchema: {
         projectId: projectIdSchema,
@@ -452,7 +452,8 @@ function registerOwnerDataReads(server: McpServer, api: ApiClient, app: AppClien
     {
       title: "Read one conversation",
       description:
-        "One conversation's full transcript in order, with its classification, the writes proposed in it and the records it created.",
+        "One conversation's full transcript in order, with its classification, the writes proposed in it and the records it created. " +
+        "A turn of kind designed is a page the visitor opened (the home or a fixed screen), answered with no AI.",
       inputSchema: {
         projectId: projectIdSchema,
         session: z

@@ -117,6 +117,7 @@ test("owner-data.md tells the AI what the owner does in the app, and which resul
     /\| Release records held as unusual \| The banner at the top of the Inbox, Send them \|/,
     /\| Marketing consent \| Only the customer can agree, through the consent box on the site's form; the owner can record an opt-out/,
     /\| Send a message to a customer \| `reply_links`: the owner sends it from their own WhatsApp or email \|/,
+    /\| Archive a conversation \(a test chat, say\) so it leaves the numbers \| Conversations: open it, then Archive;/,
   ]) {
     assert.match(section, row);
   }
