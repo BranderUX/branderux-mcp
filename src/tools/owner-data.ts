@@ -454,7 +454,8 @@ function registerOwnerDataReads(server: McpServer, api: ApiClient, app: AppClien
       title: "Read one conversation",
       description:
         "One conversation's full transcript in order, with its classification, the writes proposed in it and the records it created. " +
-        "A turn of kind designed is a page the visitor opened (the home or a fixed screen), answered with no AI.",
+        "A turn of kind designed is a page the visitor opened (the home or a fixed screen), answered with no AI; " +
+        "kind home is the home page the conversation started on.",
       inputSchema: {
         projectId: projectIdSchema,
         session: z

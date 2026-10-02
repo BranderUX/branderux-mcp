@@ -154,7 +154,8 @@ Topic, satisfaction and outcome are filled in a few minutes after a conversation
 Only the visitor's questions count as `turns`. In `get_conversation`, a turn whose `kind` is
 `designed` is a page the visitor opened (the home again, or a fixed screen from a chip), answered by
 the owner's designed screen with no AI: it shows the path the visitor took, never a question the
-agent answered. A conversation the owner archived in the app (mostly their own tests) is left out
+agent answered. A turn whose `kind` is `home` is the home page the conversation started on, as it
+looked when the visitor first acted; it comes first and is never a question either. A conversation the owner archived in the app (mostly their own tests) is left out
 of `list_conversations`, `aggregate_conversations`, the visitors' `turns30d` and `get_stats`;
 `get_conversation` still reads it by its key.
 
