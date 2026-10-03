@@ -50,6 +50,12 @@ Rules (each learned the hard way):
   the KEBAB-CASE type value: header, stats-grid, data-table, line-chart, pie-chart,
   bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert,
   video — NEVER the uppercase enum name (ITEM_GRID is silently nulled server-side).
+- **Placements carry NO `defaultProps`.** A stored screen renders
+  `{ ...placement.defaultProps, ...data[placement.id] }`, and a placement with no data renders
+  from its defaultProps alone, so whatever sits there reaches visitors whenever the designed
+  home, a fixed screen or a deterministic answer leaves a key out. Static copy goes in the
+  canned `data`; sample data lives only in the element's own `defaultProps`, which only
+  previews read. put_screen's result `notes` name any placement that still carries them.
 - Sizes are percent strings with two decimals and a matching flex string; `xs` is always
   "100%" (mobile stacks). Centered single-element screens: `maxWidth` +
   `alignSelf: "center"`.

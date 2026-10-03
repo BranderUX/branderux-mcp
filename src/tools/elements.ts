@@ -411,7 +411,9 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
       code: z.string().min(1).describe("Inner component TSX: export interface Props + export default function Component"),
       skeletonCode: z.string().optional().describe("Loading skeleton: export default function SkeletonComponent, Box/Skeleton/Stack only"),
       propsSchema: z.object({}).passthrough().describe("JSON Schema of Props"),
-      defaultProps: z.object({}).passthrough().describe("Realistic demo props matching propsSchema"),
+      defaultProps: z.object({}).passthrough().describe(
+        "Realistic demo props matching propsSchema. PREVIEW ONLY: the preview panel, the Element Library and the actions contract's exampleItem read them; no live answer does. Never copy them onto a screen placement (put_screen), where a replay would show them to visitors."
+      ),
       structurePrompt: z.string().min(1).describe("When-to-use + data guidance for the runtime AI (no layout directives)"),
       clickQueryTemplate: z
         .string()
@@ -482,7 +484,9 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
       code: z.string().min(1),
       skeletonCode: z.string().optional(),
       propsSchema: z.object({}).passthrough(),
-      defaultProps: z.object({}).passthrough(),
+      defaultProps: z.object({}).passthrough().describe(
+        "Realistic demo props matching propsSchema. PREVIEW ONLY: the preview panel, the Element Library and the actions contract's exampleItem read them; no live answer does. Never copy them onto a screen placement (put_screen), where a replay would show them to visitors."
+      ),
       structurePrompt: z.string().min(1),
       clickQueryTemplate: z.string().nullable(),
       interactionPropName: z.string().nullable(),

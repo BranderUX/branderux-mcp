@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
 import { CONFIRM_HINT, DESTRUCTIVE, IDEMPOTENT_WRITE, READ_ONLY, fail, guarded, ok } from "./helpers.js";
 import { APP_BASE } from "../config.js";
+import { placementDefaults, placementDefaultsNote } from "../lib/placement-defaults.js";
 
 /**
  * Custom screens live on the project aggregate. Reads (list_screens,
@@ -38,7 +39,7 @@ const screenShape = z
     elements: z
       .array(z.object({}).passthrough())
       .describe(
-        "Placements. Custom elements: { id, elementType: null, customElementId: '<element-key>', version: <published version>, position: {row, column, subRow} (ALL 0-BASED), size }. Fixed elements use the KEBAB-CASE type value as elementType (header, stats-grid, data-table, line-chart, pie-chart, bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert, video) — NEVER the uppercase enum name (ITEM_GRID becomes null server-side)."
+        "Placements. Custom elements: { id, elementType: null, customElementId: '<element-key>', version: <published version>, position: {row, column, subRow} (ALL 0-BASED), size }. Fixed elements use the KEBAB-CASE type value as elementType (header, stats-grid, data-table, line-chart, pie-chart, bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert, video) — NEVER the uppercase enum name (ITEM_GRID becomes null server-side). A placement carries NO defaultProps: a replay renders them under its data, so a sample there reaches visitors whenever the data leaves a key out (static copy goes in the canned data; samples only in the element's own defaultProps, which only previews read)."
       ),
   })
   .passthrough();
@@ -97,9 +98,14 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
     {
       title: "Create or replace a screen",
       description:
-        "Create or replace ONE custom screen (matched by id) — an atomic per-screen PUT; the server merges under the project row lock and owns created/version/modified. Read the screens-wire-format doc first — positions are 0-based and custom placements pin an element version.",
+        "Create or replace ONE custom screen (matched by id) — an atomic per-screen PUT; the server merges under the project row lock and owns created/version/modified. Read the screens-wire-format doc first — positions are 0-based, custom placements pin an element version, and placements carry no defaultProps (the result's notes name any that do).",
       inputSchema: { projectId: z.string().uuid(), screen: screenShape },
-      outputSchema: { saved: z.string(), totalScreens: z.number(), version: z.number() },
+      outputSchema: {
+        saved: z.string(),
+        totalScreens: z.number(),
+        version: z.number(),
+        notes: z.array(z.string()).optional(),
+      },
       annotations: IDEMPOTENT_WRITE,
     },
     guarded(async ({ projectId, screen }) => {
@@ -158,10 +164,14 @@ export function registerScreenTools(server: McpServer, api: ApiClient): void {
         version ??= state?.screens.find((s) => s.id === screen.id)?.version ?? 1;
         total ??= state?.screens.length ?? 1;
       }
+      // Placement defaultProps reach visitors on every replay that leaves a key
+      // out: say so in the result, so the builder fixes it before a visitor sees it.
+      const notes = placementDefaults(normalizedElements).map(placementDefaultsNote);
       return ok(
         `Saved screen "${screen.id}" (v${version}, ${total} total). ` +
-          `Try the project live: ${APP_BASE}/playground?projectId=${projectId} — share this link with the user.`,
-        { saved: screen.id, totalScreens: total, version }
+          `Try the project live: ${APP_BASE}/playground?projectId=${projectId} — share this link with the user.` +
+          (notes.length ? `\n\n${notes.join("\n")}` : ""),
+        { saved: screen.id, totalScreens: total, version, ...(notes.length ? { notes } : {}) }
       );
     })
   );

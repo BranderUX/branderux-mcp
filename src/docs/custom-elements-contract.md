@@ -23,7 +23,9 @@ export default function Component({ items, title, onSelectItem, onItemContextMen
 ```
 
 - `export interface Props` + `export default function Component` — exactly these names.
-- **No default values on props** (demo data goes in defaultProps, not the code).
+- **No default values on props** (demo data goes in defaultProps, not the code). Those
+  defaultProps are PREVIEW data: they never reach a live answer and never belong on a screen
+  placement (see "Seeing what you built").
 - Allowed imports ONLY: react, @mui/material, @mui/system, @emotion/react,
   @emotion/styled, lucide-react, recharts, framer-motion, date-fns.
 - Skeleton file: `export default function SkeletonComponent()` using Box/Skeleton/Stack.
@@ -151,6 +153,12 @@ After `create_element` / `publish_element_version` (or via `preview_element` at 
 time), clients that support MCP Apps render the element live in the panel with its
 `defaultProps` — every callback is shimmed to display the exact query the click would
 send, so you and the user can verify wiring before it ships to a screen.
+
+Those `defaultProps` are preview data: the panel, the Element Library and the actions
+contract's `exampleItem` read them, and no live answer does. Never copy them onto a screen
+placement: a stored screen renders a placement's own `defaultProps` under its data on every
+replay, so a sample row, a form prefill or a preset topic there reaches real visitors
+whenever the data leaves that key out (screens-wire-format).
 
 The version number the publish tool RETURNS (`create_element` → 1,
 `publish_element_version` → `publishedVersion`) is authoritative: pin screen placements
@@ -366,7 +374,7 @@ fields (a booking, an order number, a size); every other item is kind 'question'
 fields. Add featured only for a catalogue, bound to live rows. Write every label in the
 site's language."
 
-**`defaultProps`** (demo data for the panel preview):
+**`defaultProps`** (demo data for the panel preview; never on a screen placement):
 
 ```json
 {
