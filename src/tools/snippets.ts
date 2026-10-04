@@ -59,7 +59,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   projectId="your_project_id"
   onQueryStream={async function* (params) {
     const stream = anthropic.messages.stream({
-      model: "claude-sonnet-5",
+      model: "claude-sonnet-5-5",
       max_tokens: params.max_tokens || 4000,
       // Your persona + BranderUX UI instructions — append, never replace. REQUIRED
       system: YOUR_SYSTEM_PROMPT + "\\n\\n" + params.system,
