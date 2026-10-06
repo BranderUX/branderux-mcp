@@ -211,6 +211,7 @@ const ALWAYS_ENABLED_ELEMENTS: readonly string[] = ["chat-bubble"];
       title: "Update project settings",
       description:
         "Merge changes into project.settings — uiGenerationMode ('flexible' | 'deterministic'), elementVisibility, customPages, flexibleModeRules, elementStyleVariant — and, when given, rename the project (name) or rewrite its description: the project's display name in the app is NOT the brand name (update_brand_settings owns brandName). " +
+        "flexibleModeRules is content guidance for screens (which screens and components to prefer, what to offer when), never the wire format: serve drops any line that names A2UI, JSONL, markers, updateDataModel, componentId or pretty-printing — the platform owns the format. " +
         "Every finished build MUST set customPages (2-5 nav entries matching the screens) — without them the playground opens to a setup dialog instead of the product. " +
         "Each customPages entry is EXACTLY {id, name, query} (all non-empty strings; name is the nav label, query is what clicking the page asks) — other keys are rejected, and the server nulls anything misshapen. " +
         "elementVisibility merges key-wise: fixed-element keys are the kebab type names (header, stats-grid, data-table, line-chart, pie-chart, bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert, video), custom elements are custom:<key>; false disables, absent = enabled. chat-bubble is ALWAYS on — every text answer renders through it — so a false for it is ignored.",
