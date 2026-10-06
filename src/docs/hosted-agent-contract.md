@@ -405,7 +405,11 @@ confirmation screen that confirms nothing:
 3. **Instructions to write**: the persona or a skill must explicitly say to call
    `create_<entity>` when a submission arrives (and `escalate_to_owner` in the same turn,
    per the owner's escalation policy). `flexibleModeRules` does NOT reach the answering
-   agent — it steers screen generation only; write instructions there are dead text. What
+   agent — it steers screen generation only; write instructions there are dead text. It is
+   content guidance (which screens and components to prefer, what to offer when), never the
+   wire format: serve drops every line of the persona, a skill or these rules that names
+   A2UI, JSONL, markers, `updateDataModel`, `componentId` or pretty-printing, because a model
+   once recited such a list to a visitor word for word. The platform owns the format. What
    those instructions must NEVER do is suppress the write tool's own collection notice
    (where the details go, said before they are asked for) or the consent question when the
    entity carries `marketingConsent`.
