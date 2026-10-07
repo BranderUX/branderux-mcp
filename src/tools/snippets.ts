@@ -251,7 +251,6 @@ registerBranderTools(server, {
 
 <!-- Optional brand attributes: add them to the SAME tag.
      data-color="#hex"                                    the bubble color = the brand's primary color
-     data-icon="https://<slug>.branderux.app/brand-icon"  the business's icon in the bubble
      data-preload="eager" — keep it: a hosted build has a designed home page that replays
      with no model call, so loading the chat with the page costs nothing and it opens
      instantly (drop it only for a project with no designed home: the chat then loads on
