@@ -103,7 +103,7 @@ text is never softened, summarized, or de-jargoned.
    the key (`create_api_key`) and set its allow-list with `set_key_origins` to that
    site's EXACT origin (`https://their-site.com`, no wildcards; the list replaces, it
    does not merge — keep every origin that must stay), fill `data-color` from the brand's
-   primary color and `data-icon` with `https://<slug>.branderux.app/brand-icon`, keep
+   primary color (no `data-icon`: the bubble shows the classic chat icon), keep
    `data-preload="eager"` (the designed home replays with no model call, so the background
    load costs nothing and the chat opens instantly) and `data-conversions="on"` (each new
    lead, booking, order or request, and the start of each conversation, is reported to the

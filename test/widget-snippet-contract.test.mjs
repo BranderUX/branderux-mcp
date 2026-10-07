@@ -83,11 +83,12 @@ test("widget snippet: the one script line — the v1 loader, data-key, async", (
   assert.match(flat(widgetSnippet()), /data-conversions="on" reports each new lead, booking, order or request, and the start of each conversation, to the tags already on the site/);
 });
 
-test("widget snippet: the two brand attributes ride as commented options, never on the line", () => {
+test("widget snippet: the brand color rides as a commented option, never on the line, and no icon is offered", () => {
   assert.doesNotMatch(scriptLine(), /data-color|data-icon/);
   const text = widgetSnippet();
   assert.match(text, /data-color="#hex"/);
-  assert.match(text, /data-icon="https:\/\/<slug>\.branderux\.app\/brand-icon"/);
+  // The bubble shows the classic chat icon (Lev, 2026-10-07): no data-icon, on the line or as an option.
+  assert.doesNotMatch(text, /data-icon/);
   for (const option of ['data-position="left"', 'data-launcher="none"', "data-label=", 'data-lang="he"']) {
     assert.ok(text.includes(option), `widget snippet lacks the ${option} option`);
   }
@@ -135,7 +136,7 @@ test("contract doc closing step: plain sites → target widget with the key allo
   assert.match(text, /`set_key_origins`/);
   assert.match(text, /Wix, WordPress, Shopify, Squarespace, static HTML/);
   assert.match(text, /`data-color` from the brand's primary color/);
-  assert.match(text, /`data-icon` with `https:\/\/<slug>\.branderux\.app\/brand-icon`/);
+  assert.match(text, /no `data-icon`: the bubble shows the classic chat icon/);
   assert.match(text, /Wix: Settings → Custom Code/);
   assert.match(text, /WordPress: the theme's custom code/);
   assert.match(text, /React\/Next codebase/);
