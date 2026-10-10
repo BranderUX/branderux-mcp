@@ -1,0 +1,198 @@
+import { useState } from "react";
+import { Box, ButtonBase, Typography } from "@mui/material";
+import { Check, ChevronRight, MessagesSquare } from "lucide-react";
+
+type Chip = { id: string; label: string; query: string };
+type Step = { title: string; detail?: string };
+type PromiseRow = { _id?: string; id?: string; key?: string; title: string; detail?: string };
+
+export interface Props {
+  heroImage?: string;
+  heroAlt?: string;
+  heroFocus?: string;
+  kicker?: string;
+  headline?: string;
+  subline?: string;
+  ctaLabel?: string;
+  ctaQuery?: string;
+  ctaNote?: string;
+  whatsappLabel?: string;
+  whatsappNumber?: string;
+  whatsappText?: string;
+  trust?: string[];
+  startersTitle?: string;
+  starters?: Chip[];
+  stepsTitle?: string;
+  steps?: Step[];
+  promisesTitle?: string;
+  promises?: PromiseRow[];
+  hours?: string;
+  onAsk?: (chip: Chip) => void;
+}
+
+const NAVY = "#17324D";
+const CYAN = "#A9CBE8";
+const YELLOW = "#F2B935";
+const INK = "#13202C";
+const MUTED = "#55626F";
+const RULE = "rgba(23,50,77,0.14)";
+const WA_GREEN = "#25D366";
+const WA_INK = "#062A17";
+const MONO = { fontFamily: "'SF Mono', ui-monospace, Menlo, Consolas, 'Roboto Mono', monospace", fontVariantNumeric: "tabular-nums" };
+const CAPS = { fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase" as const };
+const FOCUS_DARK = { fontFamily: "inherit", "&:focus-visible": { outline: "3px solid", outlineColor: "#FFFFFF", outlineOffset: 2 } };
+const FOCUS = { fontFamily: "inherit", "&:focus-visible": { outline: "3px solid", outlineColor: NAVY, outlineOffset: 2 } };
+const FLIP = { display: "flex", '[dir="rtl"] &': { transform: "scaleX(-1)" } };
+const BLUEPRINT = {
+  backgroundColor: NAVY,
+  backgroundImage:
+    "linear-gradient(rgba(169,203,232,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(169,203,232,0.08) 1px, transparent 1px)",
+  backgroundSize: "22px 22px",
+};
+const REF_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const newRef = () => Array.from({ length: 4 }, () => REF_CHARS[Math.floor(Math.random() * REF_CHARS.length)]).join("");
+
+const WA_GLYPH =
+  "M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.050 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z";
+
+function WhatsAppGlyph({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={{ display: "block", flexShrink: 0 }}>
+      <path fill="#FFFFFF" d={WA_GLYPH} />
+    </svg>
+  );
+}
+
+export default function Component({
+  heroImage,
+  heroAlt,
+  heroFocus,
+  kicker,
+  headline,
+  subline,
+  ctaLabel,
+  ctaQuery,
+  ctaNote,
+  whatsappLabel,
+  whatsappNumber,
+  whatsappText,
+  trust,
+  startersTitle,
+  starters,
+  stepsTitle,
+  steps,
+  promisesTitle,
+  promises,
+  hours,
+  onAsk,
+}: Props) {
+  const [ref] = useState(newRef);
+  const cta: Chip = { id: "expert", label: ctaLabel || "Consult our AI deck expert", query: ctaQuery || "I'd like some advice on a deck" };
+  const waNumber = String(whatsappNumber || "").replace(/\D/g, "");
+  const waMessage = `${whatsappText || "Hi Brandeck, I'm thinking about a deck and have a few questions."} (ref ${ref})`;
+  const waHref = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
+  const openedWhatsApp = () => onAsk?.({ id: "whatsapp", label: whatsappLabel || "Message us on WhatsApp", query: `Opened WhatsApp from the home page (ref ${ref})` });
+  const sheet = (promises || []).slice(0, 4);
+
+  return (
+    <Box sx={{ width: "100%", maxWidth: 1040, marginInline: "auto", display: "flex", flexDirection: "column", gap: { xs: 2.25, md: 3 }, color: INK }}>
+      <Box sx={{ borderRadius: "16px", overflow: "hidden", bgcolor: NAVY, display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", md: "minmax(0,1.05fr) minmax(0,1fr)" } }}>
+        <Box sx={{ position: "relative", minHeight: { xs: 118, sm: 240, md: 440 }, bgcolor: "#2A4A68", order: { xs: 0, md: 1 } }}>
+          {heroImage ? (
+            <Box component="img" src={heroImage} alt={heroAlt || "A wooden backyard deck with a table, under a pergola"} sx={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: heroFocus || "50% 70%", display: "block" }} />
+          ) : null}
+          <Box aria-hidden="true" sx={{ position: "absolute", inset: 0, background: { xs: "linear-gradient(180deg, rgba(23,50,77,0) 45%, rgba(23,50,77,0.92) 100%)", md: "linear-gradient(90deg, rgba(23,50,77,0.55) 0%, rgba(23,50,77,0) 30%)" } }} />
+          <Typography sx={{ ...CAPS, display: { xs: "block", md: "none" }, position: "absolute", top: 12, insetInlineStart: 14, color: "#FFFFFF", bgcolor: "rgba(23,50,77,0.82)", borderRadius: "6px", px: 1, py: 0.5, fontSize: 10.5 }}>{kicker || "Brandeck · built by our own crew"}</Typography>
+          <Box aria-hidden="true" sx={{ position: "absolute", insetInlineStart: { xs: 18, md: 28 }, insetInlineEnd: { xs: 18, md: 28 }, bottom: { xs: 10, md: 26 }, display: "flex", alignItems: "center", gap: 1, color: YELLOW }}>
+            <Box sx={{ width: "1.5px", height: 12, bgcolor: YELLOW }} />
+            <Box sx={{ flex: 1, height: "1.5px", bgcolor: YELLOW }} />
+            <Typography component="span" sx={{ ...MONO, fontSize: 11, letterSpacing: "0.14em", color: YELLOW, bgcolor: "rgba(23,50,77,0.85)", px: 0.75, py: 0.2, borderRadius: "4px" }}>YOUR DECK</Typography>
+            <Box sx={{ flex: 1, height: "1.5px", bgcolor: YELLOW }} />
+            <Box sx={{ width: "1.5px", height: 12, bgcolor: YELLOW }} />
+          </Box>
+        </Box>
+        <Box sx={{ ...BLUEPRINT, color: "#FFFFFF", px: { xs: 2, sm: 3.5 }, pt: { xs: 1.5, md: 4.5 }, pb: { xs: 2, md: 4.5 }, display: "flex", flexDirection: "column", justifyContent: "center", gap: { xs: 1, md: 1.75 } }}>
+          <Typography sx={{ ...CAPS, color: CYAN, display: { xs: "none", md: "block" } }}>{kicker || "Brandeck · built by our own crew"}</Typography>
+          <Typography component="h3" sx={{ fontSize: { xs: 28, sm: 38, md: 46 }, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.01em" }}>{headline || "The deck you keep picturing."}</Typography>
+          {subline ? <Typography sx={{ fontSize: { xs: 15, md: 17.5 }, lineHeight: 1.45, color: "#DCE8F3", maxWidth: 480 }}>{subline}</Typography> : null}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: { xs: 0.25, md: 1 }, maxWidth: 440 }}>
+            <ButtonBase onClick={() => onAsk?.(cta)} sx={{ width: "100%", py: { xs: 1.4, md: 1.6 }, px: 2, borderRadius: "12px", bgcolor: YELLOW, color: NAVY, fontSize: 17, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 1.1, "&:hover": { bgcolor: "#F6C95A" }, ...FOCUS_DARK }}>
+              <MessagesSquare size={19} aria-hidden="true" />
+              {cta.label}
+            </ButtonBase>
+            {waNumber ? (
+              <ButtonBase component="a" href={waHref} target="_blank" rel="noopener noreferrer" onClick={openedWhatsApp} sx={{ width: "100%", py: { xs: 1.2, md: 1.35 }, px: 2, borderRadius: "12px", bgcolor: WA_GREEN, color: WA_INK, fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 1.1, textDecoration: "none", "&:hover": { bgcolor: "#3BDB77" }, ...FOCUS_DARK }}>
+                <WhatsAppGlyph size={22} />
+                {whatsappLabel || "Message us on WhatsApp"}
+              </ButtonBase>
+            ) : null}
+            {ctaNote ? <Typography sx={{ fontSize: 13, lineHeight: 1.45, color: CYAN, textAlign: "center" }}>{ctaNote}</Typography> : null}
+          </Box>
+        </Box>
+      </Box>
+
+      {trust && trust.length ? (
+        <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0, display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0,1fr))", md: "repeat(4, minmax(0,1fr))" }, gap: 1.25, px: { xs: 0.5, sm: 0 } }}>
+          {trust.map((item) => (
+            <Box component="li" key={item} sx={{ display: "flex", alignItems: "flex-start", gap: 0.9 }}>
+              <Box aria-hidden="true" sx={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", bgcolor: NAVY, color: YELLOW, display: "flex", alignItems: "center", justifyContent: "center", mt: 0.1 }}>
+                <Check size={13} strokeWidth={3} />
+              </Box>
+              <Typography sx={{ fontSize: 14.5, lineHeight: 1.4, fontWeight: 600, color: INK }}>{item}</Typography>
+            </Box>
+          ))}
+        </Box>
+      ) : null}
+
+      {starters && starters.length ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Typography component="h4" sx={{ ...CAPS, color: MUTED, px: { xs: 0.5, sm: 0 } }}>{startersTitle || "Or start with a question"}</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2, minmax(0,1fr))" }, gap: 1 }}>
+            {starters.map((chip) => (
+              <ButtonBase key={chip.id || chip.query} onClick={() => onAsk?.(chip)} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, px: 2, py: 1.5, bgcolor: "#FFFFFF", borderRadius: "12px", boxShadow: `inset 0 0 0 1px ${RULE}`, color: NAVY, textAlign: "start", "&:hover": { boxShadow: `inset 0 0 0 1.5px ${NAVY}` }, ...FOCUS }}>
+                <Typography component="span" sx={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }}>{`“${chip.label}”`}</Typography>
+                <Box component="span" aria-hidden="true" sx={FLIP}><ChevronRight size={18} /></Box>
+              </ButtonBase>
+            ))}
+          </Box>
+        </Box>
+      ) : null}
+
+      {steps && steps.length ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, bgcolor: "#FFFFFF", borderRadius: "16px", boxShadow: `inset 0 0 0 1px ${RULE}`, p: { xs: 2, sm: 2.75 } }}>
+          <Typography component="h4" sx={{ ...CAPS, color: NAVY }}>{stepsTitle || "How it works"}</Typography>
+          <Box component="ol" sx={{ listStyle: "none", m: 0, p: 0, display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", sm: `repeat(${Math.min(steps.length, 3)}, minmax(0,1fr))` }, gap: { xs: 1.5, sm: 2.5 } }}>
+            {steps.map((step, index) => (
+              <Box component="li" key={step.title} sx={{ display: "grid", gridTemplateColumns: "34px minmax(0,1fr)", gap: 1.25, alignItems: "start" }}>
+                <Box aria-hidden="true" sx={{ ...MONO, width: 30, height: 30, borderRadius: "8px", bgcolor: NAVY, color: YELLOW, fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{index + 1}</Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3 }}>{step.title}</Typography>
+                  {step.detail ? <Typography sx={{ fontSize: 14, lineHeight: 1.45, color: MUTED, mt: 0.25 }}>{step.detail}</Typography> : null}
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      ) : null}
+
+      {sheet.length ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, px: { xs: 0.5, sm: 0 } }}>
+          <Typography component="h4" sx={{ ...CAPS, color: NAVY }}>{promisesTitle || "In writing, on every deck"}</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2, minmax(0,1fr))" }, gap: { xs: 1.25, sm: 2 } }}>
+            {sheet.map((row) => (
+              <Box key={row._id || row.id || row.key || row.title} sx={{ display: "grid", gridTemplateColumns: "26px minmax(0,1fr)", gap: 1, alignItems: "start" }}>
+                <Box aria-hidden="true" sx={{ color: "#A4561F", display: "flex", pt: 0.25 }}><Check size={18} strokeWidth={2.75} /></Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 15.5, fontWeight: 700, lineHeight: 1.3 }}>{row.title}</Typography>
+                  {row.detail ? <Typography sx={{ fontSize: 14, lineHeight: 1.45, color: MUTED }}>{row.detail}</Typography> : null}
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      ) : null}
+
+      {hours ? <Typography sx={{ fontSize: 13, color: MUTED, px: { xs: 0.5, sm: 0 }, textAlign: "center" }}>{hours}</Typography> : null}
+    </Box>
+  );
+}

@@ -1,0 +1,16 @@
+{
+  "id": "deck-builder",
+  "order": 1,
+  "name": "Brandeck",
+  "role": "Agentic Salesperson",
+  "business": "A backyard deck builder with its own crews, sold through paid ads: one free design visit, then a fixed written quote; pine, cedar, composite and PVC decks, railings, stairs and pergolas.",
+  "moment": "A homeowner tapped an ad on their phone with a deck in mind and a worry or two (the price, the upkeep, being pushed). They want honest advice before anyone asks for their number, and an easy way to keep it.",
+  "homePattern": "A landing page, not a menu: an outcome-led headline over a real deck photo, the main button \"Consult our AI deck expert\", a WhatsApp button, trust specifics, the questions people ask before they buy, how it works and the written promises. No prices.",
+  "liveUrl": "https://brandeck.branderux.app",
+  "tags": ["salesperson", "landing page", "lead generation", "paid ads", "consultation", "quote", "contractor", "home improvement", "deck builder", "whatsapp"],
+  "elements": [
+    { "key": "deck-home", "file": "deck-home.tsx.txt", "role": "home", "notes": "The landing page as one element: a photo strip with the kicker on it and a yellow dimension line (YOUR DECK), the navy blueprint hero, the main button (its query equals the opener fixed screen's match query), the WhatsApp button (a wa.me link with a prefilled message and a 4-character ref, plus a hidden onAsk query that records the lead), trust ticks, starter questions, how it works and the promises bound live. Sized so both buttons end above the iPhone 13 fold. Switched off for the live agent: the home screen alone shows it." },
+    { "key": "quick-replies", "file": "quick-replies.tsx.txt", "role": "answer", "notes": "Two to five taps under the expert's own question, in the visitor's voice (a short label, a query they would type), right-aligned like the visitor's side of the chat. The optional WhatsApp pill is the easy way to keep in touch for someone just looking: it opens WhatsApp with their prefilled message and sends a hidden \"Opened WhatsApp from <where> (ref XXXX)\" query that the persona turns into a saved lead and an owner email." },
+    { "key": "deck-plan-card", "file": "deck-plan-card.tsx.txt", "role": "form", "notes": "The summary and close: the project in the visitor's words, a to-scale sketch only from a size they gave, a price range only when they asked, then the next steps easiest first (WhatsApp, text me the estimate and the sketch, a free design visit, a call). Picking one opens name and phone under it; one Send carries every handoff field in its click query (\"Request to Brandeck: ...\") and the platform confirms before the request is saved." }
+  ]
+}

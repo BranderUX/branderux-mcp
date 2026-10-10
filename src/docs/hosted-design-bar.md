@@ -127,7 +127,7 @@ look at is not finished.
 
 ## Using the references
 
-`list_templates` lists the five reference builds with the moment, the home pattern and the live
+`list_templates` lists the six reference builds with the moment, the home pattern and the live
 site. `get_template` returns one build's story (the moment, the home, every screen, the fixed
 screens, the data, the skills, the art direction, the lessons) and its signature elements'
 code. Read the one whose MOMENT is closest, then design for the customer: their moment, their
