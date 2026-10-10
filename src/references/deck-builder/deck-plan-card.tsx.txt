@@ -1,0 +1,391 @@
+import { useEffect, useState } from "react";
+import { Box, ButtonBase, Checkbox, TextField, Typography } from "@mui/material";
+import { CalendarCheck, Check, MessageSquareText, Phone, Send } from "lucide-react";
+
+type Chip = { id: string; label: string; query: string };
+type Sketch = { widthFt?: number; depthFt?: number; boards?: string; raised?: boolean; steps?: number; railing?: boolean; pergola?: boolean; lighting?: boolean };
+type Initial = { fullName?: string; phone?: string; townOrZip?: string; visitPreference?: string };
+
+export interface Props {
+  title?: string;
+  points?: string[];
+  sketch?: Sketch;
+  range?: string;
+  step?: string;
+  initialValues?: Initial;
+  projectType?: string;
+  scope?: string;
+  buildTiming?: string;
+  budgetComfort?: string;
+  readiness?: string;
+  worries?: string;
+  askedAbout?: string;
+  whatsappNumber?: string;
+  onAsk?: (chip: Chip) => void;
+}
+
+const NAVY = "#17324D";
+const CYAN = "#A9CBE8";
+const YELLOW = "#F2B935";
+const INK = "#13202C";
+const MUTED = "#55626F";
+const RULE = "rgba(23,50,77,0.16)";
+const ERROR = "#B3261E";
+const WA_GREEN = "#25D366";
+const WA_INK = "#062A17";
+const CAPS = { fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase" as const };
+const FIGURES = { fontVariantNumeric: "tabular-nums", fontFeatureSettings: "'tnum'" };
+const FOCUS = { fontFamily: "inherit", "&:focus-visible": { outline: "3px solid", outlineColor: NAVY, outlineOffset: 2 } };
+const BLUEPRINT = {
+  backgroundColor: NAVY,
+  backgroundImage:
+    "linear-gradient(rgba(169,203,232,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(169,203,232,0.08) 1px, transparent 1px)",
+  backgroundSize: "22px 22px",
+};
+const FIELD = {
+  "& .MuiOutlinedInput-root": { bgcolor: "#FFFFFF", borderRadius: "10px", fontSize: 16 },
+  "& .MuiOutlinedInput-notchedOutline": { borderColor: RULE },
+  "& .MuiInputLabel-root": { fontSize: 15 },
+};
+const SWATCH: Record<string, string> = { pt: "#C2A26B", cedar: "#B0683B", composite: "#6E4D3A", pvc: "#A8A49D" };
+const BOARD_WORDS: Record<string, string> = { pt: "pt", pine: "pt", "pressure-treated": "pt", "pressure-treated pine": "pt", wood: "pt", cedar: "cedar", composite: "composite", trex: "composite", pvc: "pvc", vinyl: "pvc" };
+const STEPS = [
+  { key: "whatsapp", label: "Send it to me on WhatsApp", sub: "Opens WhatsApp with your notes, and we pass this summary to our office.", value: "Send it on WhatsApp", submit: "" },
+  { key: "text", label: "Text me the estimate and the sketch", sub: "Just your name and phone. Sent within one business hour.", value: "Text me the estimate and the sketch", submit: "Text me the estimate" },
+  { key: "visit", label: "Book a free design visit", sub: "About 45 minutes at your home, then a fixed written quote.", value: "Book a free design visit", submit: "Book my free visit" },
+  { key: "call", label: "Call me now", sub: "A person from our office calls you within one business hour.", value: "Call me now", submit: "Call me" },
+];
+const STEP_WORDS: Record<string, string> = { whatsapp: "whatsapp", text: "text", estimate: "text", sms: "text", visit: "visit", book: "visit", call: "call", phone: "call" };
+const VISIT_TIMES = ["Weekday daytime", "Weekday evening", "Saturday morning"];
+// The consent wording, word for word as the design_visits entity's marketingConsent description.
+const CONSENT = "Yes, send me Brandeck's seasonal offers and deck care tips by email or text. I can unsubscribe at any time.";
+const REF_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const newRef = () => Array.from({ length: 4 }, () => REF_CHARS[Math.floor(Math.random() * REF_CHARS.length)]).join("");
+const clean = (value: unknown) => String(value ?? "").replace(/;/g, ",").replace(/\s+/g, " ").trim();
+const pickStep = (value?: string) => {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return "";
+  const direct = STEPS.find((step) => step.key === text || step.label.toLowerCase() === text || step.value.toLowerCase() === text);
+  if (direct) return direct.key;
+  const word = Object.keys(STEP_WORDS).find((key) => text.includes(key));
+  return word ? STEP_WORDS[word] : "";
+};
+const pickTime = (value?: string) => VISIT_TIMES.find((option) => option.toLowerCase() === String(value || "").trim().toLowerCase()) || "";
+
+type PlanProps = {
+  w: number;
+  d: number;
+  swatch: string;
+  raised: boolean;
+  rail: boolean;
+  stairs: boolean;
+  steps: number;
+  lighting: boolean;
+  pergola: boolean;
+  label: string;
+};
+
+function Plan({ w, d, swatch, raised, rail, stairs, steps, lighting, pergola, label }: PlanProps) {
+  const VBW = 320;
+  const VBH = 180;
+  const areaW = 236;
+  const areaH = 116;
+  const s = Math.min(areaW / w, areaH / d);
+  const dw = w * s;
+  const dh = d * s;
+  const x0 = 24 + (areaW - dw) / 2;
+  const y0 = 28;
+  const board = Math.max(2.2, 0.458 * s);
+  const stW = Math.min(4 * s, dw * 0.5);
+  const stH = Math.min(Math.max(steps, 1) * 0.9 * s, 22);
+  const stX = x0 + (dw - stW) / 2;
+  const bottom = y0 + dh;
+  const segments: [number, number, number, number][] = stairs
+    ? [
+        [x0, y0, x0, bottom],
+        [x0, bottom, stX, bottom],
+        [stX + stW, bottom, x0 + dw, bottom],
+        [x0 + dw, bottom, x0 + dw, y0],
+      ]
+    : [
+        [x0, y0, x0, bottom],
+        [x0, bottom, x0 + dw, bottom],
+        [x0 + dw, bottom, x0 + dw, y0],
+      ];
+  const posts: [number, number][] = [];
+  segments.forEach(([ax, ay, bx, by]) => {
+    const length = Math.hypot(bx - ax, by - ay);
+    const count = Math.max(1, Math.round(length / (6 * s)));
+    for (let i = 0; i <= count; i += 1) posts.push([ax + ((bx - ax) * i) / count, ay + ((by - ay) * i) / count]);
+  });
+  const pw = Math.min(12, w) * s;
+  const ph = Math.min(10, d) * s;
+  const px = x0 + dw - pw;
+  const rafters: number[] = [];
+  for (let x = px + 1.5 * s; x < px + pw - 1; x += 1.5 * s) rafters.push(x);
+  const dimY = y0 + areaH + 24;
+  const dimX = x0 + dw + 12;
+  const font = "'SF Mono', ui-monospace, Menlo, Consolas, monospace";
+  return (
+    <svg viewBox={`0 0 ${VBW} ${VBH}`} width="100%" role="img" aria-label={label} style={{ display: "block", maxWidth: 560 }}>
+      <defs>
+        <pattern id="bdk-planks" width="10" height={board} patternUnits="userSpaceOnUse">
+          <rect width="10" height={board} fill={swatch} />
+          <rect y={board - 0.7} width="10" height="0.7" fill="rgba(0,0,0,0.30)" />
+        </pattern>
+      </defs>
+      <rect x={10} y={13} width={VBW - 20} height={8} fill="rgba(169,203,232,0.30)" />
+      <text x={12} y={9} fill={CYAN} fontSize={8} fontFamily={font} letterSpacing={1.6}>
+        HOUSE
+      </text>
+      {raised && <rect x={x0 + 5} y={y0 + 5} width={dw} height={dh} fill="rgba(4,12,22,0.55)" />}
+      <rect x={x0} y={y0} width={dw} height={dh} fill="url(#bdk-planks)" stroke="rgba(255,255,255,0.9)" strokeWidth={1} />
+      {pergola && (
+        <g>
+          <rect x={px} y={y0} width={pw} height={ph} fill="rgba(23,50,77,0.32)" stroke={CYAN} strokeWidth={1} strokeDasharray="3 2" />
+          {rafters.map((x) => (
+            <line key={x} x1={x} y1={y0} x2={x} y2={y0 + ph} stroke={CYAN} strokeOpacity={0.55} strokeWidth={0.8} />
+          ))}
+          <text x={px + 4} y={y0 + ph - 4} fill="#FFFFFF" fontSize={8} fontFamily={font}>
+            pergola
+          </text>
+        </g>
+      )}
+      {stairs && (
+        <g>
+          <rect x={stX} y={bottom} width={stW} height={stH} fill="url(#bdk-planks)" stroke="rgba(255,255,255,0.9)" strokeWidth={0.8} />
+          {Array.from({ length: Math.max(steps - 1, 0) }).map((_, i) => {
+            const y = bottom + ((i + 1) * stH) / steps;
+            return <line key={i} x1={stX} y1={y} x2={stX + stW} y2={y} stroke="rgba(255,255,255,0.75)" strokeWidth={0.6} />;
+          })}
+        </g>
+      )}
+      {rail && (
+        <g>
+          {segments.map(([ax, ay, bx, by], i) => (
+            <line key={i} x1={ax} y1={ay} x2={bx} y2={by} stroke="#FFFFFF" strokeWidth={2} />
+          ))}
+          {posts.map(([x, y], i) => (
+            <rect key={i} x={x - 1.6} y={y - 1.6} width={3.2} height={3.2} fill="#FFFFFF" />
+          ))}
+        </g>
+      )}
+      {lighting &&
+        (rail ? posts : [[x0, bottom] as [number, number], [x0 + dw, bottom] as [number, number], [stX, bottom] as [number, number], [stX + stW, bottom] as [number, number]]).map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r={2.4} fill={YELLOW} />
+        ))}
+      {dw > 76 && dh > 30 && (
+        <g>
+          <rect x={x0 + dw / 2 - 30} y={y0 + dh / 2 - 9} width={60} height={18} rx={3} fill="rgba(16,37,57,0.86)" />
+          <text x={x0 + dw / 2} y={y0 + dh / 2 + 3.5} textAnchor="middle" fill="#FFFFFF" fontSize={9.5} fontFamily={font}>
+            {w * d} sq ft
+          </text>
+        </g>
+      )}
+      <g stroke={YELLOW} strokeWidth={1}>
+        <line x1={x0} y1={dimY} x2={x0 + dw} y2={dimY} />
+        <line x1={x0} y1={dimY - 4} x2={x0} y2={dimY + 4} />
+        <line x1={x0 + dw} y1={dimY - 4} x2={x0 + dw} y2={dimY + 4} />
+        <line x1={dimX} y1={y0} x2={dimX} y2={bottom} />
+        <line x1={dimX - 4} y1={y0} x2={dimX + 4} y2={y0} />
+        <line x1={dimX - 4} y1={bottom} x2={dimX + 4} y2={bottom} />
+      </g>
+      <rect x={x0 + dw / 2 - 20} y={dimY - 7} width={40} height={14} fill={NAVY} />
+      <text x={x0 + dw / 2} y={dimY + 3.5} textAnchor="middle" fill={YELLOW} fontSize={10} fontFamily={font}>
+        {w} ft
+      </text>
+      <text x={dimX + 6} y={y0 + dh / 2 + 3.5} fill={YELLOW} fontSize={10} fontFamily={font}>
+        {d} ft
+      </text>
+    </svg>
+  );
+}
+
+const WA_GLYPH =
+  "M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.050 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z";
+
+function WhatsAppGlyph({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={{ display: "block", flexShrink: 0 }}>
+      <path fill="#FFFFFF" d={WA_GLYPH} />
+    </svg>
+  );
+}
+
+export default function Component({ title, points, sketch, range, step, initialValues, projectType, scope, buildTiming, budgetComfort, readiness, worries, askedAbout, whatsappNumber, onAsk }: Props) {
+  const seedKey = JSON.stringify(initialValues || {});
+  const seed = (initialValues || {}) as Initial;
+  const [ref] = useState(newRef);
+  const [chosen, setChosen] = useState(pickStep(step) === "whatsapp" ? "" : pickStep(step));
+  const [fullName, setFullName] = useState(seed.fullName || "");
+  const [phone, setPhone] = useState(seed.phone || "");
+  const [townOrZip, setTownOrZip] = useState(seed.townOrZip || "");
+  const [visitPreference, setVisitPreference] = useState(pickTime(seed.visitPreference));
+  const [consent, setConsent] = useState(false);
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    const next = pickStep(step);
+    if (next && next !== "whatsapp") setChosen(next);
+  }, [step]);
+  useEffect(() => {
+    const next = JSON.parse(seedKey) as Initial;
+    if (next.fullName) setFullName(next.fullName);
+    if (next.phone) setPhone(next.phone);
+    if (next.townOrZip) setTownOrZip(next.townOrZip);
+    if (pickTime(next.visitPreference)) setVisitPreference(pickTime(next.visitPreference));
+  }, [seedKey]);
+
+  const list = (points || []).map((point) => clean(point).replace(/\.$/, "")).filter(Boolean).slice(0, 6);
+  const heading = clean(title) || "Your deck, so far";
+  const active = STEPS.find((option) => option.key === chosen);
+  const preferred = pickStep(step);
+
+  const w = Math.round(Number(sketch?.widthFt) || 0);
+  const d = Math.round(Number(sketch?.depthFt) || 0);
+  const boardKey = BOARD_WORDS[String(sketch?.boards || "").trim().toLowerCase()] || "";
+  const steps = Math.max(0, Math.round(Number(sketch?.steps) || 0));
+  const showSketch = w >= 6 && d >= 6;
+  const planLabel = `Sketch of a ${w} by ${d} foot deck${boardKey ? ` in ${String(sketch?.boards).toLowerCase()}` : ""}${sketch?.raised ? ", raised" : ""}${sketch?.railing ? ", with railing" : ""}${steps ? `, ${steps} steps` : ""}.`;
+
+  const waNumber = String(whatsappNumber || "15550106060").replace(/\D/g, "");
+  const waMessage = `Hi Brandeck, here's my deck: ${heading}${list.length ? `. ${list.join("; ")}` : ""}. Could you send me the estimate and a sketch? (ref ${ref})`;
+  const waHref = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
+  const openedWhatsApp = () => onAsk?.({ id: "whatsapp", label: STEPS[0].label, query: `Opened WhatsApp from the project summary (ref ${ref})` });
+
+  const submit = () => {
+    if (!active) return;
+    if (fullName.trim().length < 2) return setError("Please add your name.");
+    if (phone.replace(/\D/g, "").length < 7) return setError("Please add a phone number we can text or call.");
+    setError("");
+    setSent(true);
+    const parts: [string, string][] = [
+      ["next step", active.value],
+      ["name", fullName],
+      ["phone", phone],
+      ["town or ZIP", townOrZip],
+      ["visit preference", active.key === "visit" ? visitPreference : ""],
+      ["project", heading],
+      ["summary", list.join(" / ")],
+      ["project type", projectType || ""],
+      ["size and boards", scope || ""],
+      ["build timing", buildTiming || ""],
+      ["budget comfort", budgetComfort || ""],
+      ["where they are", readiness || ""],
+      ["worries", worries || ""],
+      ["asked about", askedAbout || ""],
+      ["range shown", range || ""],
+      ["offers and tips", consent ? "yes" : "no"],
+    ];
+    const query = `Request to Brandeck: ${parts.filter(([, value]) => clean(value)).map(([key, value]) => `${key}: ${clean(value)}`).join("; ")}`;
+    onAsk?.({ id: "request", label: active.submit, query });
+  };
+
+  const form = active ? (
+    <Box sx={{ p: { xs: 1.75, sm: 2.25 }, borderRadius: "12px", bgcolor: "#FFFFFF", boxShadow: `inset 0 0 0 1px ${RULE}`, display: "flex", flexDirection: "column", gap: 1.75 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2, minmax(0,1fr))" }, gap: 1.5 }}>
+        <TextField label="Your name" required value={fullName} onChange={(event) => setFullName(event.target.value)} fullWidth autoComplete="name" disabled={sent} sx={FIELD} />
+        <TextField label="Phone" required value={phone} onChange={(event) => setPhone(event.target.value)} fullWidth autoComplete="tel" disabled={sent} sx={FIELD} slotProps={{ htmlInput: { inputMode: "tel", dir: "ltr" } }} />
+        {active.key === "visit" ? (
+          <TextField label="Town or ZIP code (optional)" value={townOrZip} onChange={(event) => setTownOrZip(event.target.value)} fullWidth autoComplete="postal-code" disabled={sent} sx={{ ...FIELD, gridColumn: { sm: "1 / -1" } }} />
+        ) : null}
+      </Box>
+      {active.key === "visit" ? (
+        <Box role="group" aria-label="Which suits you for the visit?" sx={{ display: "flex", flexDirection: "column", gap: 0.9 }}>
+          <Typography component="span" sx={{ fontSize: 14.5, fontWeight: 700 }}>Which suits you for the visit?</Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+            {VISIT_TIMES.map((option) => {
+              const on = option === visitPreference;
+              return (
+                <ButtonBase key={option} aria-pressed={on} disabled={sent} onClick={() => setVisitPreference(on ? "" : option)} sx={{ px: 1.75, py: 1, borderRadius: "999px", border: "1.5px solid", borderColor: on ? NAVY : RULE, bgcolor: on ? NAVY : "#FFFFFF", color: on ? "#FFFFFF" : INK, fontSize: 14.5, fontWeight: 600, ...FOCUS }}>
+                  {option}
+                </ButtonBase>
+              );
+            })}
+          </Box>
+        </Box>
+      ) : null}
+      <Box component="label" sx={{ display: "flex", alignItems: "flex-start", gap: 1, cursor: "pointer" }}>
+        <Checkbox checked={consent} disabled={sent} onChange={(event) => setConsent(event.target.checked)} sx={{ p: 0.25, color: "rgba(23,50,77,0.5)", "&.Mui-checked": { color: NAVY } }} />
+        <Typography sx={{ fontSize: 14, lineHeight: 1.5 }}>{CONSENT}</Typography>
+      </Box>
+      {error ? <Typography role="alert" sx={{ fontSize: 14, fontWeight: 700, color: ERROR }}>{error}</Typography> : null}
+      <ButtonBase onClick={submit} disabled={sent} sx={{ width: "100%", py: 1.6, px: 2, borderRadius: "12px", bgcolor: YELLOW, color: NAVY, fontSize: 17, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 1, "&:hover": { bgcolor: "#F6C95A" }, "&.Mui-disabled": { opacity: 0.6, color: NAVY }, ...FOCUS }}>
+        <Send size={17} aria-hidden="true" />
+        {sent ? "Waiting for your confirmation" : active.submit}
+      </ButtonBase>
+      <Typography sx={{ fontSize: 13, lineHeight: 1.55, color: MUTED }}>
+        {sent
+          ? "Confirm the details in the card below and they reach our office."
+          : "What you send is stored in Brandeck's requests; our office reads it and replies within one business hour (Mon to Fri 8:00 to 18:00, Sat 9:00 to 13:00, Central)."}
+      </Typography>
+    </Box>
+  ) : null;
+
+  return (
+    <Box sx={{ width: "100%", maxWidth: 720, marginInline: "auto", borderRadius: "16px", overflow: "hidden", bgcolor: "#F7F9FB", boxShadow: `0 0 0 1px ${RULE}`, color: INK }}>
+      <Box sx={{ ...BLUEPRINT, color: "#FFFFFF", px: { xs: 2.25, sm: 3.25 }, py: { xs: 2.25, sm: 3 }, display: "flex", flexDirection: "column", gap: 1.25 }}>
+        <Typography sx={{ ...CAPS, color: CYAN }}>Brandeck · your deck, so far</Typography>
+        <Typography component="h3" sx={{ fontSize: { xs: 25, sm: 30 }, fontWeight: 700, lineHeight: 1.12 }}>{heading}</Typography>
+        {list.length ? (
+          <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0, display: "flex", flexDirection: "column", gap: 0.8 }}>
+            {list.map((point) => (
+              <Box component="li" key={point} sx={{ display: "grid", gridTemplateColumns: "20px minmax(0,1fr)", gap: 1, alignItems: "start" }}>
+                <Box aria-hidden="true" sx={{ color: YELLOW, display: "flex", pt: 0.35 }}><Check size={16} strokeWidth={3} /></Box>
+                <Typography sx={{ fontSize: 15.5, lineHeight: 1.45, color: "#E8F0F7" }}>{point}</Typography>
+              </Box>
+            ))}
+          </Box>
+        ) : null}
+        {showSketch ? (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mt: 0.5 }}>
+            <Plan w={w} d={d} swatch={SWATCH[boardKey] || "#8A6A50"} raised={Boolean(sketch?.raised)} rail={Boolean(sketch?.railing)} stairs={steps > 0} steps={Math.max(steps, 1)} lighting={Boolean(sketch?.lighting)} pergola={Boolean(sketch?.pergola)} label={planLabel} />
+            <Typography sx={{ fontSize: 12.5, color: CYAN }}>A first sketch. Our designer measures and draws it properly at the free visit.</Typography>
+          </Box>
+        ) : null}
+      </Box>
+
+      {clean(range) ? (
+        <Box sx={{ mx: { xs: 1.5, sm: 2.25 }, mt: { xs: 1.5, sm: 2.25 }, px: 2, py: 1.5, borderRadius: "12px", bgcolor: "rgba(242,185,53,0.2)", display: "flex", flexDirection: "column", gap: 0.4 }}>
+          <Typography sx={{ ...CAPS, fontSize: 10.5, color: NAVY }}>Decks like this usually land between</Typography>
+          <Typography sx={{ ...FIGURES, fontSize: { xs: 24, sm: 28 }, fontWeight: 700, color: NAVY, lineHeight: 1.15 }}>{clean(range)}</Typography>
+          <Typography sx={{ fontSize: 13.5, lineHeight: 1.45, color: INK }}>with us, installed. Your exact price comes in a fixed written quote after the free visit.</Typography>
+        </Box>
+      ) : null}
+
+      <Box sx={{ px: { xs: 1.5, sm: 2.25 }, py: { xs: 1.75, sm: 2.25 }, display: "flex", flexDirection: "column", gap: 1 }}>
+        <Typography component="h4" sx={{ fontSize: 17, fontWeight: 700, color: NAVY, px: 0.5 }}>How would you like it?</Typography>
+        {STEPS.map((option) => {
+          const on = option.key === chosen;
+          const Icon = option.key === "text" ? MessageSquareText : option.key === "visit" ? CalendarCheck : Phone;
+          const tone = option.key === "whatsapp";
+          const inner = (
+            <>
+              <Box aria-hidden="true" sx={{ flexShrink: 0, width: 36, height: 36, borderRadius: "10px", bgcolor: tone ? WA_GREEN : on ? YELLOW : "rgba(23,50,77,0.08)", color: tone ? WA_INK : NAVY, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {tone ? <WhatsAppGlyph size={22} /> : <Icon size={18} />}
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 0.2 }}>
+                <Typography component="span" sx={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3, color: on ? "#FFFFFF" : NAVY }}>{option.label}</Typography>
+                <Typography component="span" sx={{ fontSize: 13, lineHeight: 1.4, color: on ? "#DCE8F3" : MUTED }}>{option.sub}</Typography>
+              </Box>
+            </>
+          );
+          const rowSx = { width: "100%", display: "flex", alignItems: "center", gap: 1.5, px: 1.5, py: 1.25, borderRadius: "12px", textAlign: "start", textDecoration: "none", border: "1.5px solid", borderColor: on || preferred === option.key ? NAVY : RULE, bgcolor: on ? NAVY : "#FFFFFF", ...FOCUS };
+          return tone ? (
+            <ButtonBase key={option.key} component="a" href={waHref} target="_blank" rel="noopener noreferrer" onClick={openedWhatsApp} sx={rowSx}>
+              {inner}
+            </ButtonBase>
+          ) : (
+            <Box key={option.key} sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+              <ButtonBase aria-pressed={on} aria-expanded={on} onClick={() => { if (!sent) { setChosen(on ? "" : option.key); setError(""); } }} sx={rowSx}>
+                {inner}
+              </ButtonBase>
+              {on ? form : null}
+            </Box>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+}
