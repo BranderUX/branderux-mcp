@@ -122,8 +122,8 @@ verb never pairs with an English object.
 ## 8. Verify on a phone before you say it is done
 
 Open the published site at phone width, walk the home, tap one chip, tap one item, submit one
-form, and look at the confirmation. Check the Data pane holds the row. What you did not look at
-is not finished.
+form, and look at the confirmation. Check the owner's Inbox holds the record. What you did not
+look at is not finished.
 
 ## Using the references
 

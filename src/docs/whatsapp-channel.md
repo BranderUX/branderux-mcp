@@ -227,7 +227,7 @@ status (above). Call `get_whatsapp_status` and act on the first case that fits:
 - When the owner replies in a chat, the agent pauses in that chat: 4 hours by default, or
   1 hour, until tomorrow morning or 24 hours, chosen in the Agent tab. Each reply of
   theirs starts the pause again.
-- Bookings and orders land where they land from the site (the Data pane, the escalation
+- Bookings and orders land where they land from the site (the Inbox, the escalation
   email), and WhatsApp chats show in Conversations with a WhatsApp badge.
 - By Meta's rules, connecting changes a few things in the WhatsApp Business app:
   - existing broadcast lists become read-only;

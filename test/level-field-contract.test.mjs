@@ -1,6 +1,6 @@
 // Guards the `level` field's prose surfaces — the hosted-agent-contract doc
-// bullet, upsert_agent_config's describe(), the hosted prompt and the server
-// instructions — against drift. Owners pick an ANSWER-QUALITY STOP (1..5) and
+// bullet and build arc, upsert_agent_config's describe(), the hosted prompt and
+// the server instructions — against drift. Owners pick an ANSWER-QUALITY STOP (1..5) and
 // never hear a model, a vendor or a price (Lev, 2026-09-05): every level
 // surface must carry the five owner strings verbatim, must NOT name a
 // registry slug / display name / vendor, must never put a number on cost, and
@@ -11,19 +11,21 @@
 // stop always answers (the seam is the only serve runner). The BYOK paragraph, the
 // hosted prompt and the server instructions keep the never-handle-a-key rule
 // with the same card (now under Advanced in the Answer quality panel) and
-// credential names. Dependency-free (node:test): this repo has no other runner.
+// credential names (the instructions, cut to fit Claude Code's window, name the
+// card only). Dependency-free (node:test): this repo has no other runner.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { INSTRUCTIONS } from "../dist/create-server.js";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(join(root, path), "utf8");
 const doc = read("src/docs/hosted-agent-contract.md");
 const source = read("src/tools/agent.ts");
 const prompts = read("src/prompts.ts");
-const server = read("src/create-server.ts");
 
 /** The five owner strings (the client's level-copy.ts / builder prompt carry the same). */
 const LEVEL_WORDS = [
@@ -104,6 +106,15 @@ function modelSentence(text) {
   return match[0];
 }
 
+/** The build arc's upsert_agent_config step, which carries the never-ask rule. */
+function arcAgentConfigStep() {
+  const start = doc.indexOf("3. `upsert_agent_config`");
+  assert.notEqual(start, -1, "the arc has an upsert_agent_config step");
+  const end = doc.indexOf("\n4. ", start);
+  assert.notEqual(end, -1, "step 4 follows it");
+  return doc.slice(start, end);
+}
+
 test("upsert_agent_config declares `level` (int 1..5, optional) and no longer exposes `model` or `modelTier`", () => {
   const { block } = describeText();
   assert.match(block, /\.number\(\)/);
@@ -157,8 +168,8 @@ test("doc bullet: live on the next answer, the admin map, and the one cost fact"
   assert.doesNotMatch(doc, /- `modelTier` —/);
 });
 
-test("the hosted prompt and the server instructions never ask about answer quality or a model, and name no model, vendor or price in that sentence", () => {
-  for (const text of [prompts, server]) {
+test("the hosted prompt and the build arc never ask about answer quality or a model, and name no model, vendor or price in that sentence", () => {
+  for (const text of [prompts, arcAgentConfigStep()]) {
     const sentence = modelSentence(text);
     assert.match(sentence, /[Nn]ever ask/);
     assert.match(sentence, /balanced default/i);
@@ -166,6 +177,20 @@ test("the hosted prompt and the server instructions never ask about answer quali
       assert.ok(!sentence.includes(forbidden), `prompt sentence names "${forbidden}"`);
     }
   }
+});
+
+test("the server instructions leave answer quality to the arc: the words only name the key card's panel, and name no model, vendor or price", () => {
+  // The never-ask sentence moved to the build arc's step 3 (above) when the instructions were cut to fit
+  // the 2,048 characters Claude Code shows (server-instructions.test.mjs).
+  const text = flat(INSTRUCTIONS);
+  const mentions = text.match(/answer quality/gi) ?? [];
+  assert.deepEqual(mentions, ["Answer quality"], "only the panel's name");
+  assert.match(text, /the Agent tab's Answer quality panel\./);
+  const sentence = modelSentence(text);
+  for (const forbidden of FORBIDDEN_ON_LEVEL_SURFACES) {
+    assert.ok(!sentence.includes(forbidden), `instructions sentence names "${forbidden}"`);
+  }
+  assert.doesNotMatch(text, /\$\d/);
 });
 
 test("doc BYOK paragraph: the card under Advanced or request_credential model-<provider>, never handled in chat, provider bills the owner", () => {
@@ -182,9 +207,11 @@ test("doc BYOK paragraph: the card under Advanced or request_credential model-<p
 });
 
 test("the hosted prompt and the server instructions mirror the BYOK rule", () => {
-  for (const text of [flat(prompts), flat(server)]) {
+  for (const text of [flat(prompts), flat(INSTRUCTIONS)]) {
     assert.match(text, /"Your API key" card under Advanced in the Agent tab's Answer quality panel/);
-    assert.match(text, /request_credential (?:tool )?named model-<provider>/);
     assert.match(text, /never ask for/);
   }
+  // The in-app Builder's secure field: the hosted prompt and the doc's BYOK paragraph (above) name it;
+  // the server instructions point at the card only.
+  assert.match(flat(prompts), /request_credential (?:tool )?named model-<provider>/);
 });

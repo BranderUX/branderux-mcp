@@ -51,21 +51,58 @@ const projectSummary = {
   name: z.string(),
 };
 
+/** whoami's row: the summary plus the caller's role, and the owner on a manager's row. */
+const projectRoleSummary = {
+  ...projectSummary,
+  role: z.string().describe("owner or manager"),
+  owner: z.string().optional().describe("The owner's name (else email); only on a manager's row."),
+};
+
+/**
+ * A `/projects` row as the server lists it: the projects the caller owns OR
+ * manages, each with the caller's role beside the owner's identity.
+ */
+type ProjectRow = {
+  id: string;
+  name: string;
+  myRole?: string | null;
+  ownerDisplayName?: string | null;
+  ownerEmail?: string | null;
+};
+
+/**
+ * A row from before roles shipped names no role and is the caller's own. A
+ * manager's row names the owner (display name, else email; a blank name falls
+ * through to the email) so the agent can say whose project it is building in.
+ */
+function projectRole(row: ProjectRow): z.infer<z.ZodObject<typeof projectRoleSummary>> {
+  const role = typeof row.myRole === "string" && row.myRole ? row.myRole : "owner";
+  const owner = nonBlank(row.ownerDisplayName) ?? nonBlank(row.ownerEmail);
+  return { id: row.id, name: row.name, role, ...(role === "manager" && owner ? { owner } : {}) };
+}
+
+function nonBlank(value: unknown): string | undefined {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return trimmed || undefined;
+}
+
 export function registerProjectTools(server: McpServer, api: ApiClient): void {
   server.registerTool(
     "whoami",
     {
       title: "Who am I",
       description:
-        "Who is authenticated, and their projects. Call this first to orient yourself. " +
+        "Who is authenticated, and the projects they own or manage: each row carries `role` (owner or manager), and a manager's row names the `owner`. " +
+        "Call this first to orient yourself. " +
         "It also reports `dpaAccepted`: whether this account has accepted the data-processing engagement, " +
-        "which is what lets us handle their visitors' data on their behalf. When it is false, ask the owner " +
+        "which is what lets us handle their visitors' data on their behalf (for a project the account only manages, " +
+        "the owner's acceptance is what counts, and publish_site reports it). When it is false, ask the owner " +
         `to open ${DPA_ACCEPT_URL} (dpaAcceptUrl) and accept it, one click, at a natural moment in the build. ` +
         "It never blocks anything: no build step and no publish waits on it.",
       inputSchema: {},
       outputSchema: {
         user: z.object({}).passthrough(),
-        projects: z.array(z.object(projectSummary).passthrough()),
+        projects: z.array(z.object(projectRoleSummary).passthrough()),
         dpaAccepted: z.boolean(),
         dpaAcceptUrl: z.string(),
       },
@@ -73,10 +110,10 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
     },
     guarded(async () => {
       const me = await api.get<Record<string, unknown>>("/auth/me");
-      const projects = await api.get<{ id: string; name: string }[]>("/projects");
+      const projects = await api.get<ProjectRow[]>("/projects");
       const payload = {
         user: me ?? {},
-        projects: (projects ?? []).map((p) => ({ id: p.id, name: p.name })),
+        projects: (projects ?? []).map(projectRole),
         // Accounts from before the engagement existed count as accepted: they
         // signed up under the previous terms and are never asked here.
         dpaAccepted: hasAcceptedDpa(me),
@@ -90,7 +127,10 @@ export function registerProjectTools(server: McpServer, api: ApiClient): void {
     "list_projects",
     {
       title: "List projects",
-      description: "List the user's BranderUX projects.",
+      description:
+        "List the projects the user owns or manages. Each row carries `myRole` (owner or manager) and the owner's name and email; " +
+        "managers can build, publish, manage API keys and hand the project over to a new owner, but only the owner can delete the project " +
+        "or add and remove managers (done in the app's project settings).",
       inputSchema: {},
       outputSchema: { projects: z.array(z.object(projectSummary).passthrough()) },
       annotations: READ_ONLY,
@@ -171,6 +211,7 @@ const ALWAYS_ENABLED_ELEMENTS: readonly string[] = ["chat-bubble"];
       title: "Update project settings",
       description:
         "Merge changes into project.settings — uiGenerationMode ('flexible' | 'deterministic'), elementVisibility, customPages, flexibleModeRules, elementStyleVariant — and, when given, rename the project (name) or rewrite its description: the project's display name in the app is NOT the brand name (update_brand_settings owns brandName). " +
+        "flexibleModeRules is content guidance for screens (which screens and components to prefer, what to offer when), never the wire format: serve drops any line that names A2UI, JSONL, markers, updateDataModel, componentId or pretty-printing — the platform owns the format. " +
         "Every finished build MUST set customPages (2-5 nav entries matching the screens) — without them the playground opens to a setup dialog instead of the product. " +
         "Each customPages entry is EXACTLY {id, name, query} (all non-empty strings; name is the nav label, query is what clicking the page asks) — other keys are rejected, and the server nulls anything misshapen. " +
         "elementVisibility merges key-wise: fixed-element keys are the kebab type names (header, stats-grid, data-table, line-chart, pie-chart, bar-chart, item-grid, item-card, image, details-data, chat-bubble, form, button, alert, video), custom elements are custom:<key>; false disables, absent = enabled. chat-bubble is ALWAYS on — every text answer renders through it — so a false for it is ignored.",

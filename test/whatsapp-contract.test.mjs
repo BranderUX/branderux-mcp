@@ -146,8 +146,9 @@ const SPRING_STATUS_SEND_BLOCKED = {
 /**
  * The exact body every Spring WhatsApp endpoint answers, with a 503, while the
  * channel is off on that server (branderux-server WhatsAppChannelOffTest pins it
- * key for key; the timestamp is the clock). It has no error_description, which
- * the API client would word the ApiError from instead of from `error`.
+ * key for key; the timestamp is the clock). The API client words the ApiError
+ * from its `message` (Spring's global body rule) and keeps its `code` beside it,
+ * which is what the tools read.
  */
 const SPRING_CHANNEL_OFF = {
   timestamp: "2026-09-25T09:30:00.123456",
@@ -666,7 +667,7 @@ test("Spring's exact channel-off body, through the real API client, reads as NOT
     assert.deepEqual(read.structuredContent, {
       available: false,
       whatsapp: null,
-      reason: `GET ${STATUS_PATH} → 503: whatsapp_not_configured`,
+      reason: `GET ${STATUS_PATH} → 503: ${SPRING_CHANNEL_OFF.message}`,
     });
     assert.match(read.content[0].text, /not open on BranderUX yet/);
     assert.match(read.content[0].text, /Say nothing about WhatsApp to the owner/);
@@ -685,7 +686,8 @@ test("through the real API client, any other 503 (a proxy's text, Spring's gener
   const generic = { timestamp: "2026-09-25T09:30:00.123456", status: 503, error: "Service Unavailable", message: "Try again later" };
   for (const [text, detail] of [
     [proxy, proxy],
-    [JSON.stringify(generic), "Service Unavailable"],
+    // Spring's generic body is worded from its message (the API client's rule) and carries no code.
+    [JSON.stringify(generic), "Try again later"],
   ]) {
     await againstSpring(503, text, async (api) => {
       const read = await tool("get_whatsapp_status", api).handler({ projectId: PROJECT });
@@ -1215,7 +1217,7 @@ test("Spring's own 409 whatsapp_needs_reconnect, through the real API client, an
     const result = await entry.handler({ projectId: PROJECT });
     assert.notEqual(result.isError, true, "a number waiting for the owner is a fact step 8 acts on");
     assert.deepEqual(result.structuredContent, {
-      forms: { reconnectRequired: true, reason: `POST ${PUBLISH_PATH} → 409: whatsapp_needs_reconnect` },
+      forms: { reconnectRequired: true, reason: `POST ${PUBLISH_PATH} → 409: ${SPRING_NEEDS_RECONNECT.message}` },
     });
     assertMatchesOutput(entry, result);
     const text = result.content[0].text;
@@ -1866,20 +1868,31 @@ test("the handoff's WhatsApp number or link is still asked for, confirmed and st
 
 // --- the server instructions and the hosted prompt ------------------------------------
 
-test("the server instructions carry the offer in ONE line: last, only where customers use WhatsApp, never asking for a number or a token to connect it", () => {
-  const lines = INSTRUCTIONS.split("\n").filter((line) => /whatsapp/i.test(line));
-  assert.equal(lines.length, 1, "one line");
-  const [line] = lines;
-  assert.equal(
-    line,
-    "Last, if get_whatsapp_status allows and the business's customers use WhatsApp, offer it once (read_doc whatsapp-channel); to connect it, never ask for a phone number or a token."
+test("the server instructions carry the offer in ONE sentence: last, only where customers use WhatsApp, never asking for a number or a token to connect it", () => {
+  const text = INSTRUCTIONS.replace(/\s+/g, " ");
+  const sentences = text.split(/(?<=\.)\s/).filter((sentence) => /whatsapp/i.test(sentence));
+  assert.deepEqual(
+    sentences,
+    ["Last, if get_whatsapp_status allows and customers use WhatsApp, offer it once; to connect it, never ask for a phone number or a token."],
+    "one sentence"
   );
-  assert.ok(INSTRUCTIONS.endsWith(line), "the last line, after the BYOK rule");
+  const byok = text.indexOf("Agent tab's Answer quality panel.");
+  const offer = text.indexOf(sentences[0]);
+  const ownerData = text.indexOf("OWNER DATA, after launch");
+  assert.ok(byok !== -1 && offer > byok && ownerData > offer, "after the BYOK rule, before the owner-data pointer");
 });
+
+/** The build-hosted-agent-app prompt's text (review-my-week names WhatsApp too, as where the owner replies from). */
+function hostedPrompt() {
+  const start = prompts.indexOf('"build-hosted-agent-app"');
+  const end = prompts.indexOf('"integrate-branderux"', start);
+  assert.ok(start !== -1 && end > start, "the hosted prompt is registered before integrate-branderux");
+  return prompts.slice(start, end);
+}
 
 /** The hosted prompt's one WhatsApp line. */
 function promptWhatsAppLine() {
-  const lines = prompts.split("\n").filter((line) => /whatsapp/i.test(line));
+  const lines = hostedPrompt().split("\n").filter((line) => /whatsapp/i.test(line));
   assert.equal(lines.length, 1, "one line");
   return lines[0];
 }
@@ -1930,8 +1943,8 @@ test("the channel doc is read only after the status, on the way to an offer or u
   );
   assert.doesNotMatch(described, /Read brander:\/\/docs\/whatsapp-channel first/, "never before the status call itself");
 
-  const [instructed] = INSTRUCTIONS.split("\n").filter((text) => /whatsapp/i.test(text));
-  assert.match(instructed, /offer it once \(read_doc whatsapp-channel\)/, "the server instructions read it for the offer");
+  // The server instructions send no one to the doc: the status tool says when to read it.
+  assert.doesNotMatch(INSTRUCTIONS, /whatsapp-channel/, "the server instructions never point at the doc themselves");
 
   const step = arcStep8();
   const call = step.indexOf("Call `get_whatsapp_status`");

@@ -15,22 +15,22 @@ export const WHATSAPP_TITLES_MAX = 50;
 export const WHATSAPP_TITLE_QUERY_MAX = 200;
 
 /**
- * The `error` of the 503 every Spring WhatsApp endpoint answers while the
- * channel is switched off on that server (WhatsAppProperties.ERROR_NOT_CONFIGURED):
- * `{timestamp, status: 503, error, code, message, retryable: false}`. The API
- * client words an ApiError from a body's `error_description`, else its `error`,
- * else its `message`; that body carries no `error_description` (the server's
- * WhatsAppChannelOffTest pins it key for key), so the code is in the wording,
- * which is how a switched-off channel is told apart from an outage's 503.
+ * The `code` (and `error`) of the 503 every Spring WhatsApp endpoint answers
+ * while the channel is switched off on that server
+ * (WhatsAppProperties.ERROR_NOT_CONFIGURED): `{timestamp, status: 503, error,
+ * code, message, retryable: false}` (the server's WhatsAppChannelOffTest pins
+ * it key for key). The API client words the ApiError from Spring's `message`
+ * and keeps the body's `code` beside it (`ApiError.code`): the code is how a
+ * switched-off channel is told apart from an outage's 503.
  */
 export const WHATSAPP_NOT_CONFIGURED = "whatsapp_not_configured";
 
 /**
- * The `error` of Spring's 409 when a forms run cannot start because the number
+ * The `code` of Spring's 409 when a forms run cannot start because the number
  * does not answer (WhatsAppChannelException.Reason.NEEDS_RECONNECT): it is
  * already waiting for the owner (needs_reconnect), or the run found a stored
  * token the server cannot use and marked it so. Same body shape as the 503
- * above, so the code is in the ApiError's wording the same way.
+ * above, so the code rides `ApiError.code` the same way.
  */
 export const WHATSAPP_NEEDS_RECONNECT = "whatsapp_needs_reconnect";
 
@@ -139,11 +139,15 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 /** Only the server's own code means the channel is switched off; any other 503 is an outage and stays an error. */
 const channelOff = (error: unknown): error is ApiError =>
-  error instanceof ApiError && error.status === 503 && error.message.includes(WHATSAPP_NOT_CONFIGURED);
+  error instanceof ApiError &&
+  error.status === 503 &&
+  (error.code === WHATSAPP_NOT_CONFIGURED || error.message.includes(WHATSAPP_NOT_CONFIGURED));
 
 /** Only the server's own 409 code means the number waits for the owner; any other 409 stays an error. */
 const waitsForOwner = (error: unknown): error is ApiError =>
-  error instanceof ApiError && error.status === 409 && error.message.includes(WHATSAPP_NEEDS_RECONNECT);
+  error instanceof ApiError &&
+  error.status === 409 &&
+  (error.code === WHATSAPP_NEEDS_RECONNECT || error.message.includes(WHATSAPP_NEEDS_RECONNECT));
 
 /** The status while WhatsApp is not open here, and why (the diagnostic `reason`). */
 const notOpen = (reason: string) => ok(NOT_OPEN, { available: false, whatsapp: null, reason });
