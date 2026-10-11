@@ -16,8 +16,9 @@ a reason, sum up, then make the next step easy. That is the page.
 A photo strip (a real deck under a pergola) with the kicker on it ("Brandeck · built by our own
 crew") and a yellow dimension line labelled YOUR DECK; a navy blueprint panel with the outcome
 headline "The deck you keep picturing.", one line ("Honest advice in minutes. A fixed written
-quote after one free visit."), the main button "Consult our AI deck expert", a WhatsApp button
-and a note ("Free, no sign-up. A person from our office replies within the hour."). Under it:
+quote after one free visit."), the main button "Consult our AI deck expert", a white WhatsApp
+button with WhatsApp's own green mark and a note ("Free, no sign-up. A person from our office
+replies within the hour."). Under it:
 four trust ticks, "Or start with a question" (replace my old deck, wood or composite, how long
 it takes, what a deck like mine costs), how it works in three steps, the written promises
 (bound live) and the office hours. No prices on the home. Opening line: "Hi, I'm Brandeck's AI
@@ -83,8 +84,10 @@ A builder's blueprint: navy #17324D panels with a faint 22 px grid, a yellow #F2
 button and dimension lines, cedar #A4561F check marks, a cool light ground #EEF2F4 with #DCE5EC
 chrome, Avenir Next, a monospace dimension label. The plan card draws the deck to scale
 (planks, steps, railing posts, a pergola) with the feet in yellow. WhatsApp keeps WhatsApp's own
-look, the official glyph white on #25D366, so people recognise it at a glance (the label stays
-dark ink for contrast). A stack of deck planks in a navy rounded square as the logo mark.
+mark, the green #25D366 circle with the white phone-in-a-bubble glyph, on a white button with a
+subtle border and the label in the page's navy ink: it reads as WhatsApp at a glance and still
+matches the page (a white glyph on a green button beside dark text read as out of place). A stack
+of deck planks in a navy rounded square as the logo mark.
 
 ## Lessons that generalise
 - Sell like a person: no price first, the four moves as a mindset, one question at a time, and
