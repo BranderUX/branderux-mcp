@@ -10,9 +10,9 @@ import { fileURLToPath } from "node:url";
  * a broken example. Source files are checked directly (the build copies the folder).
  */
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "references");
-const EXPECTED = ["barbershop", "bed-and-breakfast", "florist", "gift-shop", "restaurant"];
+const EXPECTED = ["barbershop", "bed-and-breakfast", "deck-builder", "florist", "gift-shop", "restaurant"];
 
-test("the five reference builds exist with metadata, a story and their elements", () => {
+test("the six reference builds exist with metadata, a story and their elements", () => {
   const dirs = readdirSync(ROOT, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
   assert.deepEqual(dirs, EXPECTED);
   for (const id of dirs) {
@@ -61,4 +61,16 @@ test("get_started, the contract and the build arc point at the design bar and th
   const prompts = readFileSync(join(ROOT, "..", "prompts.ts"), "utf8");
   assert.ok(prompts.includes("hosted-design-bar"));
   assert.ok(prompts.includes("never a kit to copy"));
+});
+
+test("list_templates leads with the deck builder, then the rest in id order", async () => {
+  const { loadReferences, orderedReferenceIds } = await import("../dist/tools/references.js");
+  assert.deepEqual(orderedReferenceIds(loadReferences(ROOT)), [
+    "deck-builder",
+    "barbershop",
+    "bed-and-breakfast",
+    "florist",
+    "gift-shop",
+    "restaurant",
+  ]);
 });

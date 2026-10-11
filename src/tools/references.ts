@@ -6,7 +6,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { READ_ONLY, fail, ok } from "./helpers.js";
 
 /**
- * Reference builds: the five template sites, served as worked examples a client AI reads
+ * Reference builds: the six template sites, served as worked examples a client AI reads
  * before designing for a customer. Nothing here is copied into a project — the story says
  * what a build designed for its moment looks like, the element code shows how it was done.
  * Each reference is a folder under src/references/<id>/ with template.json (metadata),
@@ -35,6 +35,8 @@ export interface ReferenceTemplate {
   liveUrl: string;
   tags: string[];
   elements: ReferenceElement[];
+  /** Where the reference lists: lower first; references without one follow in id order. */
+  order?: number;
 }
 
 export function loadReferences(dir: string = REFERENCES_DIR): Map<string, ReferenceTemplate> {
@@ -66,6 +68,12 @@ export function readReferenceElement(
   return existsSync(path) ? { element, code: readFileSync(path, "utf8") } : null;
 }
 
+/** The ids in list order: by `order`, then alphabetically. */
+export function orderedReferenceIds(references: Map<string, ReferenceTemplate>): string[] {
+  const rank = (id: string) => references.get(id)?.order ?? Number.MAX_SAFE_INTEGER;
+  return [...references.keys()].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
 const summaryOf = (template: ReferenceTemplate) => ({
   id: template.id,
   name: template.name,
@@ -80,7 +88,7 @@ const summaryOf = (template: ReferenceTemplate) => ({
 
 export function registerReferenceTools(server: McpServer): void {
   const references = loadReferences();
-  const ids = [...references.keys()].sort();
+  const ids = orderedReferenceIds(references);
   if (ids.length === 0) return;
 
   server.registerTool(
@@ -88,7 +96,7 @@ export function registerReferenceTools(server: McpServer): void {
     {
       title: "List the reference builds",
       description:
-        "The five reference builds (a restaurant's waiter, a barbershop's receptionist, a florist, a bed-and-breakfast concierge, a gift shop's assistant): for each, the moment the visitor is in, the home pattern that moment produced, the live site and the signature elements. REFERENCES, NOT KITS: read the one whose MOMENT is closest to the customer's, then design for the customer with their data, voice and palette. Nothing is copied into a project. Read brander://docs/hosted-design-bar first.",
+        "The six reference builds (a deck builder's salesperson on a landing page, a restaurant's waiter, a barbershop's receptionist, a florist, a bed-and-breakfast concierge, a gift shop's assistant): for each, the moment the visitor is in, the home pattern that moment produced, the live site and the signature elements. REFERENCES, NOT KITS: read the one whose MOMENT is closest to the customer's, then design for the customer with their data, voice and palette. Nothing is copied into a project. Read brander://docs/hosted-design-bar first.",
       inputSchema: {},
       outputSchema: {
         templates: z.array(
