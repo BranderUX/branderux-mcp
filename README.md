@@ -16,10 +16,9 @@ claude mcp add --transport http branderux https://mcp.branderux.com/mcp
 ```
 
 No API keys: the first tool call opens your browser for a one-click BranderUX sign-in
-(OAuth 2.1 + PKCE, scoped and revocable). Access is currently limited to beta
-accounts, everyone else lands on the waiting list, and you'll get an email the moment
-your access opens. While you wait: try a live BranderUX-built app at
-[nova.branderux.app](https://nova.branderux.app).
+(OAuth 2.1 + PKCE, scoped and revocable). Anyone with a BranderUX account connects.
+See what it builds: [nova.branderux.app](https://nova.branderux.app) and the five live
+examples on [branderux.com](https://branderux.com).
 
 ## Tools
 
