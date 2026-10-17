@@ -1,4 +1,5 @@
 import { ApiError } from "../api-client.js";
+import { AppError } from "../app-client.js";
 
 type ToolResult = {
   content: { type: "text"; text: string }[];
@@ -28,9 +29,13 @@ export function fail(message: string): ToolResult {
   return { content: [{ type: "text", text: message }], isError: true };
 }
 
-/** A failed call in words: the API's own sentence, or the unexpected error's message. */
+/**
+ * A failed call in words: the API's own sentence (Spring's, and the web app's,
+ * which both clients word the same way: "METHOD path → status: detail"), or
+ * the unexpected error's message.
+ */
 export function errorText(error: unknown): string {
-  if (error instanceof ApiError) return error.message;
+  if (error instanceof ApiError || error instanceof AppError) return error.message;
   return `Unexpected error: ${error instanceof Error ? error.message : String(error)}`;
 }
 

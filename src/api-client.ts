@@ -3,7 +3,9 @@ import { CONFIG } from "./config.js";
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
-    message: string
+    message: string,
+    /** The body's machine-readable `code`, when it carries one (Spring's WhatsApp refusals do). */
+    public readonly code?: string
   ) {
     super(message);
   }
@@ -38,8 +40,10 @@ export function createApiClient(tokenProvider: () => Promise<string>) {
     if (!response.ok) {
       const body = await response.text();
       let detail = body.slice(0, 500);
+      let code: string | undefined;
       try {
         const parsed = JSON.parse(body);
+        if (typeof parsed.code === "string" && parsed.code) code = parsed.code;
         // Spring's global error body is {timestamp, status, error: "Bad Request", message}:
         // its `error` is only the status phrase and the real reason is `message`.
         // The owner-data endpoints answer {error: "<sentence>"}, which `error` carries.
@@ -64,7 +68,7 @@ export function createApiClient(tokenProvider: () => Promise<string>) {
           detail = `Insufficient scope — re-authorize with the scope named in the challenge. ${challenge}`;
         }
       }
-      throw new ApiError(response.status, `${init?.method || "GET"} ${path} → ${response.status}: ${detail}`);
+      throw new ApiError(response.status, `${init?.method || "GET"} ${path} → ${response.status}: ${detail}`, code);
     }
 
     const text = await response.text();
