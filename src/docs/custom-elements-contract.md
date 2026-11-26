@@ -280,6 +280,22 @@ and other MCP clients), `list_element_versions` lists every version with its `cr
 when you need to check what actually landed; without it, `get_element`'s `currentVersion`
 is the check.
 
+To fix an element that already exists, use `edit_element` whenever the change is a few
+lines: it takes search-and-replace edits instead of the whole file again, so nothing else in
+the code can break. Copy each `search` exactly from the current code (`get_element` shows it)
+with enough surrounding lines to match one place; when any edit matches no place or more than
+one, the whole call is refused and nothing is published. It edits the element's current
+version whatever its status and, exactly like `publish_element_version`, the result is
+published, so a draft element becomes published. It runs the same pre-flight on the edited
+code (the stored skeleton is carried forward as it is, not validated again), publishes the next
+version with every other field unchanged, and moves every screen placement pinned to the version
+it edited (`baseVersion` in the result) onto the new one (`repinScreens: false` leaves the screens
+alone). A placement pinned to any other version may be pinned on purpose, so it keeps its pin
+and is listed in `otherPins`. When another client publishes the element while the call runs,
+the call is refused and nothing is published: read the code again with `get_element` and send
+the edits again. A change to `propsSchema`, `defaultProps` or the templates still goes through
+`publish_element_version`.
+
 ## Query templates
 
 `clickQueryTemplate` turns clicks into agent queries. Plain string = primary action

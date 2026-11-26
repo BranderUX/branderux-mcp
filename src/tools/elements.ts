@@ -9,7 +9,9 @@ import {
 import { transform } from "sucrase";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ApiClient } from "../api-client.js";
-import { CONFIRM_HINT, DESTRUCTIVE, READ_ONLY, WRITE, fail, guarded, ok } from "./helpers.js";
+import { CONFIRM_HINT, DESTRUCTIVE, READ_ONLY, WRITE, errorText, fail, guarded, ok } from "./helpers.js";
+import { applyEdits, type EditFailure } from "../lib/apply-edits.js";
+import { otherPinsIn, repinScreen, screenPinsVersion, type OtherPin } from "../lib/screen-repin.js";
 import { buildPreviewPayload, extractImageOrigins } from "../preview/compile.js";
 import { normalizeBrandForPanel } from "../playground/generate-screen.js";
 import { PREVIEW_RESOURCE_URI, isPreviewAppAvailable, previewMeta } from "../preview/app-resource.js";
@@ -244,6 +246,173 @@ async function fetchPanelContext(api: ApiClient, projectId: string): Promise<Pan
   return context;
 }
 
+
+/** The current version as GET /elements/{id} returns it (Spring's CustomElementVersionResponse). */
+interface StoredVersionPayload extends Omit<WireVersionPayload, "defaultProps" | "version"> {
+  version?: number | null;
+  defaultProps?: Record<string, unknown> | null;
+  previewWrapperCode?: string | null;
+  skeletonCode?: string | null;
+  toolSchema?: Record<string, unknown> | null;
+  structurePrompt?: string | null;
+  rightClickPropName?: string | null;
+  clickArgIsObject?: boolean | null;
+  extractionStatus?: string | null;
+}
+
+/**
+ * The version edit_element appends: the edited code, and every other field of the current version
+ * carried forward unchanged. Two fields follow the code, as publish_element_version derives them:
+ * the right-click prop (a stored name the edited code still mentions is kept) and the prompt, which
+ * records the edit. Spring serializes nulls, so a stored `toolSchema: null` (a tool-disabled element)
+ * stays null; only a payload without the key at all gets publish_element_version's tool schema.
+ */
+function nextVersionBody(
+  current: StoredVersionPayload,
+  code: string,
+  description: string | undefined,
+  editCount: number
+): Record<string, unknown> {
+  const storedRightClick = current.rightClickPropName ?? null;
+  return {
+    code,
+    previewWrapperCode: current.previewWrapperCode ?? null,
+    skeletonCode: current.skeletonCode ?? null,
+    prompt: `Edited by the customer's agent via the BranderUX MCP (edit_element, ${editCount} ${editCount === 1 ? "edit" : "edits"}).`,
+    propsSchema: current.propsSchema ?? null,
+    defaultProps: current.defaultProps ?? null,
+    toolSchema:
+      "toolSchema" in current
+        ? (current.toolSchema ?? null)
+        : { description: description ?? "", input_schema: current.propsSchema ?? { type: "object", properties: {} } },
+    structurePrompt: current.structurePrompt ?? null,
+    clickQueryTemplate: current.clickQueryTemplate ?? null,
+    interactionPropName: current.interactionPropName ?? null,
+    rightClickPropName:
+      detectRightClickProp(code) ?? (storedRightClick && code.includes(storedRightClick) ? storedRightClick : null),
+    clickArgIsObject: current.clickArgIsObject ?? true,
+    extractionStatus: current.extractionStatus ?? "succeeded",
+  };
+}
+
+/** An element as GET /elements/{id} returns it (Spring's CustomElementResponse), as edit_element reads it. */
+interface StoredElement {
+  name?: string;
+  elementKey?: string;
+  description?: string;
+  status?: string;
+  currentVersion?: number | null;
+  currentVersionPayload?: StoredVersionPayload | null;
+}
+
+/** Why edit_element refused to publish over a version another client published meanwhile. */
+function staleVersionText(elementId: string, baseVersion: number, latestVersion: number | undefined): string {
+  const now =
+    latestVersion === undefined
+      ? "its current version number can no longer be read"
+      : `its current version is now v${latestVersion}: another client published it while this call ran`;
+  return [
+    `edit_element refused the call: the edits were applied to v${baseVersion} of element ${elementId}, but ${now}.`,
+    "Nothing was published and no screen was touched.",
+    "Read the current code with get_element and call edit_element again, with every search copied from that code.",
+  ].join(" ");
+}
+
+/** Why edit_element refused the call, one line per failed edit, numbered from 1. */
+function editFailureText(failures: EditFailure[], total: number): string {
+  return [
+    "edit_element refused the call: nothing was changed, no version was published and no screen was touched.",
+    ...failures.map((failure) => `- Edit ${failure.index + 1} of ${total} (${failure.reason}): ${failure.hint}`),
+    "Fix the edits above and send the call again with every edit, the ones that matched too.",
+  ].join("\n");
+}
+
+interface RepinOutcome {
+  repinnedScreens: string[];
+  repinFailures: { screenId: string; error: string }[];
+  otherPins: OtherPin[];
+}
+
+/** The project's stored screens (Spring has no read for one screen: it comes with the project). */
+async function readProjectScreens(api: ApiClient, projectId: string): Promise<Record<string, unknown>[]> {
+  const project = await api.get<{ customScreens?: unknown }>(`/projects/${projectId}`);
+  const stored = project?.customScreens;
+  return Array.isArray(stored)
+    ? stored.filter((screen): screen is Record<string, unknown> => typeof screen === "object" && screen !== null)
+    : [];
+}
+
+/**
+ * Move every placement of this element pinned to `editedVersion` (the version the edit was applied
+ * to) to `publishedVersion`, ONE SCREEN AT A TIME: parallel saves of one project's screens
+ * overwrite each other. Pins to any other version stay as they are and come back in `otherPins`.
+ *
+ * Each screen is read again immediately before its own PUT and the change is applied to that fresh
+ * copy, so a save from the Screen Builder or another tool that landed since the first read is kept;
+ * a screen that no longer pins `editedVersion` (or is gone) is skipped. The remaining window is one
+ * request wide: a save landing between that read and its PUT is still overwritten, because the
+ * server's screen PUT has no conditional write (it takes no version to check against).
+ *
+ * A screen that fails is reported, never fatal (the version is already published).
+ */
+async function repinProjectScreens(
+  api: ApiClient,
+  projectId: string,
+  elementKey: string,
+  editedVersion: number,
+  publishedVersion: number
+): Promise<RepinOutcome> {
+  const outcome: RepinOutcome = { repinnedScreens: [], repinFailures: [], otherPins: [] };
+  // The newest read of the project's screens; otherPins is taken from it at the end.
+  let latest: Record<string, unknown>[];
+  try {
+    latest = await readProjectScreens(api, projectId);
+  } catch (error) {
+    outcome.repinFailures.push({
+      screenId: "*",
+      error: `Could not read the project's screens, so none was re-pinned: ${errorText(error)}`,
+    });
+    return outcome;
+  }
+  const candidates = latest.filter((screen) => screenPinsVersion(screen, elementKey, editedVersion));
+  for (const candidate of candidates) {
+    const screenId = typeof candidate.id === "string" ? candidate.id : "";
+    if (!screenId) {
+      outcome.repinFailures.push({ screenId, error: "This screen has no id, so it cannot be put back." });
+      continue;
+    }
+    try {
+      latest = await readProjectScreens(api, projectId);
+    } catch (error) {
+      outcome.repinFailures.push({
+        screenId,
+        error: `Could not read this screen again right before re-pinning it, so it was left alone: ${errorText(error)}`,
+      });
+      continue;
+    }
+    const fresh = latest.find((screen) => screen.id === screenId);
+    const wire = fresh ? repinScreen(fresh, elementKey, editedVersion, publishedVersion) : null;
+    if (!wire) continue;
+    try {
+      await api.put(`/projects/${projectId}/screens/${encodeURIComponent(screenId)}`, wire);
+      outcome.repinnedScreens.push(screenId);
+    } catch (error) {
+      outcome.repinFailures.push({ screenId, error: errorText(error) });
+    }
+  }
+  outcome.otherPins = otherPinsIn(latest, elementKey, editedVersion, publishedVersion);
+  return outcome;
+}
+
+/** The version number of an element's current code: the payload's own, else the element's pointer. */
+function currentVersionOf(element: {
+  currentVersion?: number | null;
+  currentVersionPayload?: { version?: number | null } | null;
+}): number | undefined {
+  const fromPayload = element.currentVersionPayload?.version;
+  if (typeof fromPayload === "number") return fromPayload;
+  return typeof element.currentVersion === "number" ? element.currentVersion : undefined;
+}
 
 /** The actions contract for `actionHandlers` wiring — assembled from the version payload. */
 function actionsFor(element: Record<string, unknown>): ReturnType<typeof buildActionsContract> {
@@ -525,6 +694,163 @@ export function registerElementTools(server: McpServer, api: ApiClient): void {
         propsSchema: input.propsSchema,
         defaultProps: input.defaultProps,
         clickQueryTemplate: input.clickQueryTemplate,
+        panel: await fetchPanelContext(api, input.projectId),
+      });
+    })
+  );
+
+  server.registerTool(
+    "edit_element",
+    {
+      title: "Edit custom element",
+      description:
+        "Fix an element that already exists with a few search-and-replace edits, applied on the server to the code of its current version. " +
+        "It edits the current version whatever the element's status and, exactly like publish_element_version, the result is published (a draft element becomes published). " +
+        "Prefer it over publish_element_version whenever the change is a few lines: you send only what changes, and nothing else in the file can break. " +
+        "Each search must be copied EXACTLY from the current code (get_element shows it; one consistent indentation difference is tolerated) and include enough surrounding lines to match exactly one place. " +
+        "Edits run in order, each on the code the edits before it leave. When any edit matches no place or more than one, the whole call is refused, each failed edit is named with the reason, and nothing is published. " +
+        "On success it runs the same pre-flight as publish_element_version on the edited code (the stored skeleton is carried forward as it is, not validated again), publishes the next version with every other field carried forward unchanged (propsSchema, defaultProps, structurePrompt, clickQueryTemplate, interactionPropName, skeleton), " +
+        "and re-pins every screen placement pinned to the version it edited (baseVersion in the result) to the new one (repinScreens: false leaves the screens alone). " +
+        "A placement pinned to any other version may be pinned on purpose, so it keeps its pin and is listed in otherPins. " +
+        "When another client publishes this element while the call runs, the call is refused and nothing is published: read the current code with get_element and call edit_element again. " +
+        "A change to propsSchema, defaultProps or the templates goes through publish_element_version.",
+      annotations: WRITE,
+      outputSchema: {
+        elementId: z.string(),
+        publishedVersion: z.number().optional(),
+        baseVersion: z.number(),
+        appliedEdits: z.number(),
+        repinnedScreens: z.array(z.string()),
+        repinFailures: z.array(z.object({ screenId: z.string(), error: z.string() })).optional(),
+        otherPins: z.array(z.object({ screenId: z.string(), version: z.number() })).optional(),
+        preview: z.object({}).passthrough().optional(),
+      },
+      _meta: {
+        ui: { resourceUri: PREVIEW_RESOURCE_URI },
+        "ui/resourceUri": PREVIEW_RESOURCE_URI,
+      },
+      inputSchema: {
+        projectId: z.string().uuid(),
+        elementId: z.string().uuid(),
+        edits: z
+          .array(
+            z.object({
+              search: z
+                .string()
+                .max(20000)
+                .describe("Text copied exactly from the current code, with enough surrounding lines to match one place"),
+              replace: z.string().max(20000).describe("What the matched text becomes"),
+            })
+          )
+          .min(1)
+          .max(20)
+          .describe("1 to 20 edits, applied in order"),
+        repinScreens: z
+          .boolean()
+          .default(true)
+          .describe(
+            "Move every screen placement pinned to the edited version onto the new one (default true). Pins to other versions are never moved."
+          ),
+      },
+    },
+    guarded(async (input) => {
+      const elementPath = `/projects/${input.projectId}/elements/${input.elementId}`;
+      const element = await api.get<StoredElement>(elementPath);
+      if (!element) return fail(`Element ${input.elementId} not found.`);
+      const current = element.currentVersionPayload;
+      if (!current?.code) {
+        return fail(`Element ${input.elementId} has no version code to edit. Publish one with publish_element_version.`);
+      }
+      const baseVersion = currentVersionOf(element);
+      if (baseVersion === undefined) {
+        return fail(
+          `The version number of element ${input.elementId}'s current code could not be read, so the edit cannot be checked against what is live. Nothing was published and no screen was touched. ` +
+            "Read the element with get_element and call edit_element again, or publish the full code with publish_element_version."
+        );
+      }
+
+      const edited = applyEdits(current.code, input.edits);
+      if (!edited.ok) return fail(editFailureText(edited.failures, input.edits.length));
+      if (edited.code === current.code) {
+        return fail("The edits leave the code exactly as it was, so there is nothing to publish. Nothing was changed.");
+      }
+
+      // The full pre-flight runs on the edited CODE only. The stored skeleton is carried forward
+      // as it is: an edit that does not touch it is never refused for it (a skeleton stored before
+      // today's validator rules would otherwise block every unrelated fix).
+      const problems = validateElementCode(edited.code, "component");
+      if (problems.length === 0) {
+        problems.push(
+          ...checkInteractionWiring({
+            code: edited.code,
+            propsSchema: current.propsSchema ?? {},
+            clickQueryTemplate: current.clickQueryTemplate ?? null,
+            interactionPropName: current.interactionPropName ?? null,
+          })
+        );
+      }
+      if (problems.length) {
+        return fail(
+          `The edited code was rejected by pre-flight validation, so nothing was published and no screen was touched:\n- ${problems.join("\n- ")}\n` +
+            "Fix it with other edits and call edit_element again. A fix that needs a different propsSchema, clickQueryTemplate or interactionPropName goes through publish_element_version."
+        );
+      }
+
+      // Never build on a stale version: another client may have published since the code above was
+      // read, and the next version would silently drop its change. Read the version number again
+      // right before the publish. The remaining window is the publish request itself: Spring's
+      // version append takes no expected version to check against.
+      const latest = await api.get<StoredElement>(elementPath);
+      if (!latest) return fail(`Element ${input.elementId} not found.`);
+      const latestVersion = currentVersionOf(latest);
+      if (latestVersion !== baseVersion) return fail(staleVersionText(input.elementId, baseVersion, latestVersion));
+
+      const appended = await api.post<{ version?: number }>(
+        `${elementPath}/versions`,
+        nextVersionBody(current, edited.code, element.description, edited.applied)
+      );
+      await api.patch(elementPath, { status: "published" });
+
+      // The version is published from here on: nothing below may turn the call into an error.
+      let publishedVersion = typeof appended?.version === "number" ? appended.version : undefined;
+      if (publishedVersion === undefined) {
+        try {
+          const fresh = await api.get<{ currentVersion?: number }>(elementPath);
+          if (typeof fresh?.currentVersion === "number") publishedVersion = fresh.currentVersion;
+        } catch {
+          /* reported below as a re-pin that could not run */
+        }
+      }
+
+      let repin: RepinOutcome = { repinnedScreens: [], repinFailures: [], otherPins: [] };
+      if (input.repinScreens !== false) {
+        if (publishedVersion !== undefined && element.elementKey) {
+          repin = await repinProjectScreens(api, input.projectId, element.elementKey, baseVersion, publishedVersion);
+        } else {
+          repin.repinFailures.push({
+            screenId: "*",
+            error:
+              "The new version number did not come back, so no screen was re-pinned. Read it with list_element_versions and pin it with put_screen.",
+          });
+        }
+      }
+
+      const result = ok({
+        elementId: input.elementId,
+        ...(publishedVersion !== undefined ? { publishedVersion } : {}),
+        baseVersion,
+        appliedEdits: edited.applied,
+        repinnedScreens: repin.repinnedScreens,
+        ...(repin.repinFailures.length > 0 ? { repinFailures: repin.repinFailures } : {}),
+        ...(repin.otherPins.length > 0 ? { otherPins: repin.otherPins } : {}),
+      });
+      return withPreview(result, {
+        name: element.name ?? element.elementKey ?? "Custom element",
+        version: publishedVersion,
+        code: edited.code,
+        propsSchema: current.propsSchema,
+        defaultProps: current.defaultProps ?? undefined,
+        clickQueryTemplate: current.clickQueryTemplate,
         panel: await fetchPanelContext(api, input.projectId),
       });
     })
