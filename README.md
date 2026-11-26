@@ -39,7 +39,7 @@ examples to adapt, never to copy.
 (row-locked server merge: parallel saves of different screens are safe).
 
 **Custom elements** (`elements:*`): `list_elements` · `get_element` · `list_element_versions` ·
-`create_element` · `publish_element_version` · `preview_element` · `delete_element`, your agent writes the
+`create_element` · `publish_element_version` · `edit_element` · `preview_element` · `delete_element`, your agent writes the
 TSX; the server pre-flight validates it (compile + sandbox import allowlist + export
 contract) before publishing. In clients that support MCP Apps, `create_element`,
 `publish_element_version` and `preview_element` render the element LIVE in the panel, 

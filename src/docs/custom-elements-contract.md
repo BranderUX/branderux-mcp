@@ -26,6 +26,8 @@ export default function Component({ items, title, onSelectItem, onItemContextMen
 - **No default values on props** (demo data goes in defaultProps, not the code).
 - Allowed imports ONLY: react, @mui/material, @mui/system, @emotion/react,
   @emotion/styled, lucide-react, recharts, framer-motion, date-fns.
+- lucide-react is pinned at 0.453.0: an icon added in a later version does not exist in the
+  frame, and importing it breaks the whole element. Use icon names that version has.
 - Skeleton file: `export default function SkeletonComponent()` using Box/Skeleton/Stack.
 
 ## Interactivity rules
@@ -53,6 +55,9 @@ export default function Component({ items, title, onSelectItem, onItemContextMen
   so the agent can prefill values it already knows from the conversation — a visitor
   should never retype their own name or a date they just said. Date and time fields use
   real pickers (`<input type="date">` / `type="time"` or equivalent), never free text.
+  Submit from a button's `onClick`, with every field in the one callback's payload.
+  `read_doc element-skeletons` has a complete intake form, a navigation element and a
+  receipt to start from.
 
 ## Sandbox constraints (violations look broken in production)
 
@@ -65,11 +70,19 @@ export default function Component({ items, title, onSelectItem, onItemContextMen
   one fixed height or the content-sized iframe resizes and the host page jumps.
 - **Breakpoints resolve against the ELEMENT IFRAME width**, not the page — use `sm` keys
   for anything that must respond inside half-width slots.
-- Images must be absolute https URLs.
+- Images must be absolute https URLs. Some sites refuse an image requested from another
+  site (they check the referrer), so check that each hotlinked image loads from a page that
+  is not the business's own before you ship it (`curl -e "https://example.com/"` with the
+  image URL should answer 200, not 403). The same goes for the logo stored as `iconUrl`;
+  when the site refuses it, store a small `data:` URL of the same logo instead.
 - **Links open in a new tab** — `<a href="…" target="_blank" rel="noopener">` (MUI `Link`
   with the same props). The element frame allows popups but never top-level navigation: a
   link WITHOUT `target="_blank"` loads its destination inside the element's own frame, and
   `window.location` never navigates the visitor's page. `create_element` rejects a link without it (fragment links `#…` excepted).
+  The check reads ANY tag with an `href` prop as a link, so a wrapper such as
+  `<Out href={url}>` is rejected even when it renders `target="_blank"` inside: name a
+  wrapper's prop `to`. Add visually hidden text such as "(opens in a new tab)" so a screen
+  reader says where the link goes.
 - **Palette tokens**: the sandbox theme maps the brand to `primary` / `secondary` / `info`
   — the brand ACCENT is `info.main`. Text on a primary fill uses `primary.contrastText`;
   body text uses `text.primary` / `text.secondary`. NEVER use `background.default` or
@@ -139,11 +152,119 @@ Published sites and embeds can run right-to-left (Hebrew, Arabic…); the host d
 - When one side truly must differ, use the logical form: `marginInlineStart/End`,
   `paddingInlineStart/End`, `insetInlineStart/End`, `textAlign: "start"|"end"`,
   `borderStartStartRadius`.
-- Never set `dir` yourself. Icons that point somewhere (arrows, chevrons, send) mirror under RTL:
+- Never set `dir` yourself (email and phone inputs are the one exception, see "Traps that
+  only show on a phone"). Icons that point somewhere (arrows, chevrons, send) mirror under RTL:
   `sx={{ '[dir="rtl"] &': { transform: "scaleX(-1)" } }}`.
 
 `<Stack direction="row" sx={{ gap: 1.5, alignItems: "center" }}>` is right; `sx={{ ml: 2 }}` on
 the second child is wrong.
+
+## Traps that only show on a phone
+
+Each of these looks right in a desktop preview and breaks on the visitor's phone, where most
+visitors are. The skeletons in `read_doc element-skeletons` show most of them in place.
+
+**Width and layout**
+
+- **Design for a frame of 272 to 374px.** The element's frame is narrower than the phone.
+  Measured on real phones, a stored screen (the home or a fixed screen, with `padding.xs` 1)
+  leaves the phone width minus 16px, and a screen the agent composes live leaves the phone
+  width minus 48px: a 320px phone gives a live answer 272px, a 390px phone gives a stored
+  screen 374px. Check every element at both ends; its breakpoints follow that frame (see
+  Sandbox constraints).
+- **A control whose width changes with state gets its own row.** A stepper that grows from
+  "+" to "- 1 +", a price that gains a digit, a total that appears: beside text in a flex row,
+  the text narrows and rewraps under the visitor's thumb. On a phone put the growing control
+  on its own line under the item, so the item reads across the full width. Where a value must
+  sit beside text, give it a fixed cell (`width: N, flexShrink: 0, textAlign: "end"`), cap
+  counts (99+), or size a price to its widest value in `ch`. A total at the end of its own
+  row may grow; nothing beside it may move.
+- **Equal-width option boxes** (sizes, plans) drop to one column below the width where their
+  longest word would break mid-word, for example
+  `"@media (max-width: 329px)": { gridTemplateColumns: "1fr" }` (a media query also reads the
+  frame's width).
+- **MUI's `sx` reads a size from 0 to 1 as a fraction**: `width: 1` is 100%, not 1px. A
+  visually hidden span needs `width: "1px", height: "1px"`; with `1` it is as wide as its
+  parent and the page scrolls sideways.
+- **Long values wrap**: emails, addresses, URLs and references in a narrow column take
+  `overflowWrap: "anywhere"`.
+- **A sideways pill strip shows the active pill.** With seven pills, the fifth sits
+  off-screen on a phone. When the active key changes, scroll the strip itself, only when the
+  pill is outside it, and again once the fonts have loaded (they change the widths). The
+  boxes are compared as geometry, so this works in both directions:
+
+```tsx
+const strip = useRef<HTMLDivElement>(null);
+useEffect(() => {
+  const reveal = () => {
+    const box = strip.current;
+    const pill = box?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!box || !pill) return;
+    const outer = box.getBoundingClientRect();
+    const inner = pill.getBoundingClientRect();
+    if (inner.left < outer.left) box.scrollBy(inner.left - outer.left - 16, 0);
+    else if (inner.right > outer.right) box.scrollBy(inner.right - outer.right + 16, 0);
+  };
+  reveal();
+  document.fonts?.ready.then(reveal);
+}, [activeKey]);
+```
+
+**Type**
+
+- **`ButtonBase` needs `fontFamily: "inherit"`.** It renders a native `<button>`, which takes
+  the browser's own font, so text placed directly in it ignores the brand font (a
+  `Typography` inside it is unaffected).
+- **Stay on the weights a local font has.** A system font stack has few faces; ask for 800
+  and the phone draws whatever heavy face or synthetic bold it has. Use 300, 400 and 700.
+- **A web font rides inside the element.** The frame loads fonts only from its own origin
+  and from `data:` URLs, so a link to a font service never arrives. When the brand needs its
+  own face, embed it: a base64 woff2 in an `@font-face` rule through `GlobalStyles` (from
+  `@mui/material`), with `font-display: block`, subset to the characters and weights you use
+  (tens of KB). The brand settings keep a local stack for the site's own chrome.
+
+**Right to left** (beyond "Layout is direction-neutral" above)
+
+- **Latin and number runs** inside right-to-left text (a reference, a model name, a price
+  with a Latin unit) take `unicodeBidi: "plaintext"`. Never `direction: "ltr"`: the runtime's
+  right-to-left pass flips it to `rtl`.
+- **Time ranges use a plain hyphen** ("9:00-18:00"). Between two numbers an en dash is a
+  neutral character, so a right-to-left line shows the range backwards.
+- **Dates in the site's language.** An English "30 Sep 2026" built from parts reads "Sep 2026
+  30" on a right-to-left site. Use the language's own month names, or render the whole date
+  as one `plaintext` run.
+- **Email and phone inputs** take `slotProps={{ htmlInput: { dir: "ltr" } }}`, so an address
+  reads left to right inside a right-to-left form. It is the one `dir` an element sets.
+
+**Data from APIs**
+
+- **Decode HTML entities, never inject HTML.** Store and CMS APIs send names and titles with
+  entities (`Mix &#038; Match`, `&amp;`). Decode to text with
+  `new DOMParser().parseFromString(text, "text/html").documentElement.textContent`; never
+  `dangerouslySetInnerHTML`.
+- **Parse ISO dates by hand** (`iso.slice(0, 10).split("-")`). `new Date("2026-09-30")` is
+  midnight UTC, which is the day before for a visitor west of UTC.
+- **Never give a data field an `on*` name** (`onIndex`, `onSale`). The panel preview reads
+  every optional `onX?:` field in the code as a callback, and a top-level `on*` key in
+  `propsSchema` is derived as a real action, which can change which action is primary. When
+  a live source brings such a field and you cannot rename it, type it without the `?`
+  (`onSale: boolean`).
+
+**Props the agent fills**
+
+- **No optional copy props.** In flexible mode the agent fills an optional text prop it has
+  nothing for with a neutral sample value (the prop's own name in words, so a form shows
+  "Title" and "Intro"), whatever the description says. Hardcode headings, intros, links and
+  button queries in the element, in the site's language, and expose only the data the agent
+  or a binding really fills: rows, an active key, initial values, a saved record.
+- **`defaultProps` are preview data.** An element's own `defaultProps` feed the Element
+  Library, the panel preview and the actions contract's example; no live answer reads them,
+  so a realistic sample belongs there. A screen PLACEMENT carries no `defaultProps`: a stored
+  screen renders the placement's `defaultProps` under its `data` on every replay (and from
+  them alone when it has no data), so a sample there reaches every visitor.
+- **An element with no props still needs a data key on a fixed screen.**
+  `data: {"about": {}}` replays the follow-up line and nothing under it. Give the placement any non-empty key
+  the element ignores (`{"about": {"page": "about"}}`); bound screens are unaffected.
 
 ## Seeing what you built
 
@@ -158,6 +279,22 @@ to it, never to a remembered or narrated number. Where your client exposes it (C
 and other MCP clients), `list_element_versions` lists every version with its `createdAt`
 when you need to check what actually landed; without it, `get_element`'s `currentVersion`
 is the check.
+
+To fix an element that already exists, use `edit_element` whenever the change is a few
+lines: it takes search-and-replace edits instead of the whole file again, so nothing else in
+the code can break. Copy each `search` exactly from the current code (`get_element` shows it)
+with enough surrounding lines to match one place; when any edit matches no place or more than
+one, the whole call is refused and nothing is published. It edits the element's current
+version whatever its status and, exactly like `publish_element_version`, the result is
+published, so a draft element becomes published. It runs the same pre-flight on the edited
+code (the stored skeleton is carried forward as it is, not validated again), publishes the next
+version with every other field unchanged, and moves every screen placement pinned to the version
+it edited (`baseVersion` in the result) onto the new one (`repinScreens: false` leaves the screens
+alone). A placement pinned to any other version may be pinned on purpose, so it keeps its pin
+and is listed in `otherPins`. When another client publishes the element while the call runs,
+the call is refused and nothing is published: read the code again with `get_element` and send
+the edits again. A change to `propsSchema`, `defaultProps` or the templates still goes through
+`publish_element_version`.
 
 ## Query templates
 

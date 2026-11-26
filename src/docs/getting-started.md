@@ -74,7 +74,8 @@ Build WITH the user, not silently — gather intent first, show results as you g
    and VERIFY with `get_project` that `settings.customPages` is non-empty
    before you tell the user the build is done.
 4. Write custom elements YOURSELF (you know the product) following
-   `custom-elements-contract`, publish with `create_element` — each one renders live in
+   `custom-elements-contract` (`element-skeletons` holds a complete navigation element,
+   intake form and receipt to start from), publish with `create_element` — each one renders live in
    the panel as it publishes (supporting clients), so the user approves as you go.
 5. Disable the FIXED elements that don't fit the product via `update_project_settings`
    `{"elementVisibility": {"data-table": false, ...}}` — a branded app should compose
