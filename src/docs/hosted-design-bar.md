@@ -45,6 +45,10 @@ hint that free text works ("Or just tell me who it is for and roughly how much")
   studio phones to confirm." Never "Welcome to our AI assistant".
 - No two templates share a home pattern; when the moment is the same as a reference, reuse the
   PATTERN (a decision, a deck, a finder, a desk), not the tiles.
+- Affordance matches action. An answer that opens a screen looks like navigation (a row or a
+  card with a forward chevron); checkboxes, pills and "select" wording belong only where the
+  visitor really picks something. A home of answers drawn as checkboxes reads as a form to
+  fill in.
 
 ## 3. One screen, one job
 
@@ -55,7 +59,8 @@ confirmation. The set that covers most businesses:
   the bouquets for an occasion, the shelf for one person),
 - one item (a dish, a room, a bouquet, a product) with its facts and ONE primary action,
 - one intake form carrying every field in its click query, opened by the live agent and
-  prefilled with what the visitor already said (never a fixed screen, see 4),
+  prefilled with what the visitor already said (never a fixed screen, see 4), with the site's
+  own fields, options and consent wording, the consent box unticked,
 - one confirmation, rendered ONLY after the write succeeded, showing what was saved and the
   honest next step ("the shop calls to confirm"),
 - the utility screens the data supports (hours, delivery windows, the local guide, a basket).
@@ -89,7 +94,9 @@ calculators stay fixed screens.
 ## 5. Real data, honest numbers
 
 - Seed the customer's real rows when you can obtain them (their menu, their price list, their
-  rooms). When you cannot, seed clearly sample rows (`_demo: true`) and say so.
+  rooms). When you cannot, seed clearly sample rows (`_demo: true`) and say so. What the
+  business's own pages may supply is in `hosted-agent-contract`, "Data from the business's
+  own site".
 - Never show a live number nobody maintains (a minute-by-minute wait, live stock a shop does
   not track). Build the board from records a business really keeps (hours, who works today,
   a standing note) and let the copy say what the desk knows.
@@ -100,11 +107,16 @@ calculators stay fixed screens.
 
 ## 6. Art direction comes from the business
 
+- Measure the business's real UI instead of guessing it: the button fill (or gradient),
+  radius, height, case and letter spacing; the card, input, tab and section backgrounds and
+  borders; the heading weights. Mirror them in every element, so a screen from the agent
+  looks like a page of the site.
 - Palette from the business (their site, their sign, their category), with a background and a
   secondary background (the site chrome) that differ from every other project you have built.
 - Font stacks that exist locally on phones (a serif for a bistro, a condensed sans for a
   barber, the system sans for a shop); a web font that loads late swaps after paint, which
-  reads as broken.
+  reads as broken. When the brand needs its own face, it rides inside the element
+  (`custom-elements-contract`, "Traps that only show on a phone").
 - A logo mark in the header (`update_brand_settings` iconUrl; an inline SVG data URL is fine
   when the business has none).
 - One typographic system per build: a labels style (small caps), a numbers style (tabular),

@@ -37,8 +37,14 @@ ONE OVERRIDE: consent and safety moments beat this rule — informed-consent que
 write tools (question 5 below) keep their EXACT tool names and VERBATIM warnings; safety
 text is never softened, summarized, or de-jargoned.
 
+0. **Research the business's own site before anything that writes**: every page that
+   matters (what it sells or does, prices, FAQs, hours, the team, contact, terms and
+   privacy), the contact form's own fields, options and consent line, and the terms that
+   apply to what visitors send. Then write the visitor's moment and the home pattern it
+   gives (`hosted-design-bar` sections 1 and 2). What those pages may supply as data is
+   under "Data from the business's own site".
 1. Ask the FIVE QUESTIONS below (in chat; WAIT for answers before writing config).
-2. Brand (colors, fonts, and the site's logo URL as `iconUrl` when it has one; `logoHasWordmark: true`
+2. Brand from the site's measured values, never guessed (colors, fonts, and the site's logo URL as `iconUrl` when it has one; `logoHasWordmark: true`
    when that logo spells the name, so the header shows it alone and `brandName` stays the real name)
    ∥ `define_entity` (with the right `writePolicy`!) → `seed_records` (or live sources).
 3. `upsert_agent_config` — persona + policies encoding the answers, ALWAYS including
@@ -49,8 +55,13 @@ text is never softened, summarized, or de-jargoned.
    ASK the owner here for `policies.legalName` (the registered business name) and
    `policies.noticeContact` (one email or phone for privacy requests) and store their
    answers: the site's privacy notice shows both, so neither is ever scraped or guessed.
-4. Elements (submit elements MUST carry the full write payload — see MAKING A WRITE WORK)
-   → screens → `customPages`.
+   Write the persona and the skills as "Persona and skills that work" below describes, once
+   the elements of step 4 exist: their submission steps and routing lines name the form, the
+   receipt and each element's active key.
+4. Elements, ONE designed element per screen (`read_doc element-skeletons` for the
+   navigation, form and receipt; submit elements MUST carry the full write payload — see MAKING A WRITE WORK)
+   → screens → `customPages`, then switch the generic elements off (`update_project_settings`
+   `elementVisibility`) so the agent answers with the designed ones.
 5. `set_home_screen`: the designed home is a REQUIRED step for hosted apps, not a
    nicety, because without it every landing costs a model call and loads slow. Then
    `set_fixed_screens` for the questions this business answers over and over (the menu,
@@ -75,7 +86,9 @@ text is never softened, summarized, or de-jargoned.
    owner's enabled add-only writes — see "Where writes execute"; NOT public under
    `loginRequirement` "required"/"approval"/"private"). (If `publish_site` is not among
    your tools, say publishing is coming soon.)
-   **WRAP-UP — the moment `publish_site` succeeds, tell the owner in plain words (no tool,
+   **Then verify on a phone**, before the wrap-up: "Verify on a phone, after publishing"
+   below lists the checks; fix what they show.
+   **WRAP-UP — the moment `publish_site` succeeds and the phone check is done, tell the owner in plain words (no tool,
    field or platform-internal names):** (a) the live address of their site; (b) that AI
    assistants — Claude, ChatGPT and any MCP client — can now LOOK UP their business at the
    SAME address with `/mcp` on the end and answer about it in their brand, and give them
@@ -404,7 +417,8 @@ confirmation screen that confirms nothing:
    tokens you don't name are DISCARDED before the agent ever sees them.
 3. **Instructions to write**: the persona or a skill must explicitly say to call
    `create_<entity>` when a submission arrives (and `escalate_to_owner` in the same turn,
-   per the owner's escalation policy). `flexibleModeRules` does NOT reach the answering
+   per the owner's escalation policy, only once the created row came back; the wording that
+   works is under "Persona and skills that work"). `flexibleModeRules` does NOT reach the answering
    agent — it steers screen generation only; write instructions there are dead text. It is
    content guidance (which screens and components to prefer, what to offer when), never the
    wire format: serve drops every line of the persona, a skill or these rules that names
@@ -452,6 +466,27 @@ owner their orders are invisible.
   name into a row — the runtime tells the agent the current local time, so
   such labels are derived from the ISO date at answer time.
 
+## Data from the business's own site
+
+What the site states as a fixed fact may be seeded from its pages; what changes on its own is
+connected, never copied.
+
+- **Fixed facts, verbatim, with their page.** Services, plans and their listed prices, FAQs,
+  opening hours, team pages and policies that the site states in its text or its structured
+  data (JSON-LD) may be seeded as rows, or written into a skill, exactly as the site words
+  them. Each row names the page it came from (a `sourceUrl` field) and so does each skill
+  line. Never from a screenshot, never estimated, never filled in where the page is silent.
+- **What changes on its own is live.** Stock, a product catalogue, posts and availability
+  come from the site's API as a live source ("Live external data sources" and the custom-REST
+  connector below) when the site exposes one. When it does not, link to the page that shows
+  them (a `url` on a row, a link on the screen) instead of copying them.
+- **A time-limited offer is never stored** (a sale, a seasonal price, "this week only"): it
+  is wrong the day it ends.
+- **When the site contradicts itself** (two prices for one plan on two pages), show each
+  figure on the screen for the page it comes from, name that page on the element, and tell
+  the agent in the `site-facts` skill to name the page whenever it quotes one.
+- **Tell the owner in one sentence** what was taken from which pages, so they can check it.
+
 ## What the runtime does with all this (context, not your job)
 
 Serving (`/api/agent/serve`, project-key auth) assembles: persona +
@@ -483,12 +518,15 @@ the owner test chat.
 
 ## Build order (hosted)
 
-The arc at the top of this doc is the build order: questions → brand ∥ entities
-(writePolicy!) → seed ∥ persona/config/skills → elements (submit payloads!) → screens →
+The arc at the top of this doc is the build order: the business's own site and the
+visitor's moment → questions → brand (measured) ∥ entities
+(writePolicy!) → seed ∥ config → elements (one per screen; submit payloads!) → generic
+elements off → screens →
 pages → `set_home_screen` (plus `set_fixed_screens` for the queries asked over and over,
 and the widget-home default when the build is a chat bubble on the owner's own site) →
+persona and skills (they name the elements) →
 `verify_canned_screens` (rows proven, not assumed) →
-**`publish_site`, immediately, unprompted**. Screens
+**`publish_site`, immediately, unprompted** → verify on a phone. Screens
 referencing entity data should name real fields from the schema in their element
 structure. The arc ends at a LIVE URL, not at "verified with a test query" — then, ONLY
 when the owner already has a website, one closing step puts the agent on it (step 7):
@@ -514,9 +552,10 @@ matching `source.kind` (`shopify-products` | `woo-store-products` |
 - NEVER `seed_records` for a live-sourced entity — its `query_<name>` tool
   fetches the endpoint at serve time (normalized + cached ~2min), so prices,
   stock and images track the store.
-- Page text and screenshots are NEVER a data source for ANY entity — they
-  serve styling and schema discovery only. An eyeballed catalog is partial
-  and wrong-priced while looking real.
+- Screenshots are NEVER a data source for ANY entity, and page text is one
+  only for the fixed facts in "Data from the business's own site" above;
+  otherwise pages serve styling and schema discovery. An eyeballed catalog is
+  partial and wrong-priced while looking real.
 - `blocked` means bot protection refused server access: say so, and ask the
   user for a catalog export (CSV/Excel/PDF/photos) instead.
 - Re-running `define_entity` WITHOUT `source` converts the entity back to
@@ -528,9 +567,87 @@ matching `source.kind` (`shopify-products` | `woo-store-products` |
 max 10/project) that ride INSIDE the hosted agent's prompt on every serve
 call — domain knowledge and behavior: shipping/returns policy, sizing guides,
 care instructions, service processes. Keep each one SHORT and specific
-(everything enabled costs every call; total injection is capped at 24k).
+(everything enabled costs every call; total injection is capped at 24,000 characters,
+see "Persona and skills that work" for what happens past it).
 Skills carry the same authority as the persona — they can never override
 platform rules. `enabled=false` parks a skill without deleting.
+
+## Persona and skills that work
+
+Write the persona once the elements exist, in the site's language and the first person
+singular. Adapt this template; keep the submission steps and the last paragraph as worded,
+because each line fixes a failure seen on live sites:
+
+```
+I'm <Business>'s AI <role>, <what the business is, in its site's words>. I speak for
+<Business> in the first person singular, in <language>, <tone>.
+
+Who I help: <the visitors>. I <what I do for them: find the right service, show the prices,
+take a request to the team>.
+
+What I know comes only from <Business>'s own site (the site-facts skill) and my data tools
+(<entities>). I never invent <prices, people, dates, availability>. <What I have no data
+for, and where I send people.>
+
+<For a regulated business: I give no advice and no view on a visitor's case; the site's own
+terms, quoted.>
+
+Whenever a visitor wants to <get in touch / book / get a quote>, I open the <form element>
+alone, prefilled with everything they already told me in this conversation, never inventing
+a value.
+
+When a submission arrives (a query starting with "<the form template's prefix>:"), I do
+these one after another, never in parallel:
+1. create_<entity> with every field exactly as submitted; marketingConsent is true only when
+   the submission says "newsletter: yes", otherwise false; empty fields stay empty. The tool
+   waits for the visitor to confirm the details on the card, and I wait for its result
+   before anything else.
+2. Only after it returned the created row: escalate_to_owner with the visitor's name, their
+   email (and phone if given) and one line on the request. If the visitor cancelled or the
+   confirmation did not arrive, I do not escalate and I show no confirmation; I say nothing
+   was sent and offer the form again.
+3. Then exactly two things and nothing else: the one sentence "<Your request is in.>" and
+   the <receipt element>, shown the same way I show every other designed screen, with
+   reference = the first 6 characters of the created row's id in capitals, receivedLabel =
+   today's date in <language>, and the saved fields.
+
+The words a visitor reads from me are plain sentences only. I never write the name or id of
+a screen, an element or a tool in my text, and I never call a tool named after a screen:
+screens are shown, not named and not called.
+```
+
+- **The order is the point.** "Escalate in the same turn" without the order lets a model
+  email the owner before the visitor confirmed, or confirm a request that was cancelled.
+  Step 2 escalates only when the owner asked to hear about each request (question 4).
+- **The last paragraph prevents a silent failure**: a model that names the receipt in its
+  text, or calls a tool named after it, leaves the visitor with no confirmation although the
+  record and the owner's email exist.
+- **Screen rules ride `flexibleModeRules`**, not the persona: one designed element per
+  answer, the form alone and prefilled (its initial values carry every value the visitor
+  gave anywhere in the conversation, earlier turns included, every time it opens; a field
+  nobody gave is left out, never sent as an empty string), the receipt only after the write
+  succeeded.
+
+Two skills cover most businesses:
+
+- **`site-facts`**: the business as its site describes it, each fact with the page it came
+  from, quotes marked as quotes, disclaimers verbatim; how to reach the business (the form,
+  and what the site does not publish); and what the agent never does or leaves out on
+  purpose, with where to send those questions.
+- **`routing`**: one line per element: which questions it answers and which active key to
+  pass. Plus the form's fixed options, VERBATIM and in order: the agent cannot read them
+  from the element's code, and leaves an option it cannot match unselected.
+
+All enabled skills ride every answer whole, capped at 24,000 characters together (each
+skill's name line counts). The skill that would cross the cap is replaced by an "omitted"
+line and every skill after it is dropped, with no warning. Keep the total well under the
+cap and put long catalogues in entities, not skills.
+
+**Read one live transcript after writing the persona** (`list_conversations` and
+`get_conversation`, where your client has them). Look for details the site never states,
+a screen named instead of shown, and anything said in the wrong voice. One persona line
+usually fixes added detail: "Every statement I make traces to a line in my knowledge; I add
+nothing it does not state."
 
 ## Universal custom-REST connector (V28)
 
@@ -711,6 +828,23 @@ fixed layout.
 The element itself: `read_doc custom-elements-contract` → "Queries list (a widget's
 home)" is a complete reference element with its query templates, and the layout there is
 a starting point, not a house style to copy.
+
+## Verify on a phone, after publishing
+
+Open the published site at phone width (320 to 390px) and look at what a visitor sees:
+
+- **The home and every chip.** Each chip but the form's opens its designed screen, with no
+  sideways scroll and nothing cut off (`hosted-design-bar` section 8, and the element
+  traps in `custom-elements-contract`).
+- **The form's chip stays live.** Tell the agent your name and what you need in a sentence,
+  then tap the chip: the form opens with what you said already filled in. A fixed screen
+  behind that chip would open it blank, which is why it appears in `uncoveredQueries`.
+- **Walk the real submit once**: create, confirm, receipt. Submit the form, confirm the card,
+  and check that the receipt appears and the record is in `list_entity_records` (the owner's
+  Inbox). The receipt depends on the persona's wording, and a model that names or calls the
+  screen instead of showing it leaves the visitor with nothing although the record and the
+  owner's email exist; only a real submit shows it. The record and the alert email are real:
+  tell the owner they came from your test.
 
 ## After launch: the owner's data
 
